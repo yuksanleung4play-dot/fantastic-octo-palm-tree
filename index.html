@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>首爾質感傢俬探店地圖 ｜ 聖水洞 × 漢南洞</title>
+  <meta name="description" content="首爾聖水洞與漢南洞的質感傢俬店、選物店與傢俱陳列室探店地圖，含詳細地址、風格描述、營業時間、預估預算與步行路線建議。" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <div class="hero__inner">
+      <p class="hero__eyebrow">SEOUL · DESIGN WALK</p>
+      <h1 class="hero__title">首爾質感傢俬探店地圖</h1>
+      <p class="hero__subtitle">聖水洞 <span>성수동</span> × 漢南洞 <span>한남동</span></p>
+      <p class="hero__lead">精選必逛的選物店與傢俱陳列室，附上地址、風格、營業時間與預估預算，並規劃最順暢的步行路線。</p>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs" aria-label="區域切換">
+    <button class="tab" data-district="seongsu">聖水洞 <span>성수동</span></button>
+    <button class="tab" data-district="hannam">漢南洞 <span>한남동</span></button>
+  </nav>
+
+  <main class="container">
+    <!-- 區域簡介 -->
+    <section class="intro" id="intro">
+      <div class="intro__head">
+        <h2 id="district-name"></h2>
+        <p class="intro__tagline" id="district-tagline"></p>
+      </div>
+      <p class="intro__text" id="district-intro"></p>
+      <ul class="intro__meta">
+        <li><span class="meta-label">最近車站</span><span id="district-station"></span></li>
+        <li><span class="meta-label">建議時段</span><span id="district-time"></span></li>
+      </ul>
+    </section>
+
+    <!-- 地圖 + 路線 -->
+    <section class="map-section">
+      <div class="map-panel">
+        <h3 class="section-title">探店地圖</h3>
+        <p class="map-hint">點選地圖上的編號，或下方卡片即可互相對應。此為示意路線圖，實際距離請參考導航 App。</p>
+        <div class="map-wrap">
+          <svg id="map-svg" viewBox="0 0 960 640" role="img" aria-label="探店示意地圖" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+      </div>
+
+      <aside class="route-panel">
+        <h3 class="section-title">步行路線建議</h3>
+        <p class="route-note" id="route-note"></p>
+        <ol class="route-list" id="route-list"></ol>
+      </aside>
+    </section>
+
+    <!-- 篩選 -->
+    <section class="filters">
+      <h3 class="section-title">必逛店家</h3>
+      <div class="chips" id="filter-chips" role="group" aria-label="店家類型篩選"></div>
+    </section>
+
+    <!-- 卡片 -->
+    <section class="cards" id="cards"></section>
+
+    <!-- 預算速覽 -->
+    <section class="legend">
+      <h3 class="section-title">預算級距速覽</h3>
+      <div class="legend__items">
+        <div class="legend__item"><span class="dots">₩</span><div><strong>親民</strong><p>多為文具、生活雜貨與咖啡，小物 ₩10,000 起。</p></div></div>
+        <div class="legend__item"><span class="dots">₩₩</span><div><strong>中階</strong><p>設計選物與作家器皿，單品約 ₩30,000–₩300,000。</p></div></div>
+        <div class="legend__item"><span class="dots">₩₩₩</span><div><strong>高階</strong><p>高端設計傢俱與中古老件，單品可達 ₩1,000,000 以上。</p></div></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>本地圖為探店參考彙編，地址、營業時間與預算可能變動，出發前請以 Naver Map 與店家官方 Instagram 為準。</p>
+    <p class="footer__sign">Seoul Design Walk · 聖水洞 × 漢南洞</p>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
