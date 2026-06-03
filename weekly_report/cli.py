@@ -72,9 +72,25 @@ def _build_parser() -> argparse.ArgumentParser:
         help="其他事項，可重複指定多個。",
     )
     p.add_argument(
+        "--daily",
+        action="append",
+        default=[],
+        metavar="YYYY-MM-DD=內容",
+        help=(
+            "每日日常工作內容的輸入接口，格式為 日期=內容；"
+            "同一天多項可用「；」或「;」分隔，亦可重複指定本參數。"
+            "例：--daily 2026-06-03=完成需求評審；修復登入問題"
+        ),
+    )
+    p.add_argument(
+        "--merge-threads",
+        action="store_true",
+        help="把同一天同主題（去 Re:/Fwd: 後相同）的郵件合併成一條（預設每封分別列出）。",
+    )
+    p.add_argument(
         "--interactive",
         action="store_true",
-        help="互動模式：逐項詢問缺少的資訊與其他事項。",
+        help="互動模式：逐項詢問缺少的資訊、每日工作內容與其他事項。",
     )
     p.add_argument(
         "--include-empty-days",
@@ -117,10 +133,37 @@ def _resolve_config(args: argparse.Namespace) -> ReportConfig:
     if args.other:
         config.other_matters = list(config.other_matters) + list(args.other)
 
+    for spec in args.daily:
+        _apply_daily_spec(config, spec)
+
     if args.interactive:
         _interactive_fill(config)
 
     return config
+
+
+def _split_items(text: str) -> List[str]:
+    """把一行多項內容（以中英文分號分隔）拆成清單。"""
+
+    parts = []
+    for chunk in text.replace("；", ";").split(";"):
+        chunk = chunk.strip()
+        if chunk:
+            parts.append(chunk)
+    return parts
+
+
+def _apply_daily_spec(config: ReportConfig, spec: str) -> None:
+    """解析 ``--daily YYYY-MM-DD=內容1；內容2`` 並寫入設定。"""
+
+    if "=" not in spec:
+        raise ValueError(
+            f"--daily 格式錯誤：{spec!r}，應為 日期=內容（例 2026-06-03=完成評審）。"
+        )
+    day_str, _, content = spec.partition("=")
+    day = parse_date(day_str)
+    for item in _split_items(content):
+        config.add_daily_work(day, item)
 
 
 def _interactive_fill(config: ReportConfig) -> None:
@@ -129,6 +172,23 @@ def _interactive_fill(config: ReportConfig) -> None:
         config.name = input("姓名：").strip() or config.name
     if not config.department:
         config.department = input("部門：").strip() or config.department
+
+    # 每日日常工作內容的輸入接口：逐日詢問。
+    print(
+        "請輸入每日的日常工作內容（多項以「；」分隔，留空則略過該日）：",
+        file=sys.stderr,
+    )
+    from datetime import timedelta
+
+    day = config.period_start
+    while day <= config.period_end:
+        try:
+            line = input(f"{day:%Y-%m-%d}（{_weekday_zh(day)}）：").strip()
+        except EOFError:
+            break
+        for item in _split_items(line):
+            config.add_daily_work(day, item)
+        day += timedelta(days=1)
 
     print("輸入其他事項，一行一項，空行結束：", file=sys.stderr)
     while True:
@@ -139,6 +199,10 @@ def _interactive_fill(config: ReportConfig) -> None:
         if not line:
             break
         config.other_matters.append(line)
+
+
+def _weekday_zh(day: date) -> str:
+    return ["週一", "週二", "週三", "週四", "週五", "週六", "週日"][day.weekday()]
 
 
 def _emails_for(
@@ -218,7 +282,10 @@ def main(argv: Optional[List[str]] = None) -> int:
 
         emails = _emails_for(args, config)
         report = build_report(
-            config, emails, include_empty_days=args.include_empty_days
+            config,
+            emails,
+            include_empty_days=args.include_empty_days,
+            merge_threads=args.merge_threads,
         )
         output = render(report, args.format)
     except (FileNotFoundError, ValueError, RuntimeError) as exc:

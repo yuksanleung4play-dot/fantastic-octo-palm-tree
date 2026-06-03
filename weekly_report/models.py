@@ -83,6 +83,36 @@ class ReportConfig:
     def period_text(self) -> str:
         return f"{self.period_start:%Y-%m-%d} ~ {self.period_end:%Y-%m-%d}"
 
+    def add_daily_work(self, day, text: str) -> None:
+        """每日日常工作內容的輸入接口。
+
+        讓使用者（或其他程式）自行為某一天補充工作內容。可重複呼叫，
+        同一天的多條內容會累加。
+
+        參數
+        ----
+        day:
+            ``datetime.date`` 或 ``YYYY-MM-DD`` 字串。
+        text:
+            該天的一條工作內容。
+        """
+
+        if isinstance(day, datetime):
+            day = day.date()
+        if isinstance(day, date):
+            key = day.strftime("%Y-%m-%d")
+        else:
+            key = str(day).strip()
+
+        if not text or not str(text).strip():
+            return
+
+        bucket = self.manual_items.setdefault(key, [])
+        if isinstance(bucket, str):
+            bucket = [bucket]
+            self.manual_items[key] = bucket
+        bucket.append(str(text).strip())
+
 
 @dataclass
 class WeeklyReport:

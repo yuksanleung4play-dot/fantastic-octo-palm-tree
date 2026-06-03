@@ -63,12 +63,25 @@ class BuildReportTests(unittest.TestCase):
         self.assertEqual(report.work_days[0].day, date(2026, 6, 1))
         self.assertEqual(len(report.work_days[0].items), 2)
 
-    def test_merges_reply_threads_same_day(self):
+    def test_lists_each_email_separately_by_default(self):
         emails = [
             make_email("專案啟動", 1),
             make_email("Re: 專案啟動", 1, hour=15),
         ]
         report = build_report(self.config, emails)
+        # 預設每封分別列出（Re: 前綴仍會去除）。
+        self.assertEqual(len(report.work_days[0].items), 2)
+        self.assertEqual(
+            [i.description for i in report.work_days[0].items],
+            ["專案啟動", "專案啟動"],
+        )
+
+    def test_merge_threads_optional(self):
+        emails = [
+            make_email("專案啟動", 1),
+            make_email("Re: 專案啟動", 1, hour=15),
+        ]
+        report = build_report(self.config, emails, merge_threads=True)
         self.assertEqual(len(report.work_days[0].items), 1)
         self.assertEqual(report.work_days[0].items[0].description, "專案啟動")
 
@@ -88,6 +101,23 @@ class BuildReportTests(unittest.TestCase):
     def test_include_empty_days(self):
         report = build_report(self.config, [], include_empty_days=True)
         self.assertEqual(len(report.work_days), 7)
+
+    def test_add_daily_work_api(self):
+        self.config.add_daily_work(date(2026, 6, 4), "撰寫設計文件")
+        self.config.add_daily_work("2026-06-04", "與供應商開會")
+        report = build_report(self.config, [])
+        day = report.day_for(date(2026, 6, 4))
+        self.assertIsNotNone(day)
+        self.assertEqual(
+            [i.description for i in day.items],
+            ["撰寫設計文件", "與供應商開會"],
+        )
+        self.assertTrue(all(i.source == "manual" for i in day.items))
+
+    def test_add_daily_work_ignores_empty(self):
+        self.config.add_daily_work(date(2026, 6, 4), "   ")
+        report = build_report(self.config, [])
+        self.assertIsNone(report.day_for(date(2026, 6, 4)))
 
 
 class RendererTests(unittest.TestCase):

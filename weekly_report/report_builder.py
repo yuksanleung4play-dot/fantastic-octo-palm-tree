@@ -36,6 +36,22 @@ def _normalize_subject(subject: str) -> str:
     return text.strip()
 
 
+def _list_subjects(messages: Iterable[EmailMessage]) -> List[WorkItem]:
+    """把每封郵件分別列成一條工作項目（不做合併）。"""
+
+    items: List[WorkItem] = []
+    for msg in messages:
+        subject = _normalize_subject(msg.subject) or "(無主旨)"
+        items.append(
+            WorkItem(
+                description=subject,
+                source="email",
+                recipients=list(msg.recipients),
+            )
+        )
+    return items
+
+
 def _dedupe_subjects(messages: Iterable[EmailMessage]) -> List[WorkItem]:
     """同一天裡，把同主題（去前綴後相同）的郵件合併成一條工作項目。"""
 
@@ -81,17 +97,29 @@ def build_report(
     config: ReportConfig,
     emails: Iterable[EmailMessage],
     include_empty_days: bool = False,
+    merge_threads: bool = False,
 ) -> WeeklyReport:
     """組裝週報。
+
+    每日的「日常工作內容」由兩部分組成：
+
+    1. **郵件記錄**：把當天發件箱的每一封郵件「分別列出」成一條工作內容
+       （預設不合併；若 ``merge_threads=True`` 則把同主題對話合併成一條）。
+    2. **自行輸入**：透過 ``config.manual_items`` 提供的每日工作內容
+       （見 :meth:`weekly_report.models.ReportConfig.add_daily_work`），
+       這就是讓使用者自由補充每日工作的「接口」。
 
     參數
     ----
     config:
-        基本資訊與額外輸入（姓名、部門、期間、其他事項、手動工作項目）。
+        基本資訊與額外輸入（姓名、部門、期間、其他事項、每日工作內容）。
     emails:
         發件箱郵件（會自動依期間過濾）。
     include_empty_days:
         是否在報告中保留沒有任何工作項目的日期（預設略過）。
+    merge_threads:
+        是否把同一天同主題（去 Re:/Fwd: 後相同）的郵件合併成一條
+        （預設 False，即每封郵件分別列出）。
     """
 
     by_day: Dict[date, List[EmailMessage]] = {}
@@ -103,12 +131,15 @@ def build_report(
     for day in _date_range(config.period_start, config.period_end):
         work_day = WorkDay(day=day)
 
-        # 來自郵件的工作項目。
+        # (1) 來自郵件的工作項目：預設每封分別列出。
         day_emails = sorted(by_day.get(day, []), key=lambda m: m.sent_at)
-        for item in _dedupe_subjects(day_emails):
+        email_items = (
+            _dedupe_subjects(day_emails) if merge_threads else _list_subjects(day_emails)
+        )
+        for item in email_items:
             work_day.add(item)
 
-        # 來自手動補充的工作項目。
+        # (2) 來自使用者自行輸入的每日工作內容。
         for text in _manual_for_day(config, day):
             work_day.add(WorkItem(description=text, source="manual"))
 
