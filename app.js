@@ -186,6 +186,7 @@ const elements = {
   categoryCards: document.querySelector("#categoryCards"),
   categoryFilter: document.querySelector("#categoryFilter"),
   sortBy: document.querySelector("#sortBy"),
+  selectedInsight: document.querySelector("#selectedInsight"),
   goalForm: document.querySelector("#goalForm"),
   monthlyGoal: document.querySelector("#monthlyGoal"),
   weeklyHours: document.querySelector("#weeklyHours"),
@@ -335,6 +336,37 @@ function renderCards() {
     .join("");
 }
 
+function renderSelectedInsight() {
+  const rankedItems = getRankedItems();
+  const selectedItem =
+    rankedItems.find((item) => item.id === selectedCategoryId) || rankedItems[0];
+
+  elements.selectedInsight.innerHTML = `
+    <div>
+      <p class="eyebrow">Selected Detail</p>
+      <h3>${selectedItem.name}詳細分析</h3>
+      <p>${selectedItem.tagline}</p>
+    </div>
+    <div class="selected-insight__grid">
+      <div class="selected-insight__item">
+        <strong>時間／資金投入</strong>
+        <p>${selectedItem.timeText}</p>
+        <p>${selectedItem.moneyText}</p>
+      </div>
+      <div class="selected-insight__item">
+        <strong>營收與回報</strong>
+        <p>${selectedItem.revenueModel}</p>
+        <p>${selectedItem.returnCycle}</p>
+      </div>
+      <div class="selected-insight__item">
+        <strong>擴展與行動</strong>
+        <p>${selectedItem.scalabilityText}</p>
+        <p>${selectedItem.nextMoves[0]}</p>
+      </div>
+    </div>
+  `;
+}
+
 function buildReasons(item, goals) {
   const reasons = [];
 
@@ -399,13 +431,15 @@ function renderRecommendation() {
 function render() {
   renderComparison();
   renderCards();
+  renderSelectedInsight();
   renderRecommendation();
 }
 
 function selectCategory(categoryId) {
   selectedCategoryId = categoryId;
   renderCards();
-  document.querySelector("#recommendation").scrollIntoView({ behavior: "smooth", block: "start" });
+  renderSelectedInsight();
+  elements.selectedInsight.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 document.addEventListener("click", (event) => {

@@ -308,6 +308,42 @@ td strong {
   color: var(--muted);
 }
 
+.selected-insight {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 1.35rem;
+  border: 1px solid rgba(33, 79, 75, 0.28);
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg, rgba(220, 239, 237, 0.94), rgba(255, 255, 255, 0.9)),
+    var(--surface-strong);
+}
+
+.selected-insight__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.selected-insight__item {
+  padding: 1rem;
+  border: 1px solid rgba(33, 79, 75, 0.16);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.selected-insight__item strong {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--accent);
+}
+
+.selected-insight p {
+  margin: 0;
+  color: var(--muted);
+}
+
 .goal-form {
   display: grid;
   gap: 1rem;
@@ -435,6 +471,10 @@ footer {
 
   .cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .selected-insight__grid {
+    grid-template-columns: 1fr;
   }
 }
 
