@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>副業潛力分析表</title>
+    <meta
+      name="description"
+      content="比較 6 大副業類型的投入成本、營收模式、回報周期與擴展性，並依個人目標產出最適配建議。"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <nav class="nav" aria-label="頁面導覽">
+        <a href="#comparison">比較表</a>
+        <a href="#goals">目標分析</a>
+        <a href="#recommendation">推薦結果</a>
+      </nav>
+      <div class="hero__content">
+        <p class="eyebrow">Interactive Side Hustle Analyzer</p>
+        <h1>副業潛力分析表</h1>
+        <p>
+          以線上服務、內容創作、電商銷售、專業接案、勞務服務與數位產品 6
+          大類型為基礎，快速比較啟動成本、營收模式、回報周期與擴展性，並依你的目標即時產出建議。
+        </p>
+      </div>
+      <div class="hero__card" aria-label="快速摘要">
+        <span>6 類副業</span>
+        <strong>目標導向評分</strong>
+        <span>即時推薦與風險提示</span>
+      </div>
+    </header>
+
+    <main>
+      <section id="comparison" class="section">
+        <div class="section__heading">
+          <p class="eyebrow">Baseline Comparison</p>
+          <h2>6 大副業類型比較</h2>
+          <p>點選表格標題可依分數排序；點選卡片可查看詳細分析。</p>
+        </div>
+
+        <div class="toolbar" aria-label="篩選與排序工具">
+          <label>
+            篩選條件
+            <select id="categoryFilter">
+              <option value="all">全部類型</option>
+              <option value="lowBudget">低資金門檻</option>
+              <option value="fastReturn">較快回報</option>
+              <option value="highScale">高擴展性</option>
+              <option value="lowTime">低時間投入</option>
+            </select>
+          </label>
+          <label>
+            排序方式
+            <select id="sortBy">
+              <option value="fit">綜合潛力</option>
+              <option value="cost">低資金優先</option>
+              <option value="return">回報速度優先</option>
+              <option value="scale">擴展性優先</option>
+              <option value="time">低時間優先</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>副業類型</th>
+                <th>初期投入：時間</th>
+                <th>初期投入：資金</th>
+                <th>營收模式</th>
+                <th>回報周期</th>
+                <th>未來擴展性</th>
+                <th>綜合潛力</th>
+              </tr>
+            </thead>
+            <tbody id="comparisonBody"></tbody>
+          </table>
+        </div>
+
+        <div id="categoryCards" class="cards" aria-live="polite"></div>
+      </section>
+
+      <section id="goals" class="section section--split">
+        <div class="section__heading">
+          <p class="eyebrow">Goal Fit</p>
+          <h2>輸入你的目標，產出適配建議</h2>
+          <p>
+            調整下列條件後，推薦結果會即時更新。若還沒有明確目標，可保留預設值作為初步方向。
+          </p>
+        </div>
+
+        <form id="goalForm" class="goal-form">
+          <label>
+            每月副業收入目標（新台幣）
+            <input id="monthlyGoal" type="number" min="3000" max="500000" step="1000" value="50000" />
+          </label>
+
+          <label>
+            每週可投入時間
+            <select id="weeklyHours">
+              <option value="5">5 小時以下</option>
+              <option value="10" selected>6-10 小時</option>
+              <option value="20">11-20 小時</option>
+              <option value="30">20 小時以上</option>
+            </select>
+          </label>
+
+          <label>
+            可投入啟動資金
+            <select id="startupBudget">
+              <option value="5000">NT$5,000 以下</option>
+              <option value="30000" selected>NT$5,000-30,000</option>
+              <option value="100000">NT$30,000-100,000</option>
+              <option value="250000">NT$100,000 以上</option>
+            </select>
+          </label>
+
+          <label>
+            希望看到第一筆收入的速度
+            <select id="returnSpeed">
+              <option value="fast" selected>越快越好</option>
+              <option value="balanced">可接受中期培養</option>
+              <option value="slow">願意長期累積</option>
+            </select>
+          </label>
+
+          <label>
+            你最重視的成果
+            <select id="priority">
+              <option value="cashflow" selected>穩定現金流</option>
+              <option value="scale">可規模化成長</option>
+              <option value="brand">建立個人品牌</option>
+              <option value="flexibility">時間彈性</option>
+            </select>
+          </label>
+
+          <fieldset>
+            <legend>你目前較有優勢的資源</legend>
+            <label class="checkbox">
+              <input type="checkbox" name="strengths" value="expertise" checked />
+              專業技能／領域知識
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" name="strengths" value="audience" />
+              既有受眾／社群
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" name="strengths" value="operations" />
+              營運與執行能力
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" name="strengths" value="localNetwork" />
+              本地人脈／地區資源
+            </label>
+          </fieldset>
+        </form>
+      </section>
+
+      <section id="recommendation" class="section">
+        <div class="section__heading">
+          <p class="eyebrow">Recommendation</p>
+          <h2>最適配選擇建議分析</h2>
+        </div>
+
+        <div class="recommendation-grid">
+          <article class="recommendation-card">
+            <p class="eyebrow">Top Pick</p>
+            <h3 id="topPick">專業接案</h3>
+            <p id="topSummary"></p>
+            <div class="score-meter" aria-label="推薦分數">
+              <span id="scoreBar"></span>
+            </div>
+            <strong id="scoreText"></strong>
+          </article>
+
+          <article class="recommendation-card">
+            <p class="eyebrow">Why It Fits</p>
+            <ul id="fitReasons"></ul>
+          </article>
+
+          <article class="recommendation-card">
+            <p class="eyebrow">Next Moves</p>
+            <ol id="nextMoves"></ol>
+          </article>
+        </div>
+
+        <div class="ranking">
+          <h3>完整排名</h3>
+          <div id="rankingList"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>此分析表適合作為副業方向篩選工具；正式投入前仍應以市場訪談、小規模預售或試營運驗證需求。</p>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>
