@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FitFuel — 健身飲食規劃師</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root, [data-theme="light"] {
+  --color-bg: #f7f6f2;
+  --color-surface: #f9f8f5;
+  --color-surface-2: #fbfbf9;
+  --color-surface-offset: #f3f0ec;
+  --color-divider: #dcd9d5;
+  --color-border: #d4d1ca;
+  --color-text: #28251d;
+  --color-text-muted: #7a7974;
+  --color-text-faint: #bab9b4;
+  --color-text-inverse: #f9f8f4;
+  --color-primary: #01696f;
+  --color-primary-hover: #0c4e54;
+  --color-primary-highlight: #cedcd8;
+  --color-success: #437a22;
+  --color-success-highlight: #d4dfcc;
+  --color-warning: #964219;
+  --color-warning-highlight: #ddcfc6;
+  --color-error: #a12c7b;
+  --color-orange: #da7101;
+  --color-orange-highlight: #e7d7c4;
+  --color-blue: #006494;
+  --color-blue-highlight: #c6d8e4;
+  --color-gold: #d19900;
+  --shadow-sm: 0 1px 2px oklch(0.2 0.01 80 / 0.06);
+  --shadow-md: 0 4px 12px oklch(0.2 0.01 80 / 0.08);
+  --shadow-lg: 0 12px 32px oklch(0.2 0.01 80 / 0.12);
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-full: 9999px;
+  --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem; --space-4: 1rem;
+  --space-5: 1.25rem; --space-6: 1.5rem; --space-8: 2rem; --space-10: 2.5rem;
+  --space-12: 3rem; --space-16: 4rem;
+  --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+  --text-sm: clamp(0.875rem, 0.8rem + 0.35vw, 1rem);
+  --text-base: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  --text-lg: clamp(1.125rem, 1rem + 0.75vw, 1.5rem);
+  --text-xl: clamp(1.5rem, 1.2rem + 1.25vw, 2.25rem);
+  --font-body: 'Noto Sans TC', 'Inter', sans-serif;
+  --transition: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+[data-theme="dark"] {
+  --color-bg: #0f1110;
+  --color-surface: #141614;
+  --color-surface-2: #191b19;
+  --color-surface-offset: #1e201e;
+  --color-divider: #252825;
+  --color-border: #2e312e;
+  --color-text: #d4d8d4;
+  --color-text-muted: #7a8078;
+  --color-text-faint: #4a4e4a;
+  --color-text-inverse: #0f1110;
+  --color-primary: #3fa880;
+  --color-primary-hover: #2d8a68;
+  --color-primary-highlight: #1e3328;
+  --color-success: #6daa45;
+  --color-success-highlight: #1e3018;
+  --color-warning: #e89a50;
+  --color-warning-highlight: #33200f;
+  --color-error: #d163a7;
+  --color-orange: #fdab43;
+  --color-orange-highlight: #2e1e08;
+  --color-blue: #5591c7;
+  --color-blue-highlight: #0e1e2e;
+  --color-gold: #e8af34;
+  --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.25);
+  --shadow-md: 0 4px 12px oklch(0 0 0 / 0.35);
+  --shadow-lg: 0 12px 32px oklch(0 0 0 / 0.45);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-font-smoothing: antialiased; scroll-behavior: smooth; }
+body {
+  min-height: 100dvh;
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  color: var(--color-text);
+  background: var(--color-bg);
+  line-height: 1.6;
+}
+button { cursor: pointer; background: none; border: none; font: inherit; color: inherit; }
+input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; border-radius: var(--radius-sm); }
+
+/* Layout */
+.app { display: grid; grid-template-rows: auto 1fr; min-height: 100dvh; }
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-3) var(--space-6);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky; top: 0; z-index: 50;
+  box-shadow: var(--shadow-sm);
+}
+.logo {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: var(--text-lg); font-weight: 700; color: var(--color-primary);
+}
+.logo svg { width: 28px; height: 28px; }
+.header-actions { display: flex; align-items: center; gap: var(--space-3); }
+
+/* Theme toggle */
+.theme-btn {
+  width: 36px; height: 36px; border-radius: var(--radius-full);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-text-muted);
+  transition: background var(--transition), color var(--transition);
+}
+.theme-btn:hover { background: var(--color-surface-offset); color: var(--color-text); }
+
+/* Main */
+main {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 0;
+  min-height: 0;
+}
+@media (max-width: 768px) {
+  main { grid-template-columns: 1fr; }
+  .sidebar { border-right: none; border-bottom: 1px solid var(--color-border); }
+}
+
+/* Sidebar */
+.sidebar {
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  padding: var(--space-6);
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: var(--space-6);
+}
+.sidebar-section-title {
+  font-size: var(--text-xs); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--color-text-faint);
+  margin-bottom: var(--space-3);
+}
+
+/* Form elements */
+.field { display: flex; flex-direction: column; gap: var(--space-2); }
+.field label { font-size: var(--text-sm); font-weight: 500; color: var(--color-text-muted); }
+.field input, .field select {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.field input:focus, .field select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px oklch(from var(--color-primary) l c h / 0.15);
+  outline: none;
+}
+
+.goal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.goal-btn {
+  padding: var(--space-2) var(--space-3);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs); font-weight: 600;
+  text-align: center; transition: all var(--transition);
+  color: var(--color-text-muted);
+}
+.goal-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.goal-btn.active {
+  background: var(--color-primary-highlight);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.btn-primary {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm); font-weight: 600;
+  display: flex; align-items: center; justify-content: center; gap: var(--space-2);
+  transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+.btn-primary:hover { background: var(--color-primary-hover); box-shadow: var(--shadow-md); }
+.btn-primary:active { transform: scale(0.98); }
+
+/* Macros summary */
+.macro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.macro-chip {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-offset);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+.macro-chip .val { font-size: var(--text-lg); font-weight: 700; font-variant-numeric: tabular-nums; }
+.macro-chip .lbl { font-size: var(--text-xs); color: var(--color-text-muted); }
+.macro-chip.cal .val { color: var(--color-orange); }
+.macro-chip.prot .val { color: var(--color-primary); }
+.macro-chip.carb .val { color: var(--color-gold); }
+.macro-chip.fat .val { color: var(--color-blue); }
+
+/* Content area */
+.content {
+  padding: var(--space-6);
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: var(--space-6);
+}
+
+/* Day nav */
+.day-tabs {
+  display: flex; gap: var(--space-2);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--space-1);
+  border: 1px solid var(--color-border);
+  width: fit-content;
+}
+.day-tab {
+  padding: var(--space-2) var(--space-4);
+  border-radius: calc(var(--radius-lg) - var(--space-1));
+  font-size: var(--text-sm); font-weight: 500;
+  transition: background var(--transition), color var(--transition);
+  color: var(--color-text-muted);
+}
+.day-tab.active {
+  background: var(--color-primary);
+  color: white; font-weight: 600;
+}
+.day-tab:hover:not(.active) { background: var(--color-surface-offset); color: var(--color-text); }
+
+/* Section header */
+.section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+.section-header h2 { font-size: var(--text-lg); font-weight: 700; }
+
+/* Meal cards */
+.meals-grid { display: grid; gap: var(--space-4); }
+.meal-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition);
+}
+.meal-card:hover { box-shadow: var(--shadow-md); }
+.meal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-divider);
+  background: var(--color-surface-2);
+}
+.meal-time-badge {
+  display: flex; align-items: center; gap: var(--space-2);
+}
+.meal-dot {
+  width: 10px; height: 10px; border-radius: var(--radius-full);
+}
+.breakfast .meal-dot { background: var(--color-orange); }
+.lunch .meal-dot { background: var(--color-primary); }
+.dinner .meal-dot { background: var(--color-blue); }
+.meal-name { font-size: var(--text-lg); font-weight: 700; }
+.meal-kcal {
+  font-size: var(--text-sm); font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+  background: var(--color-surface-offset);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+}
+.meal-body { padding: var(--space-5); display: grid; gap: var(--space-5); }
+
+.meal-macros { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+.macro-pill {
+  display: flex; align-items: center; gap: var(--space-1);
+  font-size: var(--text-xs); font-weight: 600;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full);
+}
+.macro-pill.p { background: var(--color-primary-highlight); color: var(--color-primary); }
+.macro-pill.c { background: var(--color-orange-highlight); color: var(--color-orange); }
+.macro-pill.f { background: var(--color-blue-highlight); color: var(--color-blue); }
+
+/* Ingredients + Recipe collapsible */
+.detail-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--color-divider); margin-bottom: var(--space-4); }
+.detail-tab {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm); font-weight: 500;
+  color: var(--color-text-muted);
+  border-bottom: 2px solid transparent;
+  transition: color var(--transition), border-color var(--transition);
+  margin-bottom: -1px;
+}
+.detail-tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+.detail-tab:hover:not(.active) { color: var(--color-text); }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Ingredient list */
+.ingredient-list { list-style: none; display: grid; gap: var(--space-2); }
+.ingredient-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-offset);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+.ingredient-item .qty { color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+
+/* Recipe steps */
+.recipe-steps { list-style: none; display: grid; gap: var(--space-3); counter-reset: steps; }
+.recipe-step {
+  display: flex; gap: var(--space-3); align-items: flex-start;
+  font-size: var(--text-sm); line-height: 1.6;
+  counter-increment: steps;
+}
+.step-num {
+  min-width: 26px; height: 26px;
+  background: var(--color-primary-highlight);
+  color: var(--color-primary);
+  border-radius: var(--radius-full);
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--text-xs); font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Daily nutrition progress bar */
+.nutrition-overview {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+}
+.nutrition-overview h3 { font-size: var(--text-lg); font-weight: 700; margin-bottom: var(--space-4); }
+.progress-rows { display: grid; gap: var(--space-4); }
+.progress-row {}
+.progress-header { display: flex; justify-content: space-between; margin-bottom: var(--space-1); font-size: var(--text-sm); }
+.progress-label { font-weight: 600; }
+.progress-value { color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.progress-bar-bg {
+  height: 8px; background: var(--color-surface-offset);
+  border-radius: var(--radius-full); overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%; border-radius: var(--radius-full);
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.progress-bar-fill.cal { background: var(--color-orange); }
+.progress-bar-fill.prot { background: var(--color-primary); }
+.progress-bar-fill.carb { background: var(--color-gold); }
+.progress-bar-fill.fat { background: var(--color-blue); }
+
+/* Empty / loading state */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; padding: var(--space-16) var(--space-8);
+  color: var(--color-text-muted);
+}
+.empty-state svg { width: 48px; height: 48px; color: var(--color-text-faint); margin-bottom: var(--space-4); }
+.empty-state h3 { font-size: var(--text-lg); color: var(--color-text); margin-bottom: var(--space-2); }
+.empty-state p { font-size: var(--text-sm); max-width: 32ch; }
+
+/* Tips chip */
+.tip-card {
+  background: var(--color-primary-highlight);
+  border: 1px solid oklch(from var(--color-primary) l c h / 0.2);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  font-size: var(--text-sm); color: var(--color-primary);
+  line-height: 1.6;
+}
+.tip-card strong { display: block; margin-bottom: var(--space-1); }
+
+/* Loading shimmer */
+@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+.skeleton {
+  background: linear-gradient(90deg,var(--color-surface-offset) 25%,var(--color-divider) 50%,var(--color-surface-offset) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+.loading-overlay {
+  position: fixed; inset: 0; background: oklch(from var(--color-bg) l c h / 0.7);
+  backdrop-filter: blur(4px); z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--text-lg); font-weight: 600; color: var(--color-primary);
+  gap: var(--space-3); flex-direction: column;
+}
+.spinner {
+  width: 40px; height: 40px;
+  border: 3px solid var(--color-primary-highlight);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Prompt modal */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: oklch(0 0 0 / 0.5);
+  backdrop-filter: blur(4px); z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--space-4);
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--transition);
+}
+.modal-backdrop.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8);
+  max-width: 520px; width: 100%;
+  box-shadow: var(--shadow-lg);
+  transform: translateY(20px);
+  transition: transform var(--transition);
+}
+.modal-backdrop.open .modal { transform: translateY(0); }
+.modal h2 { font-size: var(--text-xl); font-weight: 700; margin-bottom: var(--space-2); }
+.modal p { font-size: var(--text-sm); color: var(--color-text-muted); margin-bottom: var(--space-6); }
+.modal-close {
+  position: absolute; top: var(--space-4); right: var(--space-4);
+  width: 32px; height: 32px; border-radius: var(--radius-full);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-text-muted);
+  transition: background var(--transition);
+}
+.modal-close:hover { background: var(--color-surface-offset); color: var(--color-text); }
+.modal-inner { position: relative; }
+
+/* AI Prompt panel */
+.prompt-section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+}
+.prompt-section h3 { font-size: var(--text-lg); font-weight: 700; margin-bottom: var(--space-1); }
+.prompt-section .desc { font-size: var(--text-sm); color: var(--color-text-muted); margin-bottom: var(--space-4); }
+.prompt-box {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  font-size: var(--text-sm); line-height: 1.7;
+  color: var(--color-text-muted);
+  font-family: 'Inter', monospace;
+  white-space: pre-wrap;
+  position: relative;
+}
+.copy-btn {
+  position: absolute; top: var(--space-3); right: var(--space-3);
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs); font-weight: 600;
+  transition: background var(--transition), border-color var(--transition);
+}
+.copy-btn:hover { background: var(--color-primary-highlight); border-color: var(--color-primary); color: var(--color-primary); }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .macro-grid { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .content { padding: var(--space-4); }
+  .sidebar { padding: var(--space-4); }
+  .day-tabs { overflow-x: auto; width: 100%; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="FitFuel">
+        <circle cx="14" cy="14" r="12" stroke="currentColor" stroke-width="2"/>
+        <path d="M8 14 C8 10 11 8 14 8 C17 8 20 10 20 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M10 14 L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M14 12 L14 19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M18 14 L18 19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      FitFuel
+    </div>
+    <div class="header-actions">
+      <button class="theme-btn" data-theme-toggle aria-label="切換主題">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Sidebar: User Profile -->
+    <aside class="sidebar">
+      <div>
+        <div class="sidebar-section-title">個人資料</div>
+        <div style="display:grid;gap:var(--space-3)">
+          <div class="field">
+            <label>年齡</label>
+            <input type="number" id="age" value="28" min="15" max="80">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2)">
+            <div class="field">
+              <label>體重 (kg)</label>
+              <input type="number" id="weight" value="75" min="30" max="200">
+            </div>
+            <div class="field">
+              <label>身高 (cm)</label>
+              <input type="number" id="height" value="175" min="120" max="220">
+            </div>
+          </div>
+          <div class="field">
+            <label>性別</label>
+            <select id="gender">
+              <option value="male">男性</option>
+              <option value="female">女性</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>活動量</label>
+            <select id="activity">
+              <option value="1.2">久坐少動</option>
+              <option value="1.375">輕度活動 (每週1-3天)</option>
+              <option value="1.55" selected>中度活動 (每週3-5天)</option>
+              <option value="1.725">高度活動 (每週6-7天)</option>
+              <option value="1.9">極高強度</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="sidebar-section-title">健身目標</div>
+        <div class="goal-grid" id="goalGrid">
+          <button class="goal-btn active" data-goal="cut">🔥 減脂</button>
+          <button class="goal-btn" data-goal="bulk">💪 增肌</button>
+          <button class="goal-btn" data-goal="maintain">⚖️ 維持</button>
+          <button class="goal-btn" data-goal="recomp">🔄 重組</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="sidebar-section-title">今日目標</div>
+        <div class="macro-grid" id="macroSummary">
+          <div class="macro-chip cal"><div class="val" id="totalCal">—</div><div class="lbl">卡路里</div></div>
+          <div class="macro-chip prot"><div class="val" id="totalProt">—</div><div class="lbl">蛋白質 g</div></div>
+          <div class="macro-chip carb"><div class="val" id="totalCarb">—</div><div class="lbl">碳水 g</div></div>
+          <div class="macro-chip fat"><div class="val" id="totalFat">—</div><div class="lbl">脂肪 g</div></div>
+        </div>
+      </div>
+
+      <button class="btn-primary" id="generateBtn" onclick="generateMealPlan()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+        </svg>
+        生成今日飲食計劃
+      </button>
+    </aside>
+
+    <!-- Content -->
+    <div class="content" id="mainContent">
+      <!-- Will be populated by JS -->
+      <div class="empty-state" id="emptyState">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M3 6h18M3 12h18M3 18h18"/>
+          <circle cx="8" cy="6" r="2" fill="currentColor" opacity="0.3"/>
+          <circle cx="8" cy="12" r="2" fill="currentColor" opacity="0.3"/>
+          <circle cx="8" cy="18" r="2" fill="currentColor" opacity="0.3"/>
+        </svg>
+        <h3>設置你的飲食計劃</h3>
+        <p>填寫左側個人資料並點擊「生成今日飲食計劃」</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loadingOverlay" style="display:none">
+  <div class="spinner"></div>
+  <div>正在計算你的最佳飲食方案…</div>
+</div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────────────────
+const MEAL_DB = {
+  cut: {
+    breakfast: [
+      {
+        name: "燕麥雞蛋白蛋白碗",
+        kcal: 380, protein: 32, carbs: 42, fat: 8,
+        ingredients: [
+          {name:"即食燕麥", qty:"80g"},{name:"雞蛋白", qty:"4個"},{name:"藍莓", qty:"50g"},
+          {name:"奇亞籽", qty:"10g"},{name:"無糖杏仁奶", qty:"150ml"}
+        ],
+        steps: [
+          "將燕麥與杏仁奶混合，微波爐加熱2分鐘，期間攪拌一次。",
+          "雞蛋白在不粘鍋中用小火煎成炒蛋，加少許鹽。",
+          "燕麥盛碗，頂部放上炒蛋白、藍莓及奇亞籽。",
+          "可依喜好加入少許肉桂粉或蜂蜜（微量）。"
+        ],
+        tip: "奇亞籽富含Omega-3，搭配高蛋白燕麥可延長飽腹感，有效控制午前零食慾望。"
+      },
+      {
+        name: "希臘優格水果碗",
+        kcal: 320, protein: 28, carbs: 38, fat: 5,
+        ingredients: [
+          {name:"無脂希臘優格", qty:"200g"},{name:"草莓", qty:"80g"},{name:"香蕉", qty:"半條"},
+          {name:"無糖格蘭諾拉麥片", qty:"30g"},{name:"蛋白粉（可選）", qty:"15g"}
+        ],
+        steps: [
+          "將希臘優格倒入碗中，如有蛋白粉可攪拌進去。",
+          "草莓切半，香蕉切片，擺放在優格上方。",
+          "撒上格蘭諾拉麥片，保留酥脆口感最後再加。",
+          "可淋少許蜂蜜或楓糖漿增加風味。"
+        ],
+        tip: "希臘優格每100g含10g蛋白質，且富含益生菌，對腸道健康和蛋白質吸收都有幫助。"
+      }
+    ],
+    lunch: [
+      {
+        name: "雞胸肉藜麥沙拉",
+        kcal: 480, protein: 45, carbs: 38, fat: 12,
+        ingredients: [
+          {name:"雞胸肉", qty:"150g"},{name:"藜麥", qty:"80g（熟重）"},{name:"羽衣甘藍", qty:"100g"},
+          {name:"番茄", qty:"1個"},{name:"酪梨", qty:"1/4個"},{name:"橄欖油", qty:"10ml"},
+          {name:"檸檬汁", qty:"適量"},{name:"黑胡椒鹽", qty:"適量"}
+        ],
+        steps: [
+          "藜麥煮熟（白藜麥比例1:2水，煮15分鐘），放涼備用。",
+          "雞胸肉用黑胡椒、鹽、少量橄欖油醃製10分鐘。",
+          "平底鍋中火煎雞胸肉，每面約4-5分鐘至熟透，切片。",
+          "羽衣甘藍撕碎，加檸檬汁按摩至軟化。",
+          "所有食材混合，淋上橄欖油和檸檬汁即可。"
+        ],
+        tip: "藜麥是完整蛋白質來源（含9種必需氨基酸），GI值低適合減脂期。建議批量烹煮冷凍保存。"
+      },
+      {
+        name: "鮭魚糙米便當",
+        kcal: 520, protein: 40, carbs: 52, fat: 14,
+        ingredients: [
+          {name:"鮭魚排", qty:"150g"},{name:"糙米飯", qty:"120g（熟重）"},{name:"菠菜", qty:"100g"},
+          {name:"紅蘿蔔", qty:"半條"},{name:"醬油", qty:"10ml"},{name:"薑末", qty:"少許"}
+        ],
+        steps: [
+          "糙米提前浸泡2小時，用電飯鍋正常烹煮。",
+          "鮭魚排用醬油、薑末醃製，空氣炸鍋或烤箱200度烤12分鐘。",
+          "菠菜焯水30秒，擠乾水分，加少許麻油拌勻。",
+          "紅蘿蔔切絲，水炒至軟。",
+          "米飯盛入容器，擺上所有配菜即可。"
+        ],
+        tip: "鮭魚富含EPA/DHA Omega-3脂肪酸，有助減少炎症、加快運動恢復。每週建議攝取2-3次。"
+      }
+    ],
+    dinner: [
+      {
+        name: "清蒸鱈魚豆腐蔬菜",
+        kcal: 380, protein: 42, carbs: 18, fat: 10,
+        ingredients: [
+          {name:"鱈魚片", qty:"200g"},{name:"板豆腐", qty:"150g"},{name:"西蘭花", qty:"150g"},
+          {name:"嫩薑", qty:"30g"},{name:"生抽", qty:"15ml"},{name:"麻油", qty:"5ml"},
+          {name:"蔥花", qty:"適量"}
+        ],
+        steps: [
+          "豆腐切塊，鋪在蒸盤底部。鱈魚放置其上，加薑片。",
+          "大火燒開蒸鍋，蒸魚豆腐10-12分鐘至魚肉熟透。",
+          "西蘭花焯水2分鐘，撈出備用。",
+          "蒸好後倒掉多餘汁水，澆上生抽。",
+          "燒熱麻油淋在魚上，撒蔥花即可，搭配西蘭花享用。"
+        ],
+        tip: "晚餐以蛋白質+蔬菜為主，減少碳水攝取有利於夜間燃脂。鱈魚熱量極低但蛋白質豐富，是減脂黃金食材。"
+      }
+    ]
+  },
+  bulk: {
+    breakfast: [
+      {
+        name: "牛排蛋炒飯高蛋白早餐",
+        kcal: 680, protein: 45, carbs: 72, fat: 18,
+        ingredients: [
+          {name:"白米飯", qty:"200g（熟重）"},{name:"牛肉末", qty:"100g"},{name:"全蛋", qty:"3個"},
+          {name:"玉米粒", qty:"50g"},{name:"醬油", qty:"15ml"},{name:"橄欖油", qty:"10ml"},
+          {name:"蔥薑蒜", qty:"適量"}
+        ],
+        steps: [
+          "鍋燒熱加油，蔥薑蒜爆香，加入牛肉末翻炒至熟。",
+          "推開牛肉，倒入打散的蛋液，快速炒成碎蛋。",
+          "加入冷飯（隔夜飯更佳）大火翻炒，使米粒分開。",
+          "加入玉米粒，淋入醬油，翻炒均勻調味即可。"
+        ],
+        tip: "增肌期早餐需要充足碳水補充糖原，搭配高蛋白確保肌肉蛋白合成。選隔夜冷飯炒飯口感更佳。"
+      }
+    ],
+    lunch: [
+      {
+        name: "牛肉番薯增肌便當",
+        kcal: 720, protein: 52, carbs: 80, fat: 16,
+        ingredients: [
+          {name:"牛里脊肉", qty:"200g"},{name:"番薯", qty:"200g"},{name:"西蘭花", qty:"150g"},
+          {name:"雞蛋", qty:"2個"},{name:"醬油", qty:"15ml"},{name:"澱粉", qty:"5g"},
+          {name:"芝麻油", qty:"5ml"}
+        ],
+        steps: [
+          "牛里脊切片，加醬油、澱粉抓醃10分鐘嫩化。",
+          "番薯切塊蒸20分鐘或微波8分鐘至軟熟。",
+          "大火爆炒牛肉片，3分鐘内快速炒熟保嫩。",
+          "西蘭花焯水，雞蛋水煮切半。",
+          "所有食材裝盒，淋少許芝麻油提味。"
+        ],
+        tip: "番薯GI值中等，含豐富鉀和膳食纖維，是增肌期理想碳水來源，比白飯更營養均衡。"
+      }
+    ],
+    dinner: [
+      {
+        name: "奶油義大利麵雞胸肉",
+        kcal: 680, protein: 50, carbs: 75, fat: 14,
+        ingredients: [
+          {name:"全麥義大利麵", qty:"120g（乾重）"},{name:"雞胸肉", qty:"200g"},
+          {name:"無脂牛奶", qty:"200ml"},{name:"蒜頭", qty:"3瓣"},
+          {name:"帕瑪森芝士", qty:"20g"},{name:"菠菜", qty:"50g"},{name:"橄欖油", qty:"10ml"}
+        ],
+        steps: [
+          "義大利麵按包裝時間煮至al dente，保留1杯煮麵水。",
+          "雞胸肉薄切，加鹽胡椒腌製，煎至兩面金黃熟透。",
+          "原鍋加蒜末爆香，倒入牛奶小火收汁。",
+          "加入義大利麵拌勻，若太濃稠加少量煮麵水調整。",
+          "加入菠菜炒軟，撒帕瑪森芝士，擺上雞肉片即可。"
+        ],
+        tip: "全麥義大利麵的膳食纖維是白麵的3倍，且GI值更低。增肌晚餐保留足夠碳水有助於夜間蛋白質合成。"
+      }
+    ]
+  },
+  maintain: {
+    breakfast: [
+      {
+        name: "全麥吐司酪梨水煮蛋",
+        kcal: 420, protein: 22, carbs: 44, fat: 16,
+        ingredients: [
+          {name:"全麥吐司", qty:"2片"},{name:"雞蛋", qty:"2個"},
+          {name:"酪梨", qty:"半個"},{name:"番茄", qty:"半個"},
+          {name:"檸檬汁", qty:"少許"},{name:"海鹽", qty:"適量"},{name:"黑胡椒", qty:"適量"}
+        ],
+        steps: [
+          "雞蛋冷水下鍋，水開後煮7分鐘，撈出冰水冷卻剝殼。",
+          "酪梨壓泥，加檸檬汁、海鹽、黑胡椒攪拌均勻。",
+          "全麥吐司烤至微脆。",
+          "吐司抹上酪梨泥，擺上切片水煮蛋和番茄片。",
+          "最後撒少許黑胡椒和海鹽調味。"
+        ],
+        tip: "酪梨含豐富的不飽和脂肪酸，有助於吸收脂溶性維生素（A、D、E、K）。每天半個是理想攝取量。"
+      }
+    ],
+    lunch: [
+      {
+        name: "日式照燒雞腿定食",
+        kcal: 560, protein: 38, carbs: 60, fat: 14,
+        ingredients: [
+          {name:"去皮雞腿排", qty:"150g"},{name:"白米飯", qty:"150g（熟重）"},
+          {name:"毛豆", qty:"80g"},{name:"照燒醬", qty:"30ml"},
+          {name:"芝麻", qty:"少許"},{name:"海苔絲", qty:"少許"}
+        ],
+        steps: [
+          "雞腿排用叉子戳孔，加照燒醬醃製30分鐘。",
+          "平底鍋中火，雞皮朝下煎4分鐘至金脆，翻面再煎3分鐘。",
+          "加入醃醬小火收汁至濃稠，撒芝麻。",
+          "毛豆鹽水煮3分鐘，瀝乾。",
+          "白飯盛碗，放上切片照燒雞腿，撒海苔絲，配毛豆。"
+        ],
+        tip: "去皮雞腿比雞胸更有風味，脂肪量適中。照燒醬糖分較高，建議使用低糖版本或自製。"
+      }
+    ],
+    dinner: [
+      {
+        name: "番茄牛肉豆腐鍋",
+        kcal: 480, protein: 35, carbs: 30, fat: 18,
+        ingredients: [
+          {name:"牛腱肉", qty:"150g"},{name:"番茄", qty:"2個"},{name:"板豆腐", qty:"200g"},
+          {name:"金針菇", qty:"100g"},{name:"大蔥", qty:"1根"},{name:"薑", qty:"3片"},
+          {name:"番茄醬", qty:"20g"},{name:"鹽糖", qty:"適量"}
+        ],
+        steps: [
+          "牛腱切小塊焯水去腥，撈出備用。",
+          "番茄去皮切塊，鍋中爆炒出汁後加番茄醬炒勻。",
+          "加入牛肉、薑片、足量清水，大火滾後轉中火燉40分鐘。",
+          "加入豆腐塊繼續煮10分鐘。",
+          "最後加金針菇、大蔥，調入鹽和少許糖平衡酸味。"
+        ],
+        tip: "番茄含豐富茄紅素，加熱後更易被吸收。番茄豆腐的鈣質和植物蛋白是維持期優質蛋白補充。"
+      }
+    ]
+  },
+  recomp: {
+    breakfast: [
+      {
+        name: "雞蛋白蛋白煎餅",
+        kcal: 400, protein: 38, carbs: 36, fat: 8,
+        ingredients: [
+          {name:"燕麥粉", qty:"60g"},{name:"雞蛋白", qty:"6個"},
+          {name:"蛋白粉（原味）", qty:"30g"},{name:"香蕉", qty:"1條"},
+          {name:"無糖花生醬", qty:"15g"},{name:"藍莓", qty:"50g"}
+        ],
+        steps: [
+          "香蕉壓泥，與蛋白、燕麥粉、蛋白粉混合成麵糊。",
+          "不粘鍋中小火，倒入適量麵糊攤開。",
+          "表面起泡後翻面，煎至兩面金黃（每面約2分鐘）。",
+          "疊放煎餅，淋上花生醬，放上藍莓裝飾。",
+          "可搭配少量楓糖漿增加風味。"
+        ],
+        tip: "高蛋白煎餅的蛋白質密度極高，適合身體重組期：提供充足蛋白質促進肌肉增長，同時卡路里適中不過度堆積。"
+      }
+    ],
+    lunch: [
+      {
+        name: "鮪魚蛋白質沙拉碗",
+        kcal: 500, protein: 48, carbs: 42, fat: 12,
+        ingredients: [
+          {name:"水浸鮪魚罐頭", qty:"185g"},{name:"糙米飯", qty:"100g（熟重）"},
+          {name:"混合生菜", qty:"80g"},{name:"紅椒", qty:"半個"},{name:"黃瓜", qty:"半條"},
+          {name:"橄欖油", qty:"10ml"},{name:"香醋", qty:"10ml"},{name:"芥末醬", qty:"5g"}
+        ],
+        steps: [
+          "糙米飯放涼至室溫或微微溫熱。",
+          "鮪魚罐頭瀝乾，搗散備用。",
+          "紅椒、黃瓜切丁，與混合生菜鋪底。",
+          "放上糙米飯和鮪魚。",
+          "橄欖油、香醋、芥末醬混合成油醋汁，淋上即可。"
+        ],
+        tip: "鮪魚是性價比最高的蛋白質來源之一，水浸版本熱量極低。搭配複合碳水，適合重組期午餐。"
+      }
+    ],
+    dinner: [
+      {
+        name: "香料烤雞腿蔬菜",
+        kcal: 420, protein: 44, carbs: 22, fat: 14,
+        ingredients: [
+          {name:"去皮雞腿排", qty:"200g"},{name:"節瓜", qty:"1條"},
+          {name:"甜椒（紅黃）", qty:"各半個"},{name:"洋蔥", qty:"半個"},
+          {name:"橄欖油", qty:"15ml"},{name:"煙燻紅椒粉", qty:"5g"},
+          {name:"孜然粉", qty:"3g"},{name:"蒜粉", qty:"3g"},{name:"鹽黑胡椒", qty:"適量"}
+        ],
+        steps: [
+          "烤箱預熱200°C。",
+          "雞腿排與橄欖油、所有香料混合均勻醃製。",
+          "蔬菜切大塊，鋪在烤盤上，淋少許橄欖油鹽胡椒。",
+          "雞腿排放在蔬菜上，烤箱烤25-30分鐘。",
+          "最後5分鐘開上火烤至雞皮微焦，靜置5分鐘再切。"
+        ],
+        tip: "烤箱料理幾乎無需額外油脂，是重組期晚餐最佳選擇。低碳+高蛋白的組合有利於夜間燃脂同時維持肌肉。"
+      }
+    ]
+  }
+};
+
+const GOAL_LABELS = {
+  cut: "減脂", bulk: "增肌", maintain: "維持", recomp: "體態重組"
+};
+
+// ─── STATE ─────────────────────────────────────────────────────────────────
+let currentGoal = "cut";
+let currentDay = 0;
+let planGenerated = false;
+let currentPlan = null;
+
+// ─── CALCULATIONS ──────────────────────────────────────────────────────────
+function calcBMR(weight, height, age, gender) {
+  if (gender === "male") return 10 * weight + 6.25 * height - 5 * age + 5;
+  return 10 * weight + 6.25 * height - 5 * age - 161;
+}
+
+function calcTargets(weight, height, age, gender, activity, goal) {
+  const bmr = calcBMR(weight, height, age, gender);
+  const tdee = bmr * parseFloat(activity);
+  let cal, protMult;
+  switch(goal) {
+    case "cut": cal = Math.round(tdee - 400); protMult = 2.2; break;
+    case "bulk": cal = Math.round(tdee + 350); protMult = 2.0; break;
+    case "maintain": cal = Math.round(tdee); protMult = 1.8; break;
+    case "recomp": cal = Math.round(tdee - 100); protMult = 2.4; break;
+  }
+  const prot = Math.round(weight * protMult);
+  const fat = Math.round(cal * 0.25 / 9);
+  const carb = Math.round((cal - prot * 4 - fat * 9) / 4);
+  return { cal, prot, carb, fat };
+}
+
+// ─── UI HELPERS ─────────────────────────────────────────────────────────────
+function animateValue(el, end) {
+  const start = parseInt(el.textContent) || 0;
+  const duration = 600;
+  const startTime = performance.now();
+  function update(now) {
+    const t = Math.min((now - startTime) / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+    el.textContent = Math.round(start + (end - start) * ease);
+    if (t < 1) requestAnimationFrame(update);
+  }
+  requestAnimationFrame(update);
+}
+
+function updateMacroDisplay(targets) {
+  animateValue(document.getElementById("totalCal"), targets.cal);
+  animateValue(document.getElementById("totalProt"), targets.prot);
+  animateValue(document.getElementById("totalCarb"), targets.carb);
+  animateValue(document.getElementById("totalFat"), targets.fat);
+}
+
+function pickRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function buildMealCard(meal, type) {
+  const typeClass = type === "breakfast" ? "breakfast" : type === "lunch" ? "lunch" : "dinner";
+  const typeLabel = type === "breakfast" ? "早餐" : type === "lunch" ? "午餐" : "晚餐";
+  const id = `meal_${type}_${Math.random().toString(36).substr(2,5)}`;
+
+  return `
+  <div class="meal-card ${typeClass}">
+    <div class="meal-header">
+      <div class="meal-time-badge">
+        <div class="meal-dot"></div>
+        <span style="font-size:var(--text-xs);color:var(--color-text-muted);font-weight:600">${typeLabel}</span>
+        <span class="meal-name">${meal.name}</span>
+      </div>
+      <div class="meal-kcal">${meal.kcal} kcal</div>
+    </div>
+    <div class="meal-body">
+      <div class="meal-macros">
+        <span class="macro-pill p">🥩 蛋白質 ${meal.protein}g</span>
+        <span class="macro-pill c">🌾 碳水 ${meal.carbs}g</span>
+        <span class="macro-pill f">🫒 脂肪 ${meal.fat}g</span>
+      </div>
+      <div>
+        <div class="detail-tabs">
+          <button class="detail-tab active" onclick="switchTab(this,'${id}_ing','${id}')">食材清單</button>
+          <button class="detail-tab" onclick="switchTab(this,'${id}_rec','${id}')">烹飪步驟</button>
+          <button class="detail-tab" onclick="switchTab(this,'${id}_tip','${id}')">營養小知識</button>
+        </div>
+        <div id="${id}_ing" class="tab-content active">
+          <ul class="ingredient-list">
+            ${meal.ingredients.map(i=>`
+              <li class="ingredient-item">
+                <span>${i.name}</span><span class="qty">${i.qty}</span>
+              </li>`).join("")}
+          </ul>
+        </div>
+        <div id="${id}_rec" class="tab-content">
+          <ol class="recipe-steps">
+            ${meal.steps.map((s,i)=>`
+              <li class="recipe-step">
+                <div class="step-num">${i+1}</div>
+                <span>${s}</span>
+              </li>`).join("")}
+          </ol>
+        </div>
+        <div id="${id}_tip" class="tab-content">
+          <div class="tip-card">
+            <strong>💡 營養師提示</strong>
+            ${meal.tip}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function switchTab(btn, targetId, groupId) {
+  const card = btn.closest(".meal-body");
+  card.querySelectorAll(".detail-tab").forEach(t => t.classList.remove("active"));
+  card.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById(targetId).classList.add("active");
+}
+
+function buildProgressBar(label, val, max, cls) {
+  const pct = Math.min(Math.round(val / max * 100), 100);
+  return `
+  <div class="progress-row">
+    <div class="progress-header">
+      <span class="progress-label">${label}</span>
+      <span class="progress-value">${val} / ${max}${cls==="cal"?" kcal":"g"}</span>
+    </div>
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill ${cls}" style="width:0%" data-target="${pct}%"></div>
+    </div>
+  </div>`;
+}
+
+function animateBars() {
+  document.querySelectorAll(".progress-bar-fill").forEach(bar => {
+    const target = bar.dataset.target;
+    requestAnimationFrame(() => {
+      setTimeout(() => { bar.style.width = target; }, 50);
+    });
+  });
+}
+
+// ─── GENERATE ──────────────────────────────────────────────────────────────
+function generateMealPlan() {
+  const weight = parseFloat(document.getElementById("weight").value);
+  const height = parseFloat(document.getElementById("height").value);
+  const age = parseInt(document.getElementById("age").value);
+  const gender = document.getElementById("gender").value;
+  const activity = document.getElementById("activity").value;
+
+  const targets = calcTargets(weight, height, age, gender, activity, currentGoal);
+  updateMacroDisplay(targets);
+
+  const overlay = document.getElementById("loadingOverlay");
+  overlay.style.display = "flex";
+
+  setTimeout(() => {
+    overlay.style.display = "none";
+    currentPlan = generateWeekPlan(targets);
+    renderDay(0, targets);
+    planGenerated = true;
+  }, 1200);
+}
+
+function generateWeekPlan(targets) {
+  const db = MEAL_DB[currentGoal];
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    days.push({
+      breakfast: pickRandom(db.breakfast),
+      lunch: pickRandom(db.lunch),
+      dinner: pickRandom(db.dinner)
+    });
+  }
+  return { days, targets };
+}
+
+const DAY_NAMES = ["週一","週二","週三","週四","週五","週六","週日"];
+
+function renderDay(dayIdx, targets) {
+  currentDay = dayIdx;
+  const t = targets || (currentPlan && currentPlan.targets);
+  const day = currentPlan.days[dayIdx];
+
+  const totalCal = day.breakfast.kcal + day.lunch.kcal + day.dinner.kcal;
+  const totalProt = day.breakfast.protein + day.lunch.protein + day.dinner.protein;
+  const totalCarb = day.breakfast.carbs + day.lunch.carbs + day.dinner.carbs;
+  const totalFat = day.breakfast.fat + day.lunch.fat + day.dinner.fat;
+
+  const content = document.getElementById("mainContent");
+  content.innerHTML = `
+    <!-- Day tabs -->
+    <div>
+      <div style="font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:var(--space-2)">選擇日期</div>
+      <div class="day-tabs">
+        ${DAY_NAMES.map((d,i)=>`
+          <button class="day-tab ${i===dayIdx?"active":""}" onclick="renderDay(${i})">${d}</button>
+        `).join("")}
+      </div>
+    </div>
+
+    <!-- Nutrition progress -->
+    <div class="nutrition-overview">
+      <h3>📊 今日營養攝取 — ${DAY_NAMES[dayIdx]}</h3>
+      <div class="progress-rows">
+        ${buildProgressBar("卡路里", totalCal, t.cal, "cal")}
+        ${buildProgressBar("蛋白質", totalProt, t.prot, "prot")}
+        ${buildProgressBar("碳水化合物", totalCarb, t.carb, "carb")}
+        ${buildProgressBar("脂肪", totalFat, t.fat, "fat")}
+      </div>
+    </div>
+
+    <!-- Meal cards -->
+    <div>
+      <div class="section-header">
+        <h2>🍽️ 三餐計劃 · ${GOAL_LABELS[currentGoal]}</h2>
+      </div>
+      <div class="meals-grid">
+        ${buildMealCard(day.breakfast, "breakfast")}
+        ${buildMealCard(day.lunch, "lunch")}
+        ${buildMealCard(day.dinner, "dinner")}
+      </div>
+    </div>
+  `;
+
+  animateBars();
+}
+
+// ─── GOAL SELECTION ─────────────────────────────────────────────────────────
+document.getElementById("goalGrid").addEventListener("click", e => {
+  const btn = e.target.closest(".goal-btn");
+  if (!btn) return;
+  document.querySelectorAll(".goal-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  currentGoal = btn.dataset.goal;
+});
+
+// ─── THEME ──────────────────────────────────────────────────────────────────
+(function(){
+  const t = document.querySelector("[data-theme-toggle]");
+  const r = document.documentElement;
+  let d = "dark"; // default dark
+  t && t.addEventListener("click", () => {
+    d = d === "dark" ? "light" : "dark";
+    r.setAttribute("data-theme", d);
+    t.innerHTML = d === "dark"
+      ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
+      : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
+  });
+})();
+
+// ─── INIT ───────────────────────────────────────────────────────────────────
+// Auto-calculate on load
+(function(){
+  const w = 75, h = 175, a = 28, g = "male", act = "1.55";
+  const t = calcTargets(w, h, a, g, act, currentGoal);
+  updateMacroDisplay(t);
+})();
+</script>
+</body>
+</html>
