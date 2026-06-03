@@ -1,0 +1,42 @@
+# 週報設定檔範例（YAML）。
+# 複製成 config.yaml 後依需要修改；JSON 格式亦可（結構相同）。
+
+# ---- 基本資訊 ----
+name: 王小明
+department: 研發部
+title: 週報
+
+# ---- 期間 ----
+# 方式一：直接指定起訖日期。
+period_start: "2026-06-01"
+period_end: "2026-06-07"
+# 方式二：留空上面兩行，改用 week_offset（0=本週、-1=上週）。
+# week_offset: 0
+
+# ---- 郵件來源（擇一）----
+email:
+  # (A) 本地匯出的發件箱檔：
+  source: mbox            # mbox / eml / file
+  path: samples/sent.mbox
+
+  # (B) 或改用 IMAP 線上讀取「寄件備份」：
+  # source: imap
+  # host: imap.example.com
+  # port: 993
+  # ssl: true
+  # username: you@example.com
+  # password_env: WEEKLY_REPORT_IMAP_PASSWORD   # 從環境變數讀密碼（較安全）
+  # sent_folder: Sent                            # 不填則自動偵測
+
+# ---- 其他事項 ----
+other_matters:
+  - 下週一上午部門例會，需準備 Q2 進度簡報。
+  - 協助新同事熟悉 CI 流程。
+  - 6/12 將請假一天（事假）。
+
+# ---- 手動補充的工作項目（key 為日期，value 為內容）----
+manual_items:
+  "2026-06-03":
+    - 完成新版報表模組的需求評審。
+  "2026-06-05":
+    - 修復線上環境的登入逾時問題。
