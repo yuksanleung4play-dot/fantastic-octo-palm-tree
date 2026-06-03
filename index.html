@@ -472,12 +472,177 @@ main {
 }
 .copy-btn:hover { background: var(--color-primary-highlight); border-color: var(--color-primary); color: var(--color-primary); }
 
+/* ─── Action toolbar ─────────────────────────────────────────────────────── */
+.action-toolbar { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.tool-btn {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm); font-weight: 600;
+  color: var(--color-text);
+  transition: background var(--transition), border-color var(--transition), color var(--transition), transform var(--transition);
+}
+.tool-btn:hover { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-highlight); }
+.tool-btn:active { transform: scale(0.97); }
+.tool-btn svg { width: 16px; height: 16px; }
+
+/* ─── Modal forms ────────────────────────────────────────────────────────── */
+.modal--wide { max-width: 680px; }
+.modal-body { display: grid; gap: var(--space-4); max-height: 70vh; overflow-y: auto; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.form-grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: var(--space-3); }
+.field textarea {
+  padding: var(--space-3);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm); line-height: 1.6;
+  resize: vertical; min-height: 120px;
+  font-family: var(--font-body);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.field textarea:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px oklch(from var(--color-primary) l c h / 0.15);
+  outline: none;
+}
+.field .hint { font-size: var(--text-xs); color: var(--color-text-faint); }
+
+/* ─── Food search ────────────────────────────────────────────────────────── */
+.search-input-wrap { position: relative; }
+.search-input-wrap svg {
+  position: absolute; left: var(--space-3); top: 50%; transform: translateY(-50%);
+  width: 18px; height: 18px; color: var(--color-text-faint); pointer-events: none;
+}
+.search-input-wrap input { padding-left: calc(var(--space-3) + 26px); }
+.food-results { display: grid; gap: var(--space-2); }
+.food-row {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-surface-offset);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition);
+}
+.food-row:hover { border-color: var(--color-primary); }
+.food-row .food-name { font-size: var(--text-sm); font-weight: 600; }
+.food-row .food-macros {
+  font-size: var(--text-xs); color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums; margin-top: 2px;
+}
+.food-add-ctl { display: flex; align-items: center; gap: var(--space-2); }
+.food-add-ctl input {
+  width: 72px; padding: var(--space-1) var(--space-2);
+  background: var(--color-surface-2); border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm); font-size: var(--text-sm); text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.btn-mini {
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-primary); color: var(--color-text-inverse);
+  border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 700;
+  transition: background var(--transition);
+}
+.btn-mini:hover { background: var(--color-primary-hover); }
+.no-results { text-align: center; color: var(--color-text-muted); font-size: var(--text-sm); padding: var(--space-6); }
+
+/* ─── Macro preview ──────────────────────────────────────────────────────── */
+.macro-preview {
+  display: flex; gap: var(--space-2); flex-wrap: wrap;
+  padding: var(--space-3);
+  background: var(--color-surface-offset);
+  border-radius: var(--radius-md);
+}
+.macro-preview .mp {
+  flex: 1; min-width: 70px; text-align: center;
+}
+.macro-preview .mp .v { font-size: var(--text-base); font-weight: 700; font-variant-numeric: tabular-nums; }
+.macro-preview .mp .l { font-size: var(--text-xs); color: var(--color-text-muted); }
+.macro-preview .mp.cal .v { color: var(--color-orange); }
+.macro-preview .mp.prot .v { color: var(--color-primary); }
+.macro-preview .mp.carb .v { color: var(--color-gold); }
+.macro-preview .mp.fat .v { color: var(--color-blue); }
+
+/* ─── Extra / custom items section ───────────────────────────────────────── */
+.extras-grid { display: grid; gap: var(--space-3); }
+.extra-card {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+.extra-card.kind-ingredient { border-left-color: var(--color-gold); }
+.extra-card.kind-recipe { border-left-color: var(--color-blue); }
+.extra-card.kind-meal { border-left-color: var(--color-primary); }
+.extra-info { min-width: 0; }
+.extra-info .extra-name { font-size: var(--text-sm); font-weight: 700; display: flex; align-items: center; gap: var(--space-2); }
+.extra-badge {
+  font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 1px var(--space-2); border-radius: var(--radius-full);
+  background: var(--color-surface-offset); color: var(--color-text-muted);
+}
+.extra-info .extra-macros { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.extra-remove {
+  width: 30px; height: 30px; border-radius: var(--radius-full); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-text-muted);
+  transition: background var(--transition), color var(--transition);
+}
+.extra-remove:hover { background: var(--color-error); color: #fff; }
+.extra-recipe-detail { margin-top: var(--space-2); }
+
+/* ─── Weekly report ──────────────────────────────────────────────────────── */
+.report-grid { display: grid; grid-template-columns: auto 1fr; gap: var(--space-8); align-items: center; }
+@media (max-width: 640px) { .report-grid { grid-template-columns: 1fr; gap: var(--space-6); } }
+.donut-wrap { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); }
+.donut {
+  position: relative; width: 180px; height: 180px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.donut::after {
+  content: ""; position: absolute; width: 116px; height: 116px;
+  background: var(--color-surface); border-radius: 50%;
+}
+.donut-center { position: relative; z-index: 1; text-align: center; }
+.donut-center .pct { font-size: var(--text-xl); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.donut-center .cap { font-size: var(--text-xs); color: var(--color-text-muted); }
+.report-rows { display: grid; gap: var(--space-4); }
+.report-legend { display: flex; gap: var(--space-4); flex-wrap: wrap; justify-content: center; font-size: var(--text-xs); }
+.report-legend span { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--color-text-muted); }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+/* ─── Print / PDF export ─────────────────────────────────────────────────── */
+.print-only { display: none; }
+@media print {
+  @page { margin: 16mm; }
+  body { background: #fff !important; color: #111 !important; }
+  .app > header, .sidebar, .action-toolbar, .day-tabs, .modal-backdrop,
+  .loading-overlay, .theme-btn, .detail-tabs .detail-tab:not(.active),
+  .extra-remove, #emptyState { display: none !important; }
+  main { display: block !important; }
+  .content { padding: 0 !important; overflow: visible !important; }
+  .meal-card, .nutrition-overview, .extra-card { break-inside: avoid; box-shadow: none !important; border-color: #ccc !important; }
+  .tab-content { display: block !important; }
+  .detail-tabs { display: none !important; }
+  .print-only { display: block !important; }
+  .print-header { text-align: center; margin-bottom: 16px; border-bottom: 2px solid #111; padding-bottom: 8px; }
+  .print-header h1 { font-size: 22px; color: #111; }
+  .print-header p { font-size: 12px; color: #555; }
+  a[href]::after { content: ""; }
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .macro-grid { grid-template-columns: 1fr 1fr 1fr 1fr; }
   .content { padding: var(--space-4); }
   .sidebar { padding: var(--space-4); }
   .day-tabs { overflow-x: auto; width: 100%; }
+  .form-grid, .form-grid-4 { grid-template-columns: 1fr 1fr; }
 }
 </style>
 </head>
@@ -587,6 +752,101 @@ main {
       </div>
     </div>
   </main>
+</div>
+
+<!-- Food search modal -->
+<div class="modal-backdrop" id="foodModal">
+  <div class="modal modal--wide">
+    <div class="modal-inner">
+      <button class="modal-close" onclick="closeModal('foodModal')" aria-label="關閉">✕</button>
+      <h2>🔍 食物資料庫搜尋</h2>
+      <p>搜尋食材，輸入克數後加入當日計劃，營養將計入今日總計。</p>
+      <div class="modal-body">
+        <div class="field">
+          <div class="search-input-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="foodSearchInput" placeholder="輸入食材名稱，例如：雞胸肉、白飯、香蕉…" autocomplete="off">
+          </div>
+          <span class="hint">每項數值以每 100g 計，加入時依輸入克數換算。</span>
+        </div>
+        <div class="food-results" id="foodResults"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recipe import modal -->
+<div class="modal-backdrop" id="recipeModal">
+  <div class="modal modal--wide">
+    <div class="modal-inner">
+      <button class="modal-close" onclick="closeModal('recipeModal')" aria-label="關閉">✕</button>
+      <h2>📥 導入自定義食譜</h2>
+      <p>貼上食譜，系統會自動分析食材的卡路里與巨量營養素並計入當日總計。</p>
+      <div class="modal-body">
+        <div class="field">
+          <label>食譜名稱</label>
+          <input type="text" id="recipeName" placeholder="例如：自製能量飯盒">
+        </div>
+        <div class="field">
+          <label>食材清單（每行一項：名稱 + 克數）</label>
+          <textarea id="recipeIngredients" placeholder="雞胸肉 150g&#10;白飯 200g&#10;西蘭花 100g&#10;橄欖油 10g"></textarea>
+          <span class="hint">格式：食材名稱 數量g，例如「雞胸肉 150g」。可使用資料庫中的食材以自動分析。</span>
+        </div>
+        <div class="field">
+          <label>烹飪步驟（每行一步，可選）</label>
+          <textarea id="recipeSteps" placeholder="將雞胸肉切片煎熟&#10;白飯盛入便當盒&#10;擺上西蘭花即可"></textarea>
+        </div>
+        <div>
+          <div class="field"><label>分析結果</label></div>
+          <div class="macro-preview" id="recipePreview" style="margin-top:var(--space-2)">
+            <div class="mp cal"><div class="v" id="rpCal">0</div><div class="l">卡路里</div></div>
+            <div class="mp prot"><div class="v" id="rpProt">0</div><div class="l">蛋白質 g</div></div>
+            <div class="mp carb"><div class="v" id="rpCarb">0</div><div class="l">碳水 g</div></div>
+            <div class="mp fat"><div class="v" id="rpFat">0</div><div class="l">脂肪 g</div></div>
+          </div>
+          <div id="recipeUnmatched" class="hint" style="margin-top:var(--space-2)"></div>
+        </div>
+        <button class="btn-primary" onclick="analyzeRecipe(true)">分析並加入當日計劃</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Custom meal modal -->
+<div class="modal-backdrop" id="mealModal">
+  <div class="modal">
+    <div class="modal-inner">
+      <button class="modal-close" onclick="closeModal('mealModal')" aria-label="關閉">✕</button>
+      <h2>➕ 新增自定義餐食</h2>
+      <p>手動輸入一餐的名稱與營養，將直接計入當日總計。</p>
+      <div class="modal-body">
+        <div class="field">
+          <label>餐食名稱</label>
+          <input type="text" id="mealName" placeholder="例如：午後蛋白奶昔">
+        </div>
+        <div class="form-grid-4">
+          <div class="field"><label>熱量 (kcal)</label><input type="number" id="mealCal" min="0" value="0"></div>
+          <div class="field"><label>蛋白質 (g)</label><input type="number" id="mealProt" min="0" value="0"></div>
+          <div class="field"><label>碳水 (g)</label><input type="number" id="mealCarb" min="0" value="0"></div>
+          <div class="field"><label>脂肪 (g)</label><input type="number" id="mealFat" min="0" value="0"></div>
+        </div>
+        <span class="hint">提示：若只填巨量營養素，可留空熱量，系統會以 4/4/9 估算。</span>
+        <button class="btn-primary" onclick="addCustomMeal()">加入當日計劃</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Weekly report modal -->
+<div class="modal-backdrop" id="reportModal">
+  <div class="modal modal--wide">
+    <div class="modal-inner">
+      <button class="modal-close" onclick="closeModal('reportModal')" aria-label="關閉">✕</button>
+      <h2>📅 每週營養報告</h2>
+      <p>統計 7 天平均攝取量，並與每日目標比較。</p>
+      <div class="modal-body" id="reportBody"></div>
+    </div>
+  </div>
 </div>
 
 <!-- Loading overlay -->
@@ -869,6 +1129,76 @@ const GOAL_LABELS = {
   cut: "減脂", bulk: "增肌", maintain: "維持", recomp: "體態重組"
 };
 
+// ─── FOOD DATABASE (per 100g) ────────────────────────────────────────────────
+// 數值為每 100g 的營養含量：kcal / protein(g) / carbs(g) / fat(g)
+const FOOD_DB = [
+  { name: "雞胸肉（去皮）", aliases: ["雞胸","雞胸肉","chicken breast"], kcal: 165, protein: 31, carbs: 0, fat: 3.6 },
+  { name: "雞腿肉（去皮）", aliases: ["雞腿","雞腿排"], kcal: 209, protein: 26, carbs: 0, fat: 11 },
+  { name: "牛里脊肉", aliases: ["牛肉","牛里脊","牛排"], kcal: 250, protein: 26, carbs: 0, fat: 15 },
+  { name: "豬里脊肉", aliases: ["豬肉","豬里脊"], kcal: 242, protein: 27, carbs: 0, fat: 14 },
+  { name: "鮭魚", aliases: ["三文魚","鮭魚排","salmon"], kcal: 208, protein: 20, carbs: 0, fat: 13 },
+  { name: "鱈魚", aliases: ["鱈魚片","cod"], kcal: 82, protein: 18, carbs: 0, fat: 0.7 },
+  { name: "鮪魚（水浸）", aliases: ["鮪魚","吞拿魚","tuna"], kcal: 116, protein: 26, carbs: 0, fat: 1 },
+  { name: "蝦", aliases: ["蝦仁","明蝦","shrimp"], kcal: 99, protein: 24, carbs: 0.2, fat: 0.3 },
+  { name: "全蛋", aliases: ["雞蛋","蛋","egg"], kcal: 155, protein: 13, carbs: 1.1, fat: 11 },
+  { name: "蛋白", aliases: ["雞蛋白","蛋白","egg white"], kcal: 52, protein: 11, carbs: 0.7, fat: 0.2 },
+  { name: "板豆腐", aliases: ["豆腐","tofu"], kcal: 76, protein: 8, carbs: 1.9, fat: 4.8 },
+  { name: "毛豆", aliases: ["edamame"], kcal: 122, protein: 11, carbs: 10, fat: 5 },
+  { name: "希臘優格（無脂）", aliases: ["希臘優格","優格","yogurt"], kcal: 59, protein: 10, carbs: 3.6, fat: 0.4 },
+  { name: "牛奶（全脂）", aliases: ["牛奶","milk"], kcal: 61, protein: 3.2, carbs: 4.8, fat: 3.3 },
+  { name: "無脂牛奶", aliases: ["脫脂牛奶","skim milk"], kcal: 34, protein: 3.4, carbs: 5, fat: 0.1 },
+  { name: "切達芝士", aliases: ["芝士","起司","cheese"], kcal: 402, protein: 25, carbs: 1.3, fat: 33 },
+  { name: "乳清蛋白粉", aliases: ["蛋白粉","whey","乳清"], kcal: 370, protein: 80, carbs: 8, fat: 4 },
+  { name: "白米飯", aliases: ["白飯","米飯","白米","rice"], kcal: 130, protein: 2.7, carbs: 28, fat: 0.3 },
+  { name: "糙米飯", aliases: ["糙米","brown rice"], kcal: 123, protein: 2.7, carbs: 26, fat: 1 },
+  { name: "藜麥（熟）", aliases: ["藜麥","quinoa"], kcal: 120, protein: 4.4, carbs: 21, fat: 1.9 },
+  { name: "燕麥", aliases: ["即食燕麥","oats","燕麥片"], kcal: 389, protein: 17, carbs: 66, fat: 7 },
+  { name: "全麥麵包", aliases: ["全麥吐司","吐司","麵包","bread"], kcal: 247, protein: 13, carbs: 41, fat: 3.4 },
+  { name: "義大利麵（乾）", aliases: ["義大利麵","意粉","pasta"], kcal: 371, protein: 13, carbs: 75, fat: 1.5 },
+  { name: "番薯", aliases: ["地瓜","sweet potato"], kcal: 86, protein: 1.6, carbs: 20, fat: 0.1 },
+  { name: "馬鈴薯", aliases: ["薯仔","土豆","potato"], kcal: 77, protein: 2, carbs: 17, fat: 0.1 },
+  { name: "香蕉", aliases: ["banana"], kcal: 89, protein: 1.1, carbs: 23, fat: 0.3 },
+  { name: "蘋果", aliases: ["apple"], kcal: 52, protein: 0.3, carbs: 14, fat: 0.2 },
+  { name: "藍莓", aliases: ["blueberry"], kcal: 57, protein: 0.7, carbs: 14, fat: 0.3 },
+  { name: "草莓", aliases: ["strawberry"], kcal: 32, protein: 0.7, carbs: 7.7, fat: 0.3 },
+  { name: "酪梨", aliases: ["牛油果","avocado"], kcal: 160, protein: 2, carbs: 9, fat: 15 },
+  { name: "西蘭花", aliases: ["花椰菜","broccoli"], kcal: 34, protein: 2.8, carbs: 7, fat: 0.4 },
+  { name: "菠菜", aliases: ["spinach"], kcal: 23, protein: 2.9, carbs: 3.6, fat: 0.4 },
+  { name: "番茄", aliases: ["蕃茄","tomato"], kcal: 18, protein: 0.9, carbs: 3.9, fat: 0.2 },
+  { name: "紅蘿蔔", aliases: ["胡蘿蔔","carrot"], kcal: 41, protein: 0.9, carbs: 10, fat: 0.2 },
+  { name: "黃瓜", aliases: ["小黃瓜","cucumber"], kcal: 15, protein: 0.7, carbs: 3.6, fat: 0.1 },
+  { name: "甜椒", aliases: ["彩椒","紅椒","bell pepper"], kcal: 31, protein: 1, carbs: 6, fat: 0.3 },
+  { name: "羽衣甘藍", aliases: ["kale"], kcal: 49, protein: 4.3, carbs: 9, fat: 0.9 },
+  { name: "杏仁", aliases: ["almond"], kcal: 579, protein: 21, carbs: 22, fat: 50 },
+  { name: "花生醬", aliases: ["花生","peanut butter"], kcal: 588, protein: 25, carbs: 20, fat: 50 },
+  { name: "奇亞籽", aliases: ["chia"], kcal: 486, protein: 17, carbs: 42, fat: 31 },
+  { name: "橄欖油", aliases: ["olive oil","油"], kcal: 884, protein: 0, carbs: 0, fat: 100 },
+  { name: "蜂蜜", aliases: ["honey"], kcal: 304, protein: 0.3, carbs: 82, fat: 0 },
+];
+
+function findFood(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  return FOOD_DB.filter(f =>
+    f.name.toLowerCase().includes(q) ||
+    (f.aliases || []).some(a => a.toLowerCase().includes(q) || q.includes(a.toLowerCase()))
+  );
+}
+
+// 嘗試以名稱比對食材（用於食譜分析）
+function matchFood(name) {
+  const n = name.trim().toLowerCase();
+  if (!n) return null;
+  let best = FOOD_DB.find(f => f.name.toLowerCase() === n);
+  if (best) return best;
+  best = FOOD_DB.find(f => (f.aliases || []).some(a => a.toLowerCase() === n));
+  if (best) return best;
+  best = FOOD_DB.find(f => f.name.toLowerCase().includes(n) || n.includes(f.name.toLowerCase()));
+  if (best) return best;
+  best = FOOD_DB.find(f => (f.aliases || []).some(a => n.includes(a.toLowerCase()) || a.toLowerCase().includes(n)));
+  return best || null;
+}
+
 // ─── STATE ─────────────────────────────────────────────────────────────────
 let currentGoal = "cut";
 let currentDay = 0;
@@ -1037,7 +1367,8 @@ function generateWeekPlan(targets) {
     days.push({
       breakfast: pickRandom(db.breakfast),
       lunch: pickRandom(db.lunch),
-      dinner: pickRandom(db.dinner)
+      dinner: pickRandom(db.dinner),
+      extras: []
     });
   }
   return { days, targets };
@@ -1045,18 +1376,66 @@ function generateWeekPlan(targets) {
 
 const DAY_NAMES = ["週一","週二","週三","週四","週五","週六","週日"];
 
+// 計算單日總攝取（含三餐與額外項目）
+function dayTotals(day) {
+  let cal = day.breakfast.kcal + day.lunch.kcal + day.dinner.kcal;
+  let prot = day.breakfast.protein + day.lunch.protein + day.dinner.protein;
+  let carb = day.breakfast.carbs + day.lunch.carbs + day.dinner.carbs;
+  let fat = day.breakfast.fat + day.lunch.fat + day.dinner.fat;
+  (day.extras || []).forEach(e => { cal += e.kcal; prot += e.protein; carb += e.carbs; fat += e.fat; });
+  return {
+    cal: Math.round(cal), prot: Math.round(prot),
+    carb: Math.round(carb), fat: Math.round(fat)
+  };
+}
+
+const KIND_LABELS = { ingredient: "食材", recipe: "食譜", meal: "餐食" };
+
+function buildExtraCard(item) {
+  const stepsHtml = (item.steps && item.steps.length)
+    ? `<div class="extra-recipe-detail">
+         <ol class="recipe-steps">
+           ${item.steps.map((s,i)=>`<li class="recipe-step"><div class="step-num">${i+1}</div><span>${s}</span></li>`).join("")}
+         </ol>
+       </div>` : "";
+  const ingHtml = (item.ingredients && item.ingredients.length)
+    ? `<div class="extra-recipe-detail">
+         <ul class="ingredient-list">
+           ${item.ingredients.map(i=>`<li class="ingredient-item"><span>${i.name}</span><span class="qty">${i.qty}</span></li>`).join("")}
+         </ul>
+       </div>` : "";
+  return `
+  <div class="extra-card kind-${item.kind}">
+    <div class="extra-info">
+      <div class="extra-name">
+        ${item.name}
+        <span class="extra-badge">${KIND_LABELS[item.kind] || "項目"}</span>
+      </div>
+      <div class="extra-macros">${item.kcal} kcal · 蛋白 ${item.protein}g · 碳水 ${item.carbs}g · 脂肪 ${item.fat}g</div>
+      ${ingHtml}${stepsHtml}
+    </div>
+    <button class="extra-remove" onclick="removeExtra('${item.id}')" aria-label="移除" title="移除">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+    </button>
+  </div>`;
+}
+
 function renderDay(dayIdx, targets) {
   currentDay = dayIdx;
   const t = targets || (currentPlan && currentPlan.targets);
   const day = currentPlan.days[dayIdx];
 
-  const totalCal = day.breakfast.kcal + day.lunch.kcal + day.dinner.kcal;
-  const totalProt = day.breakfast.protein + day.lunch.protein + day.dinner.protein;
-  const totalCarb = day.breakfast.carbs + day.lunch.carbs + day.dinner.carbs;
-  const totalFat = day.breakfast.fat + day.lunch.fat + day.dinner.fat;
+  const tot = dayTotals(day);
+  const extras = day.extras || [];
 
   const content = document.getElementById("mainContent");
   content.innerHTML = `
+    <!-- Print-only header -->
+    <div class="print-only print-header">
+      <h1>FitFuel 飲食計劃 — ${DAY_NAMES[dayIdx]}（${GOAL_LABELS[currentGoal]}）</h1>
+      <p>總計 ${tot.cal} kcal ｜ 蛋白質 ${tot.prot}g ｜ 碳水 ${tot.carb}g ｜ 脂肪 ${tot.fat}g</p>
+    </div>
+
     <!-- Day tabs -->
     <div>
       <div style="font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:var(--space-2)">選擇日期</div>
@@ -1067,14 +1446,38 @@ function renderDay(dayIdx, targets) {
       </div>
     </div>
 
+    <!-- Action toolbar -->
+    <div class="action-toolbar">
+      <button class="tool-btn" onclick="openFoodSearch()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        食物搜尋
+      </button>
+      <button class="tool-btn" onclick="openModal('recipeModal')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>
+        導入食譜
+      </button>
+      <button class="tool-btn" onclick="openModal('mealModal')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        新增餐食
+      </button>
+      <button class="tool-btn" onclick="showWeeklyReport()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg>
+        每週報告
+      </button>
+      <button class="tool-btn" onclick="exportPDF()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+        匯出 PDF
+      </button>
+    </div>
+
     <!-- Nutrition progress -->
     <div class="nutrition-overview">
       <h3>📊 今日營養攝取 — ${DAY_NAMES[dayIdx]}</h3>
       <div class="progress-rows">
-        ${buildProgressBar("卡路里", totalCal, t.cal, "cal")}
-        ${buildProgressBar("蛋白質", totalProt, t.prot, "prot")}
-        ${buildProgressBar("碳水化合物", totalCarb, t.carb, "carb")}
-        ${buildProgressBar("脂肪", totalFat, t.fat, "fat")}
+        ${buildProgressBar("卡路里", tot.cal, t.cal, "cal")}
+        ${buildProgressBar("蛋白質", tot.prot, t.prot, "prot")}
+        ${buildProgressBar("碳水化合物", tot.carb, t.carb, "carb")}
+        ${buildProgressBar("脂肪", tot.fat, t.fat, "fat")}
       </div>
     </div>
 
@@ -1089,9 +1492,269 @@ function renderDay(dayIdx, targets) {
         ${buildMealCard(day.dinner, "dinner")}
       </div>
     </div>
+
+    <!-- Extra items -->
+    <div>
+      <div class="section-header">
+        <h2>🧩 額外項目與自定義餐食</h2>
+      </div>
+      ${extras.length ? `<div class="extras-grid">${extras.map(buildExtraCard).join("")}</div>` : `
+        <div class="empty-state" style="padding:var(--space-8)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg>
+          <h3>尚未加入額外項目</h3>
+          <p>使用上方的「食物搜尋」、「導入食譜」或「新增餐食」加入額外食材或餐點，會自動計入今日總計。</p>
+        </div>`}
+    </div>
   `;
 
   animateBars();
+}
+
+// ─── MODAL HELPERS ───────────────────────────────────────────────────────────
+function openModal(id) {
+  if (!ensurePlan()) return;
+  document.getElementById(id).classList.add("open");
+}
+function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+
+function ensurePlan() {
+  if (!planGenerated || !currentPlan) {
+    alert("請先在左側點擊「生成今日飲食計劃」。");
+    return false;
+  }
+  return true;
+}
+
+function uid() { return "x_" + Math.random().toString(36).substr(2, 9); }
+
+// 將額外項目加入目前選擇的日期
+function addExtra(item) {
+  item.id = uid();
+  item.kcal = Math.round(item.kcal);
+  item.protein = Math.round(item.protein);
+  item.carbs = Math.round(item.carbs);
+  item.fat = Math.round(item.fat);
+  const day = currentPlan.days[currentDay];
+  if (!day.extras) day.extras = [];
+  day.extras.push(item);
+  renderDay(currentDay);
+}
+
+function removeExtra(id) {
+  const day = currentPlan.days[currentDay];
+  day.extras = (day.extras || []).filter(e => e.id !== id);
+  renderDay(currentDay);
+}
+
+// 點擊背景關閉視窗
+document.querySelectorAll(".modal-backdrop").forEach(bd => {
+  bd.addEventListener("click", e => { if (e.target === bd) bd.classList.remove("open"); });
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") document.querySelectorAll(".modal-backdrop.open").forEach(m => m.classList.remove("open"));
+});
+
+// ─── FOOD SEARCH ──────────────────────────────────────────────────────────────
+function openFoodSearch() {
+  if (!ensurePlan()) return;
+  document.getElementById("foodSearchInput").value = "";
+  renderFoodResults("");
+  openModal("foodModal");
+  setTimeout(() => document.getElementById("foodSearchInput").focus(), 50);
+}
+
+function renderFoodResults(query) {
+  const wrap = document.getElementById("foodResults");
+  const list = query ? findFood(query) : FOOD_DB;
+  if (!list.length) {
+    wrap.innerHTML = `<div class="no-results">找不到「${query}」相關的食材，試試其他關鍵字。</div>`;
+    return;
+  }
+  wrap.innerHTML = list.map((f, idx) => {
+    const i = FOOD_DB.indexOf(f);
+    return `
+    <div class="food-row">
+      <div>
+        <div class="food-name">${f.name}</div>
+        <div class="food-macros">每100g · ${f.kcal} kcal · 蛋白 ${f.protein}g · 碳水 ${f.carbs}g · 脂肪 ${f.fat}g</div>
+      </div>
+      <div class="food-add-ctl">
+        <input type="number" id="foodGram_${i}" value="100" min="1" step="10" aria-label="克數"> g
+        <button class="btn-mini" onclick="addFoodFromDB(${i})">加入</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function addFoodFromDB(idx) {
+  const f = FOOD_DB[idx];
+  const grams = parseFloat(document.getElementById("foodGram_" + idx).value) || 0;
+  if (grams <= 0) { alert("請輸入有效的克數。"); return; }
+  const r = grams / 100;
+  addExtra({
+    kind: "ingredient",
+    name: `${f.name} ${grams}g`,
+    kcal: f.kcal * r, protein: f.protein * r, carbs: f.carbs * r, fat: f.fat * r,
+    ingredients: [{ name: f.name, qty: grams + "g" }]
+  });
+  closeModal("foodModal");
+}
+
+document.getElementById("foodSearchInput").addEventListener("input", e => renderFoodResults(e.target.value));
+
+// ─── RECIPE IMPORT & ANALYSIS ──────────────────────────────────────────────────
+// 解析一行食材：「名稱 數量g」或「名稱 數量」
+function parseIngredientLine(line) {
+  const text = line.trim();
+  if (!text) return null;
+  const m = text.match(/^(.*?)[\s:：]*([\d.]+)\s*(g|克|公克|ml|毫升)?\s*$/i);
+  if (m && m[2]) {
+    return { name: m[1].trim() || text, grams: parseFloat(m[2]) };
+  }
+  return { name: text, grams: null };
+}
+
+function analyzeRecipe(commit) {
+  const lines = document.getElementById("recipeIngredients").value.split("\n");
+  let cal = 0, prot = 0, carb = 0, fat = 0;
+  const matched = [], unmatched = [], ingredients = [];
+  lines.forEach(line => {
+    const parsed = parseIngredientLine(line);
+    if (!parsed) return;
+    const grams = parsed.grams != null ? parsed.grams : 100;
+    ingredients.push({ name: parsed.name, qty: parsed.grams != null ? grams + "g" : "適量" });
+    const food = matchFood(parsed.name);
+    if (food) {
+      const r = grams / 100;
+      cal += food.kcal * r; prot += food.protein * r; carb += food.carbs * r; fat += food.fat * r;
+      matched.push(parsed.name);
+    } else {
+      unmatched.push(parsed.name);
+    }
+  });
+
+  document.getElementById("rpCal").textContent = Math.round(cal);
+  document.getElementById("rpProt").textContent = Math.round(prot);
+  document.getElementById("rpCarb").textContent = Math.round(carb);
+  document.getElementById("rpFat").textContent = Math.round(fat);
+  const unmatchedEl = document.getElementById("recipeUnmatched");
+  unmatchedEl.textContent = unmatched.length
+    ? `⚠️ 以下食材未在資料庫中找到，未計入營養：${unmatched.join("、")}`
+    : (matched.length ? "✓ 所有食材皆成功分析。" : "");
+
+  if (commit) {
+    if (!ingredients.length) { alert("請至少輸入一項食材。"); return; }
+    const name = document.getElementById("recipeName").value.trim() || "自定義食譜";
+    const steps = document.getElementById("recipeSteps").value.split("\n").map(s => s.trim()).filter(Boolean);
+    addExtra({
+      kind: "recipe", name,
+      kcal: cal, protein: prot, carbs: carb, fat,
+      ingredients, steps
+    });
+    // 重置表單
+    document.getElementById("recipeName").value = "";
+    document.getElementById("recipeIngredients").value = "";
+    document.getElementById("recipeSteps").value = "";
+    analyzeRecipe(false);
+    closeModal("recipeModal");
+  }
+}
+document.getElementById("recipeIngredients").addEventListener("input", () => analyzeRecipe(false));
+
+// ─── CUSTOM MEAL ───────────────────────────────────────────────────────────────
+function addCustomMeal() {
+  const name = document.getElementById("mealName").value.trim();
+  if (!name) { alert("請輸入餐食名稱。"); return; }
+  const prot = parseFloat(document.getElementById("mealProt").value) || 0;
+  const carb = parseFloat(document.getElementById("mealCarb").value) || 0;
+  const fat = parseFloat(document.getElementById("mealFat").value) || 0;
+  let cal = parseFloat(document.getElementById("mealCal").value) || 0;
+  if (cal <= 0) cal = prot * 4 + carb * 4 + fat * 9; // 由巨量營養素估算
+  addExtra({ kind: "meal", name, kcal: cal, protein: prot, carbs: carb, fat });
+  ["mealName","mealCal","mealProt","mealCarb","mealFat"].forEach((id,i) => {
+    document.getElementById(id).value = i === 0 ? "" : "0";
+  });
+  closeModal("mealModal");
+}
+
+// ─── WEEKLY REPORT ─────────────────────────────────────────────────────────────
+function showWeeklyReport() {
+  if (!ensurePlan()) return;
+  const t = currentPlan.targets;
+  const sums = { cal: 0, prot: 0, carb: 0, fat: 0 };
+  currentPlan.days.forEach(d => {
+    const tot = dayTotals(d);
+    sums.cal += tot.cal; sums.prot += tot.prot; sums.carb += tot.carb; sums.fat += tot.fat;
+  });
+  const n = currentPlan.days.length;
+  const avg = {
+    cal: Math.round(sums.cal / n), prot: Math.round(sums.prot / n),
+    carb: Math.round(sums.carb / n), fat: Math.round(sums.fat / n)
+  };
+  const rate = k => t[k] ? Math.round(avg[k] / t[k] * 100) : 0;
+  const rates = { cal: rate("cal"), prot: rate("prot"), carb: rate("carb"), fat: rate("fat") };
+  const overall = Math.round((rates.cal + rates.prot + rates.carb + rates.fat) / 4);
+
+  // 圓餅圖：達成 vs 尚缺（以整體達成率上限 100% 顯示）
+  const achieved = Math.min(overall, 100);
+  const deg = achieved / 100 * 360;
+  const donutStyle = `background: conic-gradient(var(--color-primary) 0deg ${deg}deg, var(--color-surface-offset) ${deg}deg 360deg);`;
+
+  const row = (label, cls, a, target, r) => `
+    <div class="progress-row">
+      <div class="progress-header">
+        <span class="progress-label">${label}</span>
+        <span class="progress-value">平均 ${a} / 目標 ${target} · 達成 ${r}%</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill ${cls}" style="width:${Math.min(r,100)}%"></div>
+      </div>
+    </div>`;
+
+  document.getElementById("reportBody").innerHTML = `
+    <div class="report-grid">
+      <div class="donut-wrap">
+        <div class="donut" style="${donutStyle}">
+          <div class="donut-center">
+            <div class="pct">${overall}%</div>
+            <div class="cap">整體達成率</div>
+          </div>
+        </div>
+        <div class="report-legend">
+          <span><span class="legend-dot" style="background:var(--color-primary)"></span>已達成</span>
+          <span><span class="legend-dot" style="background:var(--color-surface-offset)"></span>尚缺</span>
+        </div>
+      </div>
+      <div class="report-rows">
+        ${row("卡路里", "cal", avg.cal + " kcal", t.cal + " kcal", rates.cal)}
+        ${row("蛋白質", "prot", avg.prot + "g", t.prot + "g", rates.prot)}
+        ${row("碳水化合物", "carb", avg.carb + "g", t.carb + "g", rates.carb)}
+        ${row("脂肪", "fat", avg.fat + "g", t.fat + "g", rates.fat)}
+      </div>
+    </div>
+    <div class="tip-card">
+      <strong>💡 7 天平均分析</strong>
+      ${weeklyAdvice(rates)}
+    </div>
+  `;
+  openModal("reportModal");
+}
+
+function weeklyAdvice(rates) {
+  const msgs = [];
+  if (rates.cal < 90) msgs.push("整體熱量攝取偏低，留意是否影響恢復與表現。");
+  else if (rates.cal > 110) msgs.push("整體熱量略高於目標，可適度調整份量。");
+  else msgs.push("熱量攝取與目標相當接近，維持得不錯！");
+  if (rates.prot < 90) msgs.push("蛋白質尚未達標，建議增加高蛋白食材以支持肌肉合成。");
+  else msgs.push("蛋白質攝取充足，有助於肌肉維持與增長。");
+  return msgs.join(" ");
+}
+
+// ─── PDF / PRINT EXPORT ─────────────────────────────────────────────────────────
+function exportPDF() {
+  if (!ensurePlan()) return;
+  // 列印樣式 (@media print) 會自動展開所有食材清單與烹飪步驟
+  window.print();
 }
 
 // ─── GOAL SELECTION ─────────────────────────────────────────────────────────
