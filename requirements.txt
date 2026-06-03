@@ -1,0 +1,3 @@
+# 核心功能僅使用 Python 標準函式庫（imaplib、email、mailbox 等），無需安裝。
+# 以下為選用：若要使用 YAML 設定檔則需要 PyYAML。
+PyYAML>=6.0

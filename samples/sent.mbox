@@ -1,0 +1,55 @@
+From MAILER-DAEMON Wed Jun  3 07:09:01 2026
+Subject: =?utf-8?b?5paw54mI5aCx6KGo5qih57WE6ZyA5rGC56K66KqN?=
+From: =?utf-8?b?546L5bCP5piO?= <wang@example.com>
+To: =?utf-8?b?5p2O57aT55CG?= <li@example.com>
+Date: Mon, 01 Jun 2026 09:12:00 +0800
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+MIME-Version: 1.0
+
+李經理您好，附件為新版報表模組的需求草案，請過目。
+
+From MAILER-DAEMON Wed Jun  3 07:09:01 2026
+Subject: =?utf-8?b?6YCx5pyD6K2w57SA6YyE77yINi8x77yJ?=
+From: =?utf-8?b?546L5bCP5piO?= <wang@example.com>
+To: team@example.com
+Date: Mon, 01 Jun 2026 15:40:00 +0800
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+MIME-Version: 1.0
+
+附上今日週會的會議紀錄，請各位確認行動項目。
+
+From MAILER-DAEMON Wed Jun  3 07:09:01 2026
+Subject: Re: =?utf-8?b?5paw54mI5aCx6KGo5qih57WE6ZyA5rGC56K66KqN?=
+From: =?utf-8?b?546L5bCP5piO?= <wang@example.com>
+To: =?utf-8?b?5p2O57aT55CG?= <li@example.com>
+Date: Tue, 02 Jun 2026 10:05:00 +0800
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+MIME-Version: 1.0
+
+已根據您的回饋更新需求文件第三節，再請確認。
+
+From MAILER-DAEMON Wed Jun  3 07:09:01 2026
+Subject: API =?utf-8?b?5Liy5o6l5ris6Kmm57WQ5p6c5Zue5aCx?=
+From: =?utf-8?b?546L5bCP5piO?= <wang@example.com>
+To: =?utf-8?b?5ZyY6ZqK?= <team@example.com>
+Date: Wed, 03 Jun 2026 11:20:00 +0800
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+MIME-Version: 1.0
+
+第三方支付 API 串接已完成整合測試，結果如附。
+
+From MAILER-DAEMON Wed Jun  3 07:09:01 2026
+Subject: =?utf-8?b?55m75YWl6YC+5pmC5ZWP6aGM5L+u5b6p5a6M5oiQ?=
+From: =?utf-8?b?546L5bCP5piO?= <wang@example.com>
+To: ops@example.com, =?utf-8?b?5p2O57aT55CG?= <li@example.com>
+Date: Fri, 05 Jun 2026 17:30:00 +0800
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+MIME-Version: 1.0
+
+線上環境登入逾時問題已修復並上線，後續觀察中。
+
