@@ -510,6 +510,40 @@ main {
 }
 .field .hint { font-size: var(--text-xs); color: var(--color-text-faint); }
 
+/* ─── JSON import dropzone ───────────────────────────────────────────────── */
+.json-dropzone {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-6);
+  background: var(--color-surface-2);
+  border: 1.5px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  text-align: center; cursor: pointer;
+  color: var(--color-text-muted);
+  transition: border-color var(--transition), background var(--transition), color var(--transition);
+}
+.json-dropzone:hover, .json-dropzone.dragover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-highlight);
+  color: var(--color-primary);
+}
+.json-dropzone svg { width: 30px; height: 30px; }
+.json-dropzone span { font-size: var(--text-sm); }
+.json-actions { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin-top: var(--space-2); }
+.json-status-ok { color: var(--color-success) !important; }
+.json-status-err { color: var(--color-error) !important; }
+.field code, .hint code {
+  font-family: 'Inter', monospace; font-size: 0.85em;
+  background: var(--color-surface-offset); padding: 1px 4px; border-radius: var(--radius-sm);
+}
+.json-divider {
+  display: flex; align-items: center; gap: var(--space-3);
+  color: var(--color-text-faint); font-size: var(--text-xs);
+}
+.json-divider::before, .json-divider::after {
+  content: ""; flex: 1; height: 1px; background: var(--color-divider);
+}
+
 /* ─── Food search ────────────────────────────────────────────────────────── */
 .search-input-wrap { position: relative; }
 .search-input-wrap svg {
@@ -781,8 +815,22 @@ main {
     <div class="modal-inner">
       <button class="modal-close" onclick="closeModal('recipeModal')" aria-label="關閉">✕</button>
       <h2>📥 導入自定義食譜</h2>
-      <p>貼上食譜，系統會自動分析食材的卡路里與巨量營養素並計入當日總計。</p>
+      <p>可手動貼上食譜，或直接導入 JSON 檔案，系統會自動分析食材的卡路里與巨量營養素並計入當日總計。</p>
       <div class="modal-body">
+        <div class="field">
+          <label>導入 JSON 檔案</label>
+          <label class="json-dropzone" id="jsonDropzone" for="recipeJsonInput">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+            <span id="jsonDropText">點擊選擇或拖放 <strong>.json</strong> 食譜檔案</span>
+            <input type="file" id="recipeJsonInput" accept=".json,application/json" hidden>
+          </label>
+          <div class="json-actions">
+            <button type="button" class="copy-btn" style="position:static" onclick="downloadRecipeTemplate()">下載 JSON 範本</button>
+            <span class="hint" id="jsonStatus"></span>
+          </div>
+          <span class="hint">支援格式：<code>{ "name": "...", "ingredients": [{"name":"雞胸肉","grams":150}], "steps": ["..."] }</code>；<code>ingredients</code> 亦可為字串如 <code>"雞胸肉 150g"</code>。</span>
+        </div>
+        <div class="json-divider"><span>或手動輸入</span></div>
         <div class="field">
           <label>食譜名稱</label>
           <input type="text" id="recipeName" placeholder="例如：自製能量飯盒">
@@ -1655,11 +1703,113 @@ function analyzeRecipe(commit) {
     document.getElementById("recipeName").value = "";
     document.getElementById("recipeIngredients").value = "";
     document.getElementById("recipeSteps").value = "";
+    setJsonStatus("", true);
+    document.getElementById("jsonDropText").innerHTML = '點擊選擇或拖放 <strong>.json</strong> 食譜檔案';
     analyzeRecipe(false);
     closeModal("recipeModal");
   }
 }
 document.getElementById("recipeIngredients").addEventListener("input", () => analyzeRecipe(false));
+
+// ─── RECIPE JSON IMPORT ─────────────────────────────────────────────────────────
+// 將食材陣列正規化為文字行（支援字串或 {name, grams/qty/amount} 物件）
+function ingredientToLine(ing) {
+  if (typeof ing === "string") return ing.trim();
+  if (ing && typeof ing === "object") {
+    const name = ing.name || ing.ingredient || ing.item || "";
+    const grams = ing.grams != null ? ing.grams
+      : ing.gram != null ? ing.gram
+      : ing.amount != null ? ing.amount
+      : ing.qty != null ? ing.qty : null;
+    if (grams == null || grams === "") return name.trim();
+    // 若 qty 已是含單位的字串（例如「150g」），直接附加
+    if (typeof grams === "string" && /[a-zA-Z\u4e00-\u9fa5]/.test(grams)) return `${name} ${grams}`.trim();
+    return `${name} ${grams}g`.trim();
+  }
+  return "";
+}
+
+function setJsonStatus(msg, ok) {
+  const el = document.getElementById("jsonStatus");
+  el.textContent = msg || "";
+  el.classList.remove("json-status-ok", "json-status-err");
+  if (msg) el.classList.add(ok ? "json-status-ok" : "json-status-err");
+}
+
+// 將解析後的食譜物件載入表單並即時分析
+function loadRecipeFromObject(obj) {
+  if (!obj || typeof obj !== "object") throw new Error("JSON 內容不是有效的物件");
+  const ingredientsRaw = obj.ingredients || obj.食材 || [];
+  if (!Array.isArray(ingredientsRaw) || !ingredientsRaw.length) {
+    throw new Error("找不到 ingredients 食材陣列");
+  }
+  const stepsRaw = obj.steps || obj.步驟 || obj.instructions || [];
+  document.getElementById("recipeName").value = obj.name || obj.名稱 || obj.title || "";
+  document.getElementById("recipeIngredients").value = ingredientsRaw.map(ingredientToLine).filter(Boolean).join("\n");
+  document.getElementById("recipeSteps").value = (Array.isArray(stepsRaw) ? stepsRaw : String(stepsRaw).split("\n"))
+    .map(s => String(s).trim()).filter(Boolean).join("\n");
+  analyzeRecipe(false);
+}
+
+function handleRecipeJsonFile(file) {
+  if (!file) return;
+  if (!/\.json$/i.test(file.name) && file.type !== "application/json") {
+    setJsonStatus("✗ 請選擇 .json 檔案", false);
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const obj = JSON.parse(e.target.result);
+      loadRecipeFromObject(obj);
+      setJsonStatus(`✓ 已載入「${file.name}」，請確認後加入計劃`, true);
+      document.getElementById("jsonDropText").innerHTML = `已載入：<strong>${file.name}</strong>`;
+    } catch (err) {
+      setJsonStatus("✗ 解析失敗：" + err.message, false);
+    }
+  };
+  reader.onerror = () => setJsonStatus("✗ 讀取檔案時發生錯誤", false);
+  reader.readAsText(file);
+}
+
+(function setupRecipeJsonImport() {
+  const input = document.getElementById("recipeJsonInput");
+  const zone = document.getElementById("jsonDropzone");
+  input.addEventListener("change", e => { handleRecipeJsonFile(e.target.files[0]); input.value = ""; });
+  ["dragenter", "dragover"].forEach(ev => zone.addEventListener(ev, e => {
+    e.preventDefault(); zone.classList.add("dragover");
+  }));
+  ["dragleave", "drop"].forEach(ev => zone.addEventListener(ev, e => {
+    e.preventDefault(); zone.classList.remove("dragover");
+  }));
+  zone.addEventListener("drop", e => {
+    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) handleRecipeJsonFile(file);
+  });
+})();
+
+function downloadRecipeTemplate() {
+  const template = {
+    name: "自製能量飯盒",
+    ingredients: [
+      { name: "雞胸肉", grams: 150 },
+      { name: "白飯", grams: 200 },
+      { name: "西蘭花", grams: 100 },
+      { name: "橄欖油", grams: 10 }
+    ],
+    steps: [
+      "雞胸肉切片煎熟",
+      "白飯盛入便當盒",
+      "擺上西蘭花與雞胸即可"
+    ]
+  };
+  const blob = new Blob([JSON.stringify(template, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "fitfuel-recipe-template.json";
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
 
 // ─── CUSTOM MEAL ───────────────────────────────────────────────────────────────
 function addCustomMeal() {
