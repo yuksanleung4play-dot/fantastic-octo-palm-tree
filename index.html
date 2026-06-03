@@ -551,21 +551,38 @@ main {
   width: 18px; height: 18px; color: var(--color-text-faint); pointer-events: none;
 }
 .search-input-wrap input { padding-left: calc(var(--space-3) + 26px); }
-.food-results { display: grid; gap: var(--space-2); }
+.food-results { display: grid; gap: var(--space-2); max-height: 46vh; overflow-y: auto; padding-right: 2px; }
 .food-row {
-  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-3);
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--space-3);
   padding: var(--space-3);
   background: var(--color-surface-offset);
   border: 1px solid transparent;
   border-radius: var(--radius-md);
-  transition: border-color var(--transition);
+  transition: border-color var(--transition), background var(--transition);
 }
 .food-row:hover { border-color: var(--color-primary); }
-.food-row .food-name { font-size: var(--text-sm); font-weight: 600; }
+.food-row.selected { border-color: var(--color-primary); background: var(--color-primary-highlight); }
+.food-check {
+  width: 18px; height: 18px; flex-shrink: 0; cursor: pointer;
+  accent-color: var(--color-primary);
+}
+.food-row .food-name { font-size: var(--text-sm); font-weight: 600; display: flex; align-items: center; gap: var(--space-2); }
 .food-row .food-macros {
   font-size: var(--text-xs); color: var(--color-text-muted);
   font-variant-numeric: tabular-nums; margin-top: 2px;
 }
+.food-tag {
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.04em;
+  padding: 1px var(--space-2); border-radius: var(--radius-full);
+  background: var(--color-blue-highlight); color: var(--color-blue);
+}
+.food-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding-top: var(--space-3); border-top: 1px solid var(--color-divider);
+}
+.food-footer .sel-count { font-size: var(--text-sm); color: var(--color-text-muted); font-weight: 600; }
+.food-footer .btn-primary { width: auto; }
+.food-footer .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
 .food-add-ctl { display: flex; align-items: center; gap: var(--space-2); }
 .food-add-ctl input {
   width: 72px; padding: var(--space-1) var(--space-2);
@@ -794,16 +811,23 @@ main {
     <div class="modal-inner">
       <button class="modal-close" onclick="closeModal('foodModal')" aria-label="關閉">✕</button>
       <h2>🔍 食物資料庫搜尋</h2>
-      <p>搜尋食材，輸入克數後加入當日計劃，營養將計入今日總計。</p>
+      <p>搜尋食材，勾選可多選，分別輸入克數後一次加入當日計劃，營養將計入今日總計。</p>
       <div class="modal-body">
         <div class="field">
           <div class="search-input-wrap">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
             <input type="text" id="foodSearchInput" placeholder="輸入食材名稱，例如：雞胸肉、白飯、香蕉…" autocomplete="off">
           </div>
-          <span class="hint">每項數值以每 100g 計，加入時依輸入克數換算。</span>
+          <span class="hint" id="foodDbHint">每項數值以每 100g 計，加入時依輸入克數換算。導入食譜 JSON 中含營養資訊的食材會自動加入此資料庫。</span>
         </div>
         <div class="food-results" id="foodResults"></div>
+        <div class="food-footer">
+          <span class="sel-count" id="foodSelCount">已選 0 項</span>
+          <button class="btn-primary" id="foodAddBtn" onclick="addSelectedFoods()" disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            加入所選食材
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -828,7 +852,7 @@ main {
             <button type="button" class="copy-btn" style="position:static" onclick="downloadRecipeTemplate()">下載 JSON 範本</button>
             <span class="hint" id="jsonStatus"></span>
           </div>
-          <span class="hint">支援格式：<code>{ "name": "...", "ingredients": [{"name":"雞胸肉","grams":150}], "steps": ["..."] }</code>；<code>ingredients</code> 亦可為字串如 <code>"雞胸肉 150g"</code>。</span>
+          <span class="hint">支援格式：<code>{ "name": "...", "ingredients": [{"name":"雞胸肉","grams":150}], "steps": ["..."] }</code>；<code>ingredients</code> 亦可為字串如 <code>"雞胸肉 150g"</code>。食材若附帶 <code>per100g</code> 營養（如 <code>{"name":"天貝","grams":80,"per100g":{"kcal":193,"protein":19,"carbs":9,"fat":11}}</code>），會自動加入食物資料庫供搜尋。</span>
         </div>
         <div class="json-divider"><span>或手動輸入</span></div>
         <div class="field">
@@ -1247,6 +1271,39 @@ function matchFood(name) {
   return best || null;
 }
 
+const _num = v => (typeof v === "number" && !isNaN(v)) ? v
+  : (v != null && v !== "" && !isNaN(parseFloat(v))) ? parseFloat(v) : null;
+
+// 從食譜 JSON 的食材物件擷取每 100g 營養（支援 per100g 巢狀或 *Per100g 扁平鍵）
+function extractPer100g(ing) {
+  if (!ing || typeof ing !== "object") return null;
+  const p = ing.per100g || ing.per_100g || ing.每100g;
+  const kcal = p ? _num(p.kcal ?? p.calories ?? p.cal) : _num(ing.kcalPer100g ?? ing.caloriesPer100g);
+  if (kcal == null) return null;
+  return {
+    kcal,
+    protein: (p ? _num(p.protein ?? p.prot) : _num(ing.proteinPer100g)) || 0,
+    carbs: (p ? _num(p.carbs ?? p.carb) : _num(ing.carbsPer100g)) || 0,
+    fat: (p ? _num(p.fat) : _num(ing.fatPer100g)) || 0
+  };
+}
+
+// 將新食材加入資料庫（若尚未存在），回傳是否新增成功
+function registerFood(food) {
+  if (!food || !food.name) return false;
+  if (matchFood(food.name)) return false;
+  FOOD_DB.push({
+    name: food.name,
+    aliases: Array.isArray(food.aliases) ? food.aliases : (food.aliases ? [food.aliases] : []),
+    kcal: Math.round(food.kcal),
+    protein: +(food.protein || 0),
+    carbs: +(food.carbs || 0),
+    fat: +(food.fat || 0),
+    custom: true
+  });
+  return true;
+}
+
 // ─── STATE ─────────────────────────────────────────────────────────────────
 let currentGoal = "cut";
 let currentDay = 0;
@@ -1575,8 +1632,8 @@ function ensurePlan() {
 
 function uid() { return "x_" + Math.random().toString(36).substr(2, 9); }
 
-// 將額外項目加入目前選擇的日期
-function addExtra(item) {
+// 將額外項目推入目前選擇的日期（不重新渲染）
+function pushExtra(item) {
   item.id = uid();
   item.kcal = Math.round(item.kcal);
   item.protein = Math.round(item.protein);
@@ -1585,6 +1642,11 @@ function addExtra(item) {
   const day = currentPlan.days[currentDay];
   if (!day.extras) day.extras = [];
   day.extras.push(item);
+}
+
+// 將額外項目加入並重新渲染
+function addExtra(item) {
+  pushExtra(item);
   renderDay(currentDay);
 }
 
@@ -1602,11 +1664,17 @@ document.addEventListener("keydown", e => {
   if (e.key === "Escape") document.querySelectorAll(".modal-backdrop.open").forEach(m => m.classList.remove("open"));
 });
 
-// ─── FOOD SEARCH ──────────────────────────────────────────────────────────────
+// ─── FOOD SEARCH (多選) ─────────────────────────────────────────────────────────
+let foodSelected = new Set();  // 已勾選的食材索引
+let foodGrams = {};            // 各食材索引對應的克數（保留使用者輸入）
+
 function openFoodSearch() {
   if (!ensurePlan()) return;
+  foodSelected = new Set();
+  foodGrams = {};
   document.getElementById("foodSearchInput").value = "";
   renderFoodResults("");
+  updateFoodSelCount();
   openModal("foodModal");
   setTimeout(() => document.getElementById("foodSearchInput").focus(), 50);
 }
@@ -1618,33 +1686,79 @@ function renderFoodResults(query) {
     wrap.innerHTML = `<div class="no-results">找不到「${query}」相關的食材，試試其他關鍵字。</div>`;
     return;
   }
-  wrap.innerHTML = list.map((f, idx) => {
+  wrap.innerHTML = list.map(f => {
     const i = FOOD_DB.indexOf(f);
+    const checked = foodSelected.has(i);
+    const grams = foodGrams[i] != null ? foodGrams[i] : 100;
+    const tag = f.custom ? `<span class="food-tag">導入</span>` : "";
+    const aliasHint = (f.aliases && f.aliases.length) ? ` · ${f.aliases.slice(0,2).join("／")}` : "";
     return `
-    <div class="food-row">
+    <div class="food-row ${checked ? "selected" : ""}" id="foodRow_${i}">
+      <input type="checkbox" class="food-check" ${checked ? "checked" : ""} onchange="toggleFoodSelect(${i}, this.checked)" aria-label="選擇 ${f.name}">
       <div>
-        <div class="food-name">${f.name}</div>
-        <div class="food-macros">每100g · ${f.kcal} kcal · 蛋白 ${f.protein}g · 碳水 ${f.carbs}g · 脂肪 ${f.fat}g</div>
+        <div class="food-name">${f.name}${tag}</div>
+        <div class="food-macros">每100g · ${f.kcal} kcal · 蛋白 ${f.protein}g · 碳水 ${f.carbs}g · 脂肪 ${f.fat}g${aliasHint}</div>
       </div>
       <div class="food-add-ctl">
-        <input type="number" id="foodGram_${i}" value="100" min="1" step="10" aria-label="克數"> g
-        <button class="btn-mini" onclick="addFoodFromDB(${i})">加入</button>
+        <input type="number" id="foodGram_${i}" value="${grams}" min="1" step="10" aria-label="克數"
+          oninput="setFoodGram(${i}, this.value)" onfocus="this.select()"> g
       </div>
     </div>`;
   }).join("");
 }
 
-function addFoodFromDB(idx) {
-  const f = FOOD_DB[idx];
-  const grams = parseFloat(document.getElementById("foodGram_" + idx).value) || 0;
-  if (grams <= 0) { alert("請輸入有效的克數。"); return; }
-  const r = grams / 100;
-  addExtra({
-    kind: "ingredient",
-    name: `${f.name} ${grams}g`,
-    kcal: f.kcal * r, protein: f.protein * r, carbs: f.carbs * r, fat: f.fat * r,
-    ingredients: [{ name: f.name, qty: grams + "g" }]
+function toggleFoodSelect(idx, checked) {
+  if (checked) {
+    foodSelected.add(idx);
+    const input = document.getElementById("foodGram_" + idx);
+    foodGrams[idx] = input ? (parseFloat(input.value) || 100) : 100;
+  } else {
+    foodSelected.delete(idx);
+  }
+  const row = document.getElementById("foodRow_" + idx);
+  if (row) row.classList.toggle("selected", checked);
+  updateFoodSelCount();
+}
+
+function setFoodGram(idx, val) {
+  const g = parseFloat(val);
+  foodGrams[idx] = (g > 0) ? g : 0;
+  if (!foodSelected.has(idx) && g > 0) {
+    // 輸入克數時自動勾選，提升操作便利性
+    foodSelected.add(idx);
+    const cb = document.querySelector(`#foodRow_${idx} .food-check`);
+    if (cb) cb.checked = true;
+    const row = document.getElementById("foodRow_" + idx);
+    if (row) row.classList.add("selected");
+    updateFoodSelCount();
+  }
+}
+
+function updateFoodSelCount() {
+  const n = foodSelected.size;
+  document.getElementById("foodSelCount").textContent = `已選 ${n} 項`;
+  document.getElementById("foodAddBtn").disabled = n === 0;
+}
+
+function addSelectedFoods() {
+  if (!foodSelected.size) return;
+  let added = 0;
+  foodSelected.forEach(idx => {
+    const f = FOOD_DB[idx];
+    if (!f) return;
+    const grams = foodGrams[idx] != null ? foodGrams[idx] : 100;
+    if (grams <= 0) return;
+    const r = grams / 100;
+    pushExtra({
+      kind: "ingredient",
+      name: `${f.name} ${grams}g`,
+      kcal: f.kcal * r, protein: f.protein * r, carbs: f.carbs * r, fat: f.fat * r,
+      ingredients: [{ name: f.name, qty: grams + "g" }]
+    });
+    added++;
   });
+  if (!added) { alert("請為所選食材輸入有效的克數。"); return; }
+  renderDay(currentDay);
   closeModal("foodModal");
 }
 
@@ -1737,18 +1851,48 @@ function setJsonStatus(msg, ok) {
 }
 
 // 將解析後的食譜物件載入表單並即時分析
+// 從食譜 JSON 中自動將含營養資訊的食材新增至食物資料庫，回傳新增的名稱
+function registerFoodsFromRecipe(ingredientsRaw) {
+  const added = [];
+  ingredientsRaw.forEach(ing => {
+    if (ing && typeof ing === "object") {
+      const name = ing.name || ing.ingredient || ing.item || ing.名稱;
+      const per = extractPer100g(ing);
+      if (name && per && registerFood({ name, aliases: ing.aliases || ing.別名, ...per })) {
+        added.push(name);
+      }
+    }
+  });
+  // 若 JSON 另含獨立的食物資料庫陣列 foods，也一併匯入
+  const extraFoods = arguments[1];
+  if (Array.isArray(extraFoods)) {
+    extraFoods.forEach(f => {
+      const name = f && (f.name || f.名稱);
+      const kcal = _num(f && (f.kcal ?? f.calories));
+      if (name && kcal != null && registerFood({
+        name, aliases: f.aliases || f.別名,
+        kcal, protein: _num(f.protein) || 0, carbs: _num(f.carbs) || 0, fat: _num(f.fat) || 0
+      })) added.push(name);
+    });
+  }
+  return added;
+}
+
 function loadRecipeFromObject(obj) {
   if (!obj || typeof obj !== "object") throw new Error("JSON 內容不是有效的物件");
   const ingredientsRaw = obj.ingredients || obj.食材 || [];
   if (!Array.isArray(ingredientsRaw) || !ingredientsRaw.length) {
     throw new Error("找不到 ingredients 食材陣列");
   }
+  // 先將帶營養資訊的食材自動加入食物資料庫，使其可被搜尋與分析
+  const addedFoods = registerFoodsFromRecipe(ingredientsRaw, obj.foods || obj.食物);
   const stepsRaw = obj.steps || obj.步驟 || obj.instructions || [];
   document.getElementById("recipeName").value = obj.name || obj.名稱 || obj.title || "";
   document.getElementById("recipeIngredients").value = ingredientsRaw.map(ingredientToLine).filter(Boolean).join("\n");
   document.getElementById("recipeSteps").value = (Array.isArray(stepsRaw) ? stepsRaw : String(stepsRaw).split("\n"))
     .map(s => String(s).trim()).filter(Boolean).join("\n");
   analyzeRecipe(false);
+  return addedFoods;
 }
 
 function handleRecipeJsonFile(file) {
@@ -1761,8 +1905,10 @@ function handleRecipeJsonFile(file) {
   reader.onload = e => {
     try {
       const obj = JSON.parse(e.target.result);
-      loadRecipeFromObject(obj);
-      setJsonStatus(`✓ 已載入「${file.name}」，請確認後加入計劃`, true);
+      const addedFoods = loadRecipeFromObject(obj);
+      let msg = `✓ 已載入「${file.name}」，請確認後加入計劃`;
+      if (addedFoods.length) msg += `；已新增 ${addedFoods.length} 項食材至資料庫（${addedFoods.join("、")}）`;
+      setJsonStatus(msg, true);
       document.getElementById("jsonDropText").innerHTML = `已載入：<strong>${file.name}</strong>`;
     } catch (err) {
       setJsonStatus("✗ 解析失敗：" + err.message, false);
@@ -1795,12 +1941,16 @@ function downloadRecipeTemplate() {
       { name: "雞胸肉", grams: 150 },
       { name: "白飯", grams: 200 },
       { name: "西蘭花", grams: 100 },
-      { name: "橄欖油", grams: 10 }
+      {
+        name: "天貝", grams: 80,
+        aliases: ["tempeh"],
+        per100g: { kcal: 193, protein: 19, carbs: 9, fat: 11 }
+      }
     ],
     steps: [
       "雞胸肉切片煎熟",
       "白飯盛入便當盒",
-      "擺上西蘭花與雞胸即可"
+      "擺上西蘭花與天貝即可"
     ]
   };
   const blob = new Blob([JSON.stringify(template, null, 2)], { type: "application/json" });
