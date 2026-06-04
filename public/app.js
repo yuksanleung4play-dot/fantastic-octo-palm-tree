@@ -2,9 +2,13 @@ const state = {
   schedule: [],
   date: null,
   meal: null,
+  member: '',
   options: [],
   selectedLabel: null,
 };
+
+const MEMBERS = ['爸爸', '妈妈', '宝宝', '爷爷', '奶奶'];
+const MEAL_LABEL = { lunch: '午餐', dinner: '晚餐' };
 
 const el = (id) => document.getElementById(id);
 const api = async (url, opts) => {
@@ -14,22 +18,74 @@ const api = async (url, opts) => {
   return data;
 };
 
-const MEAL_LABEL = { lunch: '午餐', dinner: '晚餐' };
-
 function nutriText(n) {
   if (!n || n.calories == null) return '营养数据待补充';
   return `${n.calories} kcal · 蛋白 ${n.protein}g · 脂肪 ${n.fat}g · 碳水 ${n.carbs}g`;
 }
 
+function formatDate(dateStr) {
+  const [, m, d] = dateStr.split('-');
+  return `${Number(m)}月${Number(d)}日`;
+}
+
+/* ===================== 首屏 ===================== */
+function setupHome() {
+  const today = state.schedule[0];
+  el('home-date').textContent = `${formatDate(today.date)} ${today.weekday} · ${
+    today.isWeekend ? '周末' : '平日'
+  }（${today.meals.map((m) => MEAL_LABEL[m]).join('／')}）`;
+
+  const chips = el('who-chips');
+  chips.innerHTML = MEMBERS.map((name) => `<button class="who-chip" data-name="${name}">${name}</button>`).join('');
+  chips.querySelectorAll('.who-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      el('home-name').value = '';
+      chips.querySelectorAll('.who-chip').forEach((c) => c.classList.remove('selected'));
+      chip.classList.add('selected');
+      state.member = chip.dataset.name;
+      el('home-start').disabled = false;
+    });
+  });
+
+  el('home-name').addEventListener('input', (e) => {
+    const v = e.target.value.trim();
+    chips.querySelectorAll('.who-chip').forEach((c) => c.classList.remove('selected'));
+    state.member = v;
+    el('home-start').disabled = !v;
+  });
+
+  el('home-start').addEventListener('click', enterApp);
+  el('back-home').addEventListener('click', showHome);
+}
+
+function showHome() {
+  el('app').classList.remove('active');
+  el('home').classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function enterApp() {
+  if (!state.member) return;
+  el('appbar-member').textContent = `${state.member} 正在点餐`;
+  el('home').classList.remove('active');
+  el('app').classList.add('active');
+  window.scrollTo(0, 0);
+  clearStatus();
+}
+
+/* ===================== 主屏 ===================== */
 async function init() {
   const { schedule } = await api('/api/schedule?days=14');
   state.schedule = schedule;
+
   const sel = el('date-select');
   sel.innerHTML = schedule
     .map((d) => `<option value="${d.date}">${d.date}（${d.weekday}${d.isWeekend ? ' · 周末' : ''}）</option>`)
     .join('');
   sel.addEventListener('change', () => selectDate(sel.value));
-  el('member').addEventListener('input', updateOrderButtons);
+  el('submit').addEventListener('click', submitOrder);
+
+  setupHome();
   selectDate(schedule[0].date);
 }
 
@@ -37,9 +93,7 @@ function selectDate(date) {
   state.date = date;
   const day = state.schedule.find((d) => d.date === date);
   const tabs = el('meal-tabs');
-  tabs.innerHTML = day.meals
-    .map((m) => `<button class="meal-tab" data-meal="${m}">${MEAL_LABEL[m]}</button>`)
-    .join('');
+  tabs.innerHTML = day.meals.map((m) => `<button class="meal-tab" data-meal="${m}">${MEAL_LABEL[m]}</button>`).join('');
   tabs.querySelectorAll('.meal-tab').forEach((btn) => {
     btn.addEventListener('click', () => selectMeal(btn.dataset.meal));
   });
@@ -49,11 +103,10 @@ function selectDate(date) {
 async function selectMeal(meal) {
   state.meal = meal;
   state.selectedLabel = null;
-  document.querySelectorAll('.meal-tab').forEach((b) => {
-    b.classList.toggle('active', b.dataset.meal === meal);
-  });
-  el('meal-title').textContent = `${state.date} ${MEAL_LABEL[meal]} · 套餐选择（A/B/C/D）`;
+  document.querySelectorAll('.meal-tab').forEach((b) => b.classList.toggle('active', b.dataset.meal === meal));
+  el('meal-title').textContent = `${formatDate(state.date)} ${MEAL_LABEL[meal]} · 选套餐`;
   clearStatus();
+  updateOrderBar();
   try {
     const data = await api(`/api/meals?date=${state.date}&meal=${meal}`);
     state.options = data.options;
@@ -75,7 +128,7 @@ function renderOptions() {
           return `${label}<ul>${items}</ul>`;
         })
         .join('');
-      const steps = (opt.steps || []).map((s, i) => `<li>${stripMd(s)}</li>`).join('');
+      const steps = (opt.steps || []).map((s) => `<li>${stripMd(s)}</li>`).join('');
       const sourceHtml = opt.source
         ? `<div class="source">来源：${
             opt.sourceUrl ? `<a href="${opt.sourceUrl}" target="_blank" rel="noopener">${opt.source}</a>` : opt.source
@@ -84,10 +137,7 @@ function renderOptions() {
       const cal = opt.nutrition && opt.nutrition.calories != null ? `${opt.nutrition.calories} kcal` : '营养待补充';
       return `
       <div class="option-card" data-label="${opt.label}">
-        <div class="option-head">
-          <span class="option-label">${opt.label}</span>
-          <span class="option-cal">${cal}</span>
-        </div>
+        <div class="option-head"><span class="option-label">${opt.label}</span><span class="option-cal">${cal}</span></div>
         <div class="option-title">${opt.title}</div>
         <div class="meal-meta">${opt.mealType || ''}</div>
         <div class="nutri"><span>${nutriText(opt.nutrition)}</span></div>
@@ -104,42 +154,33 @@ function renderOptions() {
       state.selectedLabel = card.dataset.label;
       grid.querySelectorAll('.option-card').forEach((c) => c.classList.remove('selected'));
       card.classList.add('selected');
-      ensureOrderBar();
+      updateOrderBar();
     });
   });
-  ensureOrderBar();
 }
 
-function ensureOrderBar() {
-  let bar = document.getElementById('order-bar');
-  if (!bar) {
-    bar = document.createElement('div');
-    bar.id = 'order-bar';
-    bar.className = 'order-bar';
-    el('options').after(bar);
+function updateOrderBar() {
+  const info = el('order-bar-info');
+  const btn = el('submit');
+  const opt = state.options.find((o) => o.label === state.selectedLabel);
+  if (opt) {
+    info.textContent = `已选 ${opt.label} 餐 · ${opt.title}`;
+    btn.disabled = !state.member;
+  } else {
+    info.textContent = '请选择一个套餐';
+    btn.disabled = true;
   }
-  bar.innerHTML = `<button id="submit" class="btn-primary">保存点餐并发送备菜邮件</button>`;
-  document.getElementById('submit').addEventListener('click', submitOrder);
-  updateOrderButtons();
-}
-
-function updateOrderButtons() {
-  const btn = document.getElementById('submit');
-  if (!btn) return;
-  const member = el('member').value.trim();
-  btn.disabled = !member || !state.selectedLabel;
 }
 
 async function submitOrder() {
-  const member = el('member').value.trim();
-  const btn = document.getElementById('submit');
+  const btn = el('submit');
   btn.disabled = true;
   btn.textContent = '提交中…';
   try {
     const data = await api('/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ member, date: state.date, meal: state.meal, optionLabel: state.selectedLabel }),
+      body: JSON.stringify({ member: state.member, date: state.date, meal: state.meal, optionLabel: state.selectedLabel }),
     });
     showSuccess(data);
     const meals = await api(`/api/orders?date=${state.date}&meal=${state.meal}`);
@@ -147,8 +188,8 @@ async function submitOrder() {
   } catch (err) {
     showError(err.message);
   } finally {
-    btn.textContent = '保存点餐并发送备菜邮件';
-    updateOrderButtons();
+    btn.textContent = '保存点餐';
+    updateOrderBar();
   }
 }
 
@@ -169,7 +210,7 @@ function showSuccess({ order, mail }) {
     )}</pre></details>`;
   }
   box.classList.remove('hidden');
-  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  box.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function showError(msg) {

@@ -2,64 +2,92 @@
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5"
+    />
     <title>家庭点餐系统</title>
+    <meta name="description" content="家庭内部点餐：平日一餐、周末午晚餐，A/B/C/D 自选，下单自动发备菜邮件。" />
+
+    <!-- iOS Safari / 添加到主屏幕 -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="家庭点餐" />
+    <meta name="theme-color" content="#ea580c" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="apple-touch-icon" href="./icon.svg" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <header class="topbar">
-      <div class="brand">
-        <span class="logo">🍽️</span>
-        <div>
-          <h1>家庭点餐系统</h1>
-          <p>平日一餐 · 周末午晚餐 · 真实食谱库 · A/B/C/D 自选</p>
+    <!-- ========== 前置首屏 ========== -->
+    <section id="home" class="screen home active">
+      <div class="home-inner">
+        <div class="home-logo">🍽️</div>
+        <h1 class="home-title">家庭点餐</h1>
+        <p class="home-sub">今天想吃什么？</p>
+        <div id="home-date" class="home-date">—</div>
+
+        <div class="home-card">
+          <p class="home-label">我是谁</p>
+          <div id="who-chips" class="who-chips"></div>
+          <input id="home-name" class="home-input" inputmode="text" autocomplete="off"
+                 placeholder="或输入名字…" />
         </div>
+
+        <button id="home-start" class="btn-hero" disabled>开始点餐</button>
+        <p class="home-hint">点一下上面的名字即可开始</p>
       </div>
-    </header>
+    </section>
 
-    <main class="container">
-      <section class="panel controls">
-        <div class="field">
-          <label>谁在点餐</label>
-          <input id="member" list="member-list" placeholder="输入名字，如：爸爸 / 妈妈 / 宝宝" />
-          <datalist id="member-list">
-            <option value="爸爸"></option>
-            <option value="妈妈"></option>
-            <option value="宝宝"></option>
-            <option value="爷爷"></option>
-            <option value="奶奶"></option>
-          </datalist>
+    <!-- ========== 点餐主屏 ========== -->
+    <section id="app" class="screen app">
+      <header class="appbar">
+        <button id="back-home" class="appbar-back" aria-label="返回">‹</button>
+        <div class="appbar-title">
+          <strong>家庭点餐</strong>
+          <span id="appbar-member" class="appbar-member"></span>
         </div>
-        <div class="field">
-          <label>选择日期</label>
-          <select id="date-select"></select>
-        </div>
-        <div class="field">
-          <label>餐次</label>
-          <div id="meal-tabs" class="meal-tabs"></div>
-        </div>
-      </section>
+      </header>
 
-      <section id="status" class="status hidden"></section>
+      <main class="container">
+        <section class="panel controls">
+          <div class="field">
+            <label>选择日期</label>
+            <select id="date-select"></select>
+          </div>
+          <div class="field">
+            <label>餐次</label>
+            <div id="meal-tabs" class="meal-tabs"></div>
+          </div>
+        </section>
 
-      <section class="panel">
-        <div class="section-head">
-          <h2 id="meal-title">本餐套餐</h2>
-          <span id="ordered-badge" class="badge hidden"></span>
-        </div>
-        <div id="options" class="options-grid"></div>
-      </section>
+        <section id="status" class="status hidden"></section>
 
-      <section id="existing" class="panel hidden">
-        <h2>本餐已下单家人</h2>
-        <ul id="existing-list" class="existing-list"></ul>
-      </section>
-    </main>
+        <section class="panel">
+          <div class="section-head">
+            <h2 id="meal-title">本餐套餐</h2>
+            <span id="ordered-badge" class="badge hidden"></span>
+          </div>
+          <div id="options" class="options-grid"></div>
+        </section>
 
-    <footer class="footer">
-      下单保存后会自动发送备菜邮件到家庭邮箱（需在 <code>.env</code> 配置 SMTP 与 NOTIFY_EMAIL）。
-      食谱库由 <code>data/source-recipes.json</code> 生成，运行 <code>npm run build:recipes</code> 可更新。
-    </footer>
+        <section id="existing" class="panel hidden">
+          <h2>本餐已下单家人</h2>
+          <ul id="existing-list" class="existing-list"></ul>
+        </section>
+
+        <div class="bottom-spacer"></div>
+      </main>
+
+      <!-- 底部固定操作栏（含 iOS 安全区） -->
+      <div id="order-bar" class="order-bar">
+        <div class="order-bar-info" id="order-bar-info">请选择一个套餐</div>
+        <button id="submit" class="btn-primary" disabled>保存点餐</button>
+      </div>
+    </section>
 
     <script src="./app.js" type="module"></script>
   </body>
