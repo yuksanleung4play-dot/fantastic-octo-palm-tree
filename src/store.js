@@ -26,28 +26,27 @@ function writeOrders(orders) {
 }
 
 /**
- * 保存一条订单。若同一家人对同一 (date, meal) 已下单，则覆盖（改单）。
+ * 保存一条点餐记录。不再按人区分，每次保存都新增一条记录。
  */
 export function saveOrder(order) {
   const orders = readOrders();
-  const idx = orders.findIndex(
-    (o) => o.member === order.member && o.date === order.date && o.meal === order.meal,
-  );
+  const ts = Date.now();
   const record = {
-    id: `${order.date}-${order.meal}-${order.member}`,
+    id: `${order.date}-${order.meal}-${ts}-${Math.random().toString(36).slice(2, 6)}`,
     createdAt: new Date().toISOString(),
     ...order,
   };
-  if (idx >= 0) {
-    orders[idx] = { ...orders[idx], ...record, updatedAt: new Date().toISOString() };
-  } else {
-    orders.push(record);
-  }
+  orders.push(record);
   writeOrders(orders);
   return record;
 }
 
-/** 查询某 (date, meal) 下所有订单。 */
+/** 查询某一天的全部记录（同一天内的记录都可见并一起发送）。 */
+export function ordersForDay(date) {
+  return readOrders().filter((o) => o.date === date);
+}
+
+/** 查询某 (date, meal) 下所有记录。 */
 export function ordersForMeal(date, meal) {
   return readOrders().filter((o) => o.date === date && o.meal === meal);
 }

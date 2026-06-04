@@ -2,13 +2,11 @@ const state = {
   schedule: [],
   date: null,
   meal: null,
-  member: '',
   options: [],
   selectedLabel: null,
   offline: false,
 };
 
-const MEMBERS = ['爸爸', '妈妈', '宝宝', '爷爷', '奶奶'];
 const MEAL_LABEL = { lunch: '午餐', dinner: '晚餐' };
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
@@ -64,25 +62,6 @@ function setupHome() {
     today.isWeekend ? '周末' : '平日'
   }（${today.meals.map((m) => MEAL_LABEL[m]).join('／')}）`;
 
-  const chips = el('who-chips');
-  chips.innerHTML = MEMBERS.map((name) => `<button class="who-chip" data-name="${name}">${name}</button>`).join('');
-  chips.querySelectorAll('.who-chip').forEach((chip) => {
-    chip.addEventListener('click', () => {
-      el('home-name').value = '';
-      chips.querySelectorAll('.who-chip').forEach((c) => c.classList.remove('selected'));
-      chip.classList.add('selected');
-      state.member = chip.dataset.name;
-      el('home-start').disabled = false;
-    });
-  });
-
-  el('home-name').addEventListener('input', (e) => {
-    const v = e.target.value.trim();
-    chips.querySelectorAll('.who-chip').forEach((c) => c.classList.remove('selected'));
-    state.member = v;
-    el('home-start').disabled = !v;
-  });
-
   el('home-start').addEventListener('click', enterApp);
   el('back-home').addEventListener('click', showHome);
 }
@@ -94,8 +73,6 @@ function showHome() {
 }
 
 function enterApp() {
-  if (!state.member) return;
-  el('appbar-member').textContent = `${state.member} 正在点餐`;
   el('home').classList.remove('active');
   el('app').classList.add('active');
   window.scrollTo(0, 0);
@@ -126,6 +103,7 @@ async function init() {
 function selectDate(date) {
   state.date = date;
   const day = state.schedule.find((d) => d.date === date);
+  el('appbar-member').textContent = `${formatDate(date)} · 全家共享`;
   const tabs = el('meal-tabs');
   tabs.innerHTML = day.meals.map((m) => `<button class="meal-tab" data-meal="${m}">${MEAL_LABEL[m]}</button>`).join('');
   tabs.querySelectorAll('.meal-tab').forEach((btn) => {
@@ -146,7 +124,7 @@ async function selectMeal(meal) {
     state.options = [];
     el('options').innerHTML =
       '<p class="empty">📦 这是静态前端预览。套餐生成与下单需要运行后端：<br><code>npm install &amp;&amp; npm start</code>，再用本机地址打开。</p>';
-    renderExisting([]);
+    renderRecords([]);
     return;
   }
 
@@ -154,7 +132,7 @@ async function selectMeal(meal) {
     const data = await api(`/api/meals?date=${state.date}&meal=${meal}`);
     state.options = data.options;
     renderOptions();
-    renderExisting(data.existingOrders);
+    renderRecords(data.existingOrders);
   } catch (err) {
     el('options').innerHTML = `<p class="empty">${err.message}</p>`;
   }
@@ -208,7 +186,7 @@ function updateOrderBar() {
   const opt = state.options.find((o) => o.label === state.selectedLabel);
   if (opt) {
     info.textContent = `已选 ${opt.label} 餐 · ${opt.title}`;
-    btn.disabled = !state.member;
+    btn.disabled = false;
   } else {
     info.textContent = state.offline ? '静态预览模式（需后端才能点餐）' : '请选择一个套餐';
     btn.disabled = true;
@@ -223,20 +201,21 @@ async function submitOrder() {
     const data = await api('/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ member: state.member, date: state.date, meal: state.meal, optionLabel: state.selectedLabel }),
+      body: JSON.stringify({ date: state.date, meal: state.meal, optionLabel: state.selectedLabel }),
     });
     showSuccess(data);
-    const meals = await api(`/api/orders?date=${state.date}&meal=${state.meal}`);
-    renderExisting(meals.orders);
+    renderRecords(data.allOrders);
   } catch (err) {
     showError(err.message);
   } finally {
     btn.textContent = '保存点餐';
+    state.selectedLabel = null;
+    document.querySelectorAll('.option-card').forEach((c) => c.classList.remove('selected'));
     updateOrderBar();
   }
 }
 
-function showSuccess({ order, mail }) {
+function showSuccess({ order, allOrders, mail }) {
   const box = el('status');
   box.className = 'status ok';
   let mailLine;
@@ -244,9 +223,9 @@ function showSuccess({ order, mail }) {
   else if (mail.mode === 'outbox') mailLine = `邮件已生成预览（${mail.reason}）。预览文件：${mail.file}`;
   else mailLine = `邮件发送失败：${mail.error || mail.reason || '未知错误'}`;
 
-  box.innerHTML = `✅ <b>${order.member}</b> 已点 <b>${order.option.label} 餐</b>：${order.option.title}（${nutriText(
+  box.innerHTML = `✅ 已保存 <b>${order.option.label} 餐</b>：${order.option.title}（${nutriText(
     order.option.nutrition,
-  )}）。<br>${mailLine}`;
+  )}）。当天共 <b>${(allOrders || []).length}</b> 笔记录。<br>${mailLine}`;
   if (mail.preview) {
     box.innerHTML += `<details><summary style="cursor:pointer;margin-top:8px;">查看邮件内容预览</summary><pre>${escapeHtml(
       mail.preview,
@@ -267,7 +246,7 @@ function clearStatus() {
   el('status').classList.add('hidden');
 }
 
-function renderExisting(orders) {
+function renderRecords(orders) {
   const panel = el('existing');
   const list = el('existing-list');
   const badge = el('ordered-badge');
@@ -276,15 +255,13 @@ function renderExisting(orders) {
     badge.classList.add('hidden');
     return;
   }
-  badge.textContent = `已下单 ${orders.length} 人`;
+  badge.textContent = `当天 ${orders.length} 笔`;
   badge.classList.remove('hidden');
   list.innerHTML = orders
-    .map(
-      (o) =>
-        `<li><b>${o.member}</b> · ${o.option.label} 餐 — ${o.option.title}（${
-          o.option.nutrition && o.option.nutrition.calories != null ? `${o.option.nutrition.calories} kcal` : '营养待补充'
-        }）</li>`,
-    )
+    .map((o, i) => {
+      const cal = o.option.nutrition && o.option.nutrition.calories != null ? `${o.option.nutrition.calories} kcal` : '营养待补充';
+      return `<li><b>${i + 1}.</b> ${MEAL_LABEL[o.meal] || o.meal} · ${o.option.label} 餐 — ${o.option.title}（${cal}）</li>`;
+    })
     .join('');
   panel.classList.remove('hidden');
 }

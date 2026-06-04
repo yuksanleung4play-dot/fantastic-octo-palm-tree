@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { loadRecipes } from './recipes.js';
 import { buildSchedule, mealsForDate, MEAL_LABELS, toDateStr } from './schedule.js';
 import { generateMealOptions, findOption } from './mealGenerator.js';
-import { saveOrder, ordersForMeal } from './store.js';
+import { saveOrder, ordersForDay } from './store.js';
 import { sendMealEmail } from './mailer.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -14,7 +14,7 @@ app.use(express.static(join(__dirname, '..', 'public')));
 
 let recipes = loadRecipes();
 
-/** 食谱库元信息与全部菜品。 */
+/** 食谱库元信息与全部食谱。 */
 app.get('/api/recipes', (req, res) => {
   res.json(recipes);
 });
@@ -26,7 +26,7 @@ app.get('/api/schedule', (req, res) => {
   res.json({ start, days, schedule: buildSchedule(start, days) });
 });
 
-/** 某日某餐的 A/B/C/D 套餐选项。 */
+/** 某日某餐的 A/B/C/D 选项；existingOrders 返回当天全部记录。 */
 app.get('/api/meals', (req, res) => {
   const { date, meal } = req.query;
   if (!date || !meal) return res.status(400).json({ error: '缺少 date 或 meal 参数' });
@@ -41,15 +41,15 @@ app.get('/api/meals', (req, res) => {
     meal,
     mealLabel: MEAL_LABELS[meal],
     options: generateMealOptions(recipes, date, meal),
-    existingOrders: ordersForMeal(date, meal),
+    existingOrders: ordersForDay(date),
   });
 });
 
-/** 下单并发送备菜邮件。 */
+/** 保存一条记录并发送当天备菜邮件（不区分点餐人）。 */
 app.post('/api/orders', async (req, res) => {
-  const { member, date, meal, optionLabel } = req.body || {};
-  if (!member || !date || !meal || !optionLabel) {
-    return res.status(400).json({ error: '缺少 member / date / meal / optionLabel' });
+  const { date, meal, optionLabel } = req.body || {};
+  if (!date || !meal || !optionLabel) {
+    return res.status(400).json({ error: '缺少 date / meal / optionLabel' });
   }
   if (!mealsForDate(date).includes(meal)) {
     return res.status(400).json({ error: `${date} 不安排该餐次` });
@@ -57,8 +57,8 @@ app.post('/api/orders', async (req, res) => {
   const option = findOption(recipes, date, meal, optionLabel);
   if (!option) return res.status(404).json({ error: `未找到套餐 ${optionLabel}` });
 
-  const record = saveOrder({ member, date, meal, option });
-  const allOrders = ordersForMeal(date, meal);
+  const record = saveOrder({ date, meal, option });
+  const allOrders = ordersForDay(date);
 
   let mail;
   try {
@@ -67,14 +67,14 @@ app.post('/api/orders', async (req, res) => {
     mail = { sent: false, mode: 'error', error: err.message };
   }
 
-  res.status(201).json({ order: record, mail });
+  res.status(201).json({ order: record, allOrders, mail });
 });
 
-/** 查看某餐已下单情况。 */
+/** 查看某一天的全部记录。 */
 app.get('/api/orders', (req, res) => {
-  const { date, meal } = req.query;
-  if (!date || !meal) return res.status(400).json({ error: '缺少 date 或 meal' });
-  res.json({ orders: ordersForMeal(date, meal) });
+  const { date } = req.query;
+  if (!date) return res.status(400).json({ error: '缺少 date' });
+  res.json({ orders: ordersForDay(date) });
 });
 
 const PORT = process.env.PORT || 3000;

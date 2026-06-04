@@ -1,6 +1,6 @@
 # 家庭点餐系统 🍽️
 
-一个家庭内部使用的点餐系统：基于**真实整餐食谱库**自动生成 A/B/C/D 餐，家人在网页上挑选，保存后自动给你发送「备菜邮件」。
+一个家庭内部使用的点餐系统：基于**真实整餐食谱库**自动生成 A/B/C/D 餐，家人在网页上挑选，保存后自动给你发送「备菜邮件」。配有为 Safari（含 iPhone）优化的前置首屏。
 
 ## 功能特性
 
@@ -8,12 +8,13 @@
 - **智能排程**：
   - 平日（周一至周五）：**一餐（晚餐）**
   - 周末（周六、周日）：**午餐 + 晚餐**
-- **自动生成 A/B/C/D 四套餐**：每套是一道完整食谱，按餐次（午/晚）从可用食谱中**确定性**挑选——同一餐次对所有家人展示一致，四套互不相同。
+- **自动生成 A/B/C/D 四套餐**：每套是一道完整食谱，按餐次（午/晚）从可用食谱中**确定性**挑选——同一餐次始终一致，四套互不相同。
 - **标明热量与营养成分**：每道食谱显示热量、蛋白质、脂肪、碳水。
-- **下单即发邮件**：任一家人保存点餐后，自动发送邮件到你的邮箱，列出：
-  - 本次所点食谱、营养与来源链接
-  - 本餐所有已下单家人
-  - **需要准备的全部食材与分量**：按所点食谱分组、按下单人数标注份数（如 `×2 份`），方便买菜备菜。
+- **不区分点餐人 · 按天汇总**：无需登录或选择「我是谁」，任何人选好套餐保存即可。**同一天内保存的所有记录都会一起显示，并在每次保存时发送备菜邮件**。
+- **下单即发邮件**：保存后自动发送邮件到你的邮箱，列出：
+  - 本次新增的食谱与营养
+  - **当天已保存的全部记录**（跨午餐/晚餐）
+  - **需要准备的全部食材与分量**：按食谱合并、按份数标注（如 `×2 份`），方便买菜备菜。
 
 ## 快速开始
 
@@ -24,7 +25,7 @@ cp .env.example .env     # 按需填写邮箱与 SMTP
 npm start                # 访问 http://localhost:3000
 ```
 
-打开浏览器 → 输入名字 → 选日期与餐次 → 点选 A/B/C/D → 点击「保存点餐并发送备菜邮件」。
+用手机浏览器打开 → 进入首屏点「开始点餐」→ 选日期与餐次 → 点选 A/B/C/D → 点击「保存点餐」。当天每次保存都会刷新记录并发送备菜邮件。iPhone Safari 可「添加到主屏幕」当作 App 使用。
 
 ## 邮件配置
 
@@ -46,25 +47,6 @@ npm start                # 访问 http://localhost:3000
 - `data/source-recipes.json`：**原始食谱**（人类可读，整餐列表）。新增/修改菜谱在这里编辑。
 - `data/recipes.json`：由构建脚本生成的**结构化数据**（解析后的餐次、人份、营养、食材分组），系统实际读取它。
 
-源食谱条目结构：
-
-```json
-{
-  "title": "食譜01｜煎嫩雞胸＋優格醬佐酪梨蛋花椰菜沙拉＋小番茄蔬菜清湯",
-  "source": "MASA（YouTube／IG @masa_cookingram） [youtube](https://...)",
-  "meal_type": "午餐／晚餐｜1人份",
-  "ingredients": ["雞胸肉 300g、鹽 10g、糖 10g、水 300cc", "..."],
-  "steps": ["**醃漬雞胸：** ...", "..."],
-  "nutrition": { "calories": "約 680 kcal", "protein": "約 62g", "fat": "約 32g", "carbs": "約 28g" }
-}
-```
-
-构建脚本会自动解析：
-
-- `meal_type` → 适用餐次（`午餐`→lunch、`晚餐`→dinner、`午餐／晚餐`→两者皆可）与人份。
-- `nutrition` → 数值（去除 `**`、`約` 等修饰）。
-- `ingredients` → 按 `、` 拆分为单项，识别 `爆香：`/`醃料：`/`調味：` 等分组前缀。
-
 编辑源数据后运行 `npm run build:recipes` 重新生成。缺少食材的食谱会自动从可点餐池中跳过（保证备菜清单可用）。
 
 ## API
@@ -73,25 +55,25 @@ npm start                # 访问 http://localhost:3000
 | --- | --- | --- |
 | `GET` | `/api/recipes` | 食谱库全部食谱 |
 | `GET` | `/api/schedule?start=YYYY-MM-DD&days=14` | 排程（平日/周末餐次） |
-| `GET` | `/api/meals?date=YYYY-MM-DD&meal=lunch\|dinner` | 该餐 A/B/C/D 选项 |
-| `POST` | `/api/orders` | 下单并发邮件，body：`{member,date,meal,optionLabel}` |
-| `GET` | `/api/orders?date=&meal=` | 查看某餐已下单情况 |
+| `GET` | `/api/meals?date=YYYY-MM-DD&meal=lunch\|dinner` | 该餐 A/B/C/D 选项；`existingOrders` 为当天全部记录 |
+| `POST` | `/api/orders` | 保存记录并发当天备菜邮件，body：`{date,meal,optionLabel}` |
+| `GET` | `/api/orders?date=YYYY-MM-DD` | 查看某一天的全部记录 |
 
 ## 项目结构
 
 ```
 data/source-recipes.json  原始食谱（可编辑）
 data/recipes.json         构建生成的结构化食谱库
-data/orders.json          订单存储（自动生成，已 gitignore）
+data/orders.json          记录存储（自动生成，已 gitignore）
 data/outbox/              未配置 SMTP 时的邮件预览（已 gitignore）
 scripts/build-recipes.mjs 源数据 → 结构化食谱库的构建脚本
 src/recipes.js            食谱加载/校验/营养汇总
 src/schedule.js           平日一餐 / 周末午晚餐排程
 src/mealGenerator.js      A/B/C/D 确定性挑选
-src/store.js              订单持久化
+src/store.js              记录持久化（按天，不区分点餐人）
 src/mailer.js             备菜邮件构建与发送
 src/server.js             Express 服务与 API
-public/                   前端页面（HTML/CSS/JS）
+public/                   前端页面（首屏 + 点餐主屏，Safari 优化 / PWA）
 test/                     单元测试（node --test）
 ```
 
