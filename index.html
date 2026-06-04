@@ -276,6 +276,7 @@ main {
   background: var(--color-success-highlight); color: var(--color-success);
   align-self: center;
 }
+.combo-badge--recipe { background: var(--color-blue-highlight); color: var(--color-blue); }
 .dish-subhead {
   display: flex; align-items: center; justify-content: space-between;
   font-size: var(--text-sm); font-weight: 700; color: var(--color-text);
@@ -1218,6 +1219,20 @@ let currentGoal = "cut";
 let currentDay = 0;
 let planGenerated = false;
 let currentPlan = null;
+// 導入食譜池：使用者透過食譜庫 / JSON 導入的食譜，會在「生成飲食計劃」時被納入
+let importedRecipes = [];
+
+// 將食譜加入導入食譜池（以名稱去重）
+function addToRecipePool(recipe) {
+  if (!recipe || !recipe.name) return;
+  if (importedRecipes.some(r => r.name === recipe.name)) return;
+  importedRecipes.push({
+    name: recipe.name,
+    kcal: Math.round(recipe.kcal), protein: Math.round(recipe.protein),
+    carbs: Math.round(recipe.carbs), fat: Math.round(recipe.fat),
+    ingredients: recipe.ingredients || [], steps: recipe.steps || []
+  });
+}
 
 // ─── CALCULATIONS ──────────────────────────────────────────────────────────
 function calcBMR(weight, height, age, gender) {
@@ -1266,8 +1281,12 @@ function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-// 計算一餐（一葷一素）的合計營養
+// 計算一餐的合計營養（一葷一素，或單一導入食譜）
 function mealMacros(meal) {
+  if (meal.recipe) {
+    const r = meal.recipe;
+    return { kcal: r.kcal, protein: r.protein, carbs: r.carbs, fat: r.fat };
+  }
   const dishes = [meal.meat, meal.veg].filter(Boolean);
   return dishes.reduce((a, d) => ({
     kcal: a.kcal + d.kcal, protein: a.protein + d.protein,
@@ -1280,27 +1299,34 @@ function buildMealCard(meal, type) {
   const typeLabel = type === "breakfast" ? "早餐" : type === "lunch" ? "午餐" : "晚餐";
   const id = `meal_${type}_${Math.random().toString(36).substr(2,5)}`;
   const m = mealMacros(meal);
-  const parts = [{ tag: "🥩 葷", dish: meal.meat }, { tag: "🥬 素", dish: meal.veg }].filter(p => p.dish);
+  const isRecipe = !!meal.recipe;
+  const parts = isRecipe
+    ? [{ tag: "🍱 食譜", dish: meal.recipe }]
+    : [{ tag: "🥩 葷", dish: meal.meat }, { tag: "🥬 素", dish: meal.veg }].filter(p => p.dish);
 
   const ingHtml = parts.map(p => `
-    <div class="dish-subhead">${p.tag} · ${p.dish.name}<span class="dish-kcal">${p.dish.kcal} kcal</span></div>
+    <div class="dish-subhead">${p.tag} · ${p.dish.name}${p.dish.kcal!=null?`<span class="dish-kcal">${p.dish.kcal} kcal</span>`:""}</div>
     <ul class="ingredient-list">
-      ${p.dish.ingredients.map(i=>`<li class="ingredient-item"><span>${i.name}</span><span class="qty">${i.qty}</span></li>`).join("")}
+      ${(p.dish.ingredients||[]).map(i=>`<li class="ingredient-item"><span>${i.name}</span><span class="qty">${i.qty}</span></li>`).join("")}
     </ul>`).join("");
 
   const recHtml = parts.map(p => `
     <div class="dish-subhead">${p.tag} · ${p.dish.name}</div>
     <ol class="recipe-steps">
-      ${p.dish.steps.map((s,i)=>`<li class="recipe-step"><div class="step-num">${i+1}</div><span>${s}</span></li>`).join("")}
+      ${(p.dish.steps||[]).map((s,i)=>`<li class="recipe-step"><div class="step-num">${i+1}</div><span>${s}</span></li>`).join("")}
     </ol>`).join("");
 
-  const tipHtml = parts.map(p => `
-    <div class="tip-card" style="margin-bottom:var(--space-2)">
-      <strong>💡 ${p.tag}菜 · ${p.dish.name}</strong>
-      ${p.dish.tip}
-    </div>`).join("");
+  const tipParts = parts.filter(p => p.dish.tip);
+  const tipHtml = tipParts.length
+    ? tipParts.map(p => `
+      <div class="tip-card" style="margin-bottom:var(--space-2)">
+        <strong>💡 ${p.tag}菜 · ${p.dish.name}</strong>
+        ${p.dish.tip}
+      </div>`).join("")
+    : `<div class="tip-card"><strong>💡 導入食譜</strong>本餐來自你導入的食譜，營養為依食材自動分析的結果。</div>`;
 
   const mealName = parts.map(p => p.dish.name).join("　＋　");
+  const badge = isRecipe ? "導入食譜" : "一葷一素";
 
   return `
   <div class="meal-card ${typeClass}">
@@ -1309,7 +1335,7 @@ function buildMealCard(meal, type) {
         <div class="meal-dot"></div>
         <span style="font-size:var(--text-xs);color:var(--color-text-muted);font-weight:600">${typeLabel}</span>
         <span class="meal-name">${mealName}</span>
-        <span class="combo-badge">一葷一素</span>
+        <span class="combo-badge${isRecipe?" combo-badge--recipe":""}">${badge}</span>
       </div>
       <div class="meal-kcal">${m.kcal} kcal</div>
     </div>
@@ -1408,11 +1434,26 @@ function composeMeal(goal) {
 
 function generateWeekPlan(targets) {
   const days = [];
+  const slots = [];
   for (let i = 0; i < 7; i++) {
     const meals = {};
-    mealsForDay(i).forEach(type => { meals[type] = composeMeal(currentGoal); });
+    mealsForDay(i).forEach(type => { meals[type] = null; slots.push([i, type]); });
     days.push({ meals, extras: [] });
   }
+
+  // 若有導入食譜，將其分配至約半數餐位（至少一個），其餘維持一葷一素
+  const recipeSlots = new Set();
+  if (importedRecipes.length) {
+    const order = [...slots.keys()].sort(() => Math.random() - 0.5);
+    const k = Math.max(1, Math.round(slots.length / 2));
+    order.slice(0, k).forEach(idx => recipeSlots.add(idx));
+  }
+
+  slots.forEach(([i, type], idx) => {
+    days[i].meals[type] = recipeSlots.has(idx)
+      ? { recipe: pickRandom(importedRecipes) }
+      : composeMeal(currentGoal);
+  });
   return { days, targets };
 }
 
@@ -1533,7 +1574,7 @@ function renderDay(dayIdx, targets) {
       </div>
       <div class="tip-card" style="margin-bottom:var(--space-4)">
         <strong>🗓️ 餐次規則</strong>
-        週一至週五每日一餐（晚餐），週末（週六、週日）提供午餐與晚餐。可使用下方工具自行加入額外食材或餐食。
+        週一至週五每日一餐（晚餐），週末（週六、週日）提供午餐與晚餐。${importedRecipes.length ? `目前食譜池有 <strong style="display:inline">${importedRecipes.length}</strong> 道導入食譜，重新「生成今日飲食計劃」時會隨機納入。` : "從「食譜庫」或「導入食譜」加入食譜後，重新生成計劃即會納入這些食譜。"}
       </div>
       <div class="meals-grid">
         ${MEAL_ORDER.filter(type => day.meals[type]).map(type => buildMealCard(day.meals[type], type)).join("")}
@@ -1750,11 +1791,9 @@ function analyzeRecipe(commit) {
     if (!ingredients.length) { alert("請至少輸入一項食材。"); return; }
     const name = document.getElementById("recipeName").value.trim() || "自定義食譜";
     const steps = document.getElementById("recipeSteps").value.split("\n").map(s => s.trim()).filter(Boolean);
-    addExtra({
-      kind: "recipe", name,
-      kcal: cal, protein: prot, carbs: carb, fat,
-      ingredients, steps
-    });
+    const recipe = { kind: "recipe", name, kcal: cal, protein: prot, carbs: carb, fat, ingredients, steps };
+    addExtra(recipe);
+    addToRecipePool(recipe); // 納入生成計劃時可用的食譜池
     // 重置表單
     document.getElementById("recipeName").value = "";
     document.getElementById("recipeIngredients").value = "";
@@ -2023,6 +2062,7 @@ function addSelectedRecipes() {
       kcal: r.kcal, protein: r.protein, carbs: r.carbs, fat: r.fat,
       ingredients: r.ingredients, steps: r.steps
     });
+    addToRecipePool(r); // 納入生成計劃時可用的食譜池
     added++;
   });
   if (added) renderDay(currentDay);
