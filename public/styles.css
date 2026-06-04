@@ -26,7 +26,6 @@ body {
   padding: 22px 24px;
   box-shadow: 0 4px 16px rgba(234, 88, 12, 0.25);
 }
-
 .brand { display: flex; align-items: center; gap: 16px; max-width: 1040px; margin: 0 auto; }
 .logo { font-size: 40px; }
 .topbar h1 { margin: 0; font-size: 24px; }
@@ -63,11 +62,11 @@ body {
 .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .section-head h2, .panel > h2 { margin: 0 0 14px; font-size: 18px; }
 
-.options-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+.options-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
 
 .option-card {
   border: 2px solid var(--line); border-radius: 14px; padding: 16px; cursor: pointer;
-  transition: all 0.15s; background: #fff; display: flex; flex-direction: column; gap: 10px;
+  transition: all 0.15s; background: #fff; display: flex; flex-direction: column; gap: 8px;
 }
 .option-card:hover { border-color: var(--orange-border); transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.06); }
 .option-card.selected { border-color: var(--orange); background: var(--orange-soft); }
@@ -79,19 +78,22 @@ body {
 }
 .option-cal { font-size: 13px; color: var(--orange); font-weight: 700; }
 
-.dish { display: flex; align-items: center; gap: 8px; }
-.dish .tag { font-size: 11px; padding: 1px 7px; border-radius: 999px; font-weight: 600; }
-.tag.meat { background: #fee2e2; color: #b91c1c; }
-.tag.veg { background: var(--green-soft); color: var(--green); }
-.dish .name { font-size: 15px; }
-.dish .cal { margin-left: auto; font-size: 12px; color: var(--muted); }
+.option-title { font-size: 16px; font-weight: 700; line-height: 1.35; }
+.meal-meta { font-size: 12px; color: var(--muted); }
 
-.nutri { display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 8px; }
-.nutri span { background: #f3f4f6; padding: 2px 8px; border-radius: 6px; }
+.nutri { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 8px; }
+.nutri span { background: #f3f4f6; padding: 3px 10px; border-radius: 6px; }
 
-.ingredients { font-size: 12px; color: var(--muted); }
-.ingredients summary { cursor: pointer; font-weight: 600; }
-.ingredients ul { margin: 6px 0 0; padding-left: 18px; }
+.source { font-size: 12px; color: var(--muted); }
+.source a { color: var(--orange); text-decoration: none; }
+.source a:hover { text-decoration: underline; }
+
+.ingredients, .steps { font-size: 13px; color: var(--ink); }
+.ingredients summary, .steps summary { cursor: pointer; font-weight: 600; color: var(--muted); }
+.ingredients ul { margin: 6px 0; padding-left: 18px; }
+.ingredients .ing-label { font-weight: 600; color: var(--orange); margin-top: 6px; font-size: 12px; }
+.steps ol { margin: 6px 0; padding-left: 20px; }
+.steps li { margin-bottom: 6px; }
 
 .order-bar { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
 .btn-primary {

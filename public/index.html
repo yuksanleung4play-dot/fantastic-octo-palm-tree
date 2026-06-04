@@ -12,7 +12,7 @@
         <span class="logo">🍽️</span>
         <div>
           <h1>家庭点餐系统</h1>
-          <p>平日一餐 · 周末午晚餐 · 一荤一素 · A/B/C/D 自选</p>
+          <p>平日一餐 · 周末午晚餐 · 真实食谱库 · A/B/C/D 自选</p>
         </div>
       </div>
     </header>
@@ -58,6 +58,7 @@
 
     <footer class="footer">
       下单保存后会自动发送备菜邮件到家庭邮箱（需在 <code>.env</code> 配置 SMTP 与 NOTIFY_EMAIL）。
+      食谱库由 <code>data/source-recipes.json</code> 生成，运行 <code>npm run build:recipes</code> 可更新。
     </footer>
 
     <script src="./app.js" type="module"></script>

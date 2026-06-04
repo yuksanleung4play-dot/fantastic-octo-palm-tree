@@ -2,11 +2,11 @@ import nodemailer from 'nodemailer';
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { combineIngredients } from './mealGenerator.js';
 import { sumNutrition } from './recipes.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUTBOX_DIR = join(__dirname, '..', 'data', 'outbox');
+const MEAL_LABEL = { lunch: '午餐', dinner: '晚餐' };
 
 /**
  * 根据环境变量创建邮件传输器。
@@ -23,34 +23,52 @@ function createTransport() {
   });
 }
 
-const MEAL_LABEL = { lunch: '午餐', dinner: '晚餐' };
+/** 按食谱分组所有订单，返回 [{ option, members[], count }]。 */
+export function groupOrdersByRecipe(allOrders) {
+  const map = new Map();
+  for (const o of allOrders) {
+    const id = o.option.recipeId;
+    if (!map.has(id)) map.set(id, { option: o.option, members: [], count: 0 });
+    const g = map.get(id);
+    g.members.push(o.member);
+    g.count += 1;
+  }
+  return [...map.values()];
+}
+
+function nutriLine(n) {
+  if (n.calories == null && n.hasMissing && !n.protein) return '营养数据待补充';
+  const missing = n.hasMissing ? '（含待补充项）' : '';
+  return `${n.calories} kcal｜蛋白质 ${n.protein}g｜脂肪 ${n.fat}g｜碳水 ${n.carbs}g${missing}`;
+}
 
 /**
  * 构建备菜邮件内容。
- * 包含：本次下单详情 + 该餐所有家人的食材汇总与分量。
+ * 包含：本次下单详情 + 该餐所有家人按食谱汇总的备菜清单（×份数）。
  */
 export function buildMealEmail({ order, allOrders }) {
   const mealName = MEAL_LABEL[order.meal] || order.meal;
-  const subject = `🍽️ 家庭点餐｜${order.date} ${mealName}：${order.member} 已下单（${order.option.label}餐）`;
+  const subject = `🍽️ 家庭点餐｜${order.date} ${mealName}：${order.member} 点了「${order.option.title}」`;
 
-  // 汇总该餐所有订单涉及的全部菜品，用于备菜清单。
-  const allDishes = [];
-  for (const o of allOrders) {
-    for (const d of o.option.dishes) allDishes.push(d);
-  }
-  const shoppingList = combineIngredients(allDishes);
-  const totalNutrition = sumNutrition(allDishes);
+  const groups = groupOrdersByRecipe(allOrders);
+  const totalNutrition = sumNutrition(groups.map((g) => ({ nutrition: g.option.nutrition, _count: g.count })));
 
-  const dishLines = order.option.dishes
-    .map((d) => `    • ${d.name}（${d.type === 'meat' ? '荤' : '素'}，${d.calories} kcal）`)
-    .join('\n');
+  // ---- 纯文本版 ----
+  const shoppingBlocks = groups
+    .map((g) => {
+      const head = `  ▸ ${g.option.title} ×${g.count} 份（${g.members.join('、')}）`;
+      const lines = g.option.ingredientGroups
+        .map((grp) => {
+          const items = grp.items.map((it) => `      - ${it}${g.count > 1 ? `  ×${g.count}` : ''}`).join('\n');
+          return grp.label ? `    【${grp.label}】\n${items}` : items;
+        })
+        .join('\n');
+      return `${head}\n${lines}`;
+    })
+    .join('\n\n');
 
   const orderSummary = allOrders
-    .map((o) => `    • ${o.member}：${o.option.label}餐 — ${o.option.dishes.map((d) => d.name).join(' + ')}`)
-    .join('\n');
-
-  const shoppingLines = shoppingList
-    .map((i) => `    • ${i.name}：${round(i.amount)} ${i.unit}`)
+    .map((o) => `    • ${o.member}：${o.option.label} 餐 — ${o.option.title}`)
     .join('\n');
 
   const text = [
@@ -58,84 +76,75 @@ export function buildMealEmail({ order, allOrders }) {
     ``,
     `日期：${order.date}（${mealName}）`,
     `下单人：${order.member}`,
-    `所选套餐：${order.option.label} 餐`,
-    dishLines,
-    ``,
-    `本套餐营养合计：${order.option.nutrition.calories} kcal`,
-    `  蛋白质 ${order.option.nutrition.protein}g｜脂肪 ${order.option.nutrition.fat}g｜碳水 ${order.option.nutrition.carbs}g｜膳食纤维 ${order.option.nutrition.fiber}g｜钠 ${order.option.nutrition.sodium}mg`,
+    `所选：${order.option.label} 餐 —— ${order.option.title}`,
+    `营养：${nutriLine({ ...order.option.nutrition, hasMissing: order.option.nutrition.calories == null })}`,
+    order.option.source ? `来源：${order.option.source}${order.option.sourceUrl ? ` ${order.option.sourceUrl}` : ''}` : '',
     ``,
     `———————————————`,
     `本餐已下单家人（共 ${allOrders.length} 人）：`,
     orderSummary,
     ``,
-    `🛒 需要准备的食材与分量（已按所有下单累加）：`,
-    shoppingLines,
+    `🛒 需要准备的食材与分量（按所点食谱分组，已标注份数）：`,
+    shoppingBlocks,
     ``,
-    `全部菜品营养合计：${totalNutrition.calories} kcal`,
-    `  蛋白质 ${totalNutrition.protein}g｜脂肪 ${totalNutrition.fat}g｜碳水 ${totalNutrition.carbs}g｜膳食纤维 ${totalNutrition.fiber}g｜钠 ${totalNutrition.sodium}mg`,
-  ].join('\n');
+    `全部营养合计：${nutriLine(totalNutrition)}`,
+  ]
+    .filter((l) => l !== '')
+    .join('\n');
 
-  const html = renderHtml({
-    order,
-    mealName,
-    allOrders,
-    shoppingList,
-    totalNutrition,
-  });
-
+  const html = renderHtml({ order, mealName, allOrders, groups, totalNutrition });
   return { subject, text, html };
 }
 
-function round(n) {
-  return Math.round(n * 10) / 10;
-}
-
-function renderHtml({ order, mealName, allOrders, shoppingList, totalNutrition }) {
-  const dishRows = order.option.dishes
-    .map(
-      (d) => `<tr><td>${d.name}</td><td>${d.type === 'meat' ? '荤' : '素'}</td><td>${d.calories} kcal</td></tr>`,
-    )
-    .join('');
+function renderHtml({ order, mealName, allOrders, groups, totalNutrition }) {
   const orderRows = allOrders
-    .map(
-      (o) =>
-        `<tr><td>${o.member}</td><td>${o.option.label} 餐</td><td>${o.option.dishes
-          .map((d) => d.name)
-          .join(' + ')}</td></tr>`,
-    )
+    .map((o) => `<tr><td>${esc(o.member)}</td><td>${o.option.label} 餐</td><td>${esc(o.option.title)}</td></tr>`)
     .join('');
-  const shopRows = shoppingList
-    .map((i) => `<tr><td>${i.name}</td><td>${round(i.amount)} ${i.unit}</td></tr>`)
+
+  const shoppingBlocks = groups
+    .map((g) => {
+      const groupsHtml = g.option.ingredientGroups
+        .map((grp) => {
+          const items = grp.items
+            .map((it) => `<li>${esc(it)}${g.count > 1 ? ` <b style="color:#ea580c;">×${g.count}</b>` : ''}</li>`)
+            .join('');
+          const label = grp.label ? `<div style="font-weight:600;color:#6b7280;margin-top:6px;">【${esc(grp.label)}】</div>` : '';
+          return `${label}<ul style="margin:4px 0;padding-left:20px;">${items}</ul>`;
+        })
+        .join('');
+      return `<div style="border:1px solid #fed7aa;border-radius:10px;padding:12px 14px;margin-bottom:10px;">
+        <div style="font-weight:700;">${esc(g.option.title)} <span style="color:#ea580c;">×${g.count} 份</span></div>
+        <div style="font-size:12px;color:#6b7280;">${esc(g.members.join('、'))}</div>
+        ${groupsHtml}
+      </div>`;
+    })
     .join('');
 
   return `<!doctype html><html lang="zh"><head><meta charset="utf-8"></head>
-  <body style="font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;color:#1f2937;max-width:640px;margin:0 auto;padding:24px;">
+  <body style="font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;color:#1f2937;max-width:680px;margin:0 auto;padding:24px;">
     <h2 style="color:#ea580c;margin-bottom:4px;">🍽️ 家庭点餐通知</h2>
-    <p style="color:#6b7280;margin-top:0;">${order.date} · ${mealName} · 下单人 <b>${order.member}</b></p>
+    <p style="color:#6b7280;margin-top:0;">${order.date} · ${mealName} · 下单人 <b>${esc(order.member)}</b></p>
 
     <h3 style="border-bottom:2px solid #fed7aa;padding-bottom:6px;">本次所选：${order.option.label} 餐</h3>
-    <table style="width:100%;border-collapse:collapse;">${dishRows}</table>
-    <p style="background:#fff7ed;padding:10px 14px;border-radius:8px;">
-      营养合计 <b>${order.option.nutrition.calories} kcal</b> ·
-      蛋白质 ${order.option.nutrition.protein}g · 脂肪 ${order.option.nutrition.fat}g ·
-      碳水 ${order.option.nutrition.carbs}g · 纤维 ${order.option.nutrition.fiber}g · 钠 ${order.option.nutrition.sodium}mg
-    </p>
+    <p style="font-size:16px;font-weight:700;margin:6px 0;">${esc(order.option.title)}</p>
+    <p style="background:#fff7ed;padding:10px 14px;border-radius:8px;">营养：${nutriLine({ ...order.option.nutrition, hasMissing: order.option.nutrition.calories == null })}</p>
+    ${order.option.source ? `<p style="font-size:12px;color:#6b7280;">来源：${order.option.sourceUrl ? `<a href="${esc(order.option.sourceUrl)}">${esc(order.option.source)}</a>` : esc(order.option.source)}</p>` : ''}
 
     <h3 style="border-bottom:2px solid #fed7aa;padding-bottom:6px;">本餐已下单家人（${allOrders.length} 人）</h3>
     <table style="width:100%;border-collapse:collapse;">${orderRows}</table>
 
-    <h3 style="border-bottom:2px solid #bbf7d0;padding-bottom:6px;">🛒 备菜清单（按所有下单累加）</h3>
-    <table style="width:100%;border-collapse:collapse;">${shopRows}</table>
-    <p style="background:#f0fdf4;padding:10px 14px;border-radius:8px;">
-      全部菜品营养合计 <b>${totalNutrition.calories} kcal</b> ·
-      蛋白质 ${totalNutrition.protein}g · 脂肪 ${totalNutrition.fat}g ·
-      碳水 ${totalNutrition.carbs}g · 纤维 ${totalNutrition.fiber}g · 钠 ${totalNutrition.sodium}mg
-    </p>
+    <h3 style="border-bottom:2px solid #bbf7d0;padding-bottom:6px;">🛒 备菜清单（按食谱分组 · 已标注份数）</h3>
+    ${shoppingBlocks}
+    <p style="background:#f0fdf4;padding:10px 14px;border-radius:8px;">全部营养合计：${nutriLine(totalNutrition)}</p>
   </body></html>`;
 }
 
+function esc(s) {
+  return String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+}
+
 /**
- * 发送备菜邮件。返回 { sent, mode, info }。
+ * 发送备菜邮件。返回 { sent, mode, ... }。
  * - 已配置 SMTP：真实发送
  * - 未配置 SMTP：落盘到 data/outbox（开发/演示模式）
  */
@@ -146,7 +155,8 @@ export async function sendMealEmail({ order, allOrders }) {
 
   if (!transport || !to) {
     if (!existsSync(OUTBOX_DIR)) mkdirSync(OUTBOX_DIR, { recursive: true });
-    const file = join(OUTBOX_DIR, `${order.id || `${order.date}-${order.meal}-${order.member}`}.html`);
+    const safeId = (order.id || `${order.date}-${order.meal}-${order.member}`).replace(/[^\w\-]/g, '_');
+    const file = join(OUTBOX_DIR, `${safeId}.html`);
     writeFileSync(file, `<!-- 主题：${message.subject} -->\n${message.html}`, 'utf-8');
     return {
       sent: false,

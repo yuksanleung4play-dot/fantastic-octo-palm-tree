@@ -16,15 +16,17 @@ const api = async (url, opts) => {
 
 const MEAL_LABEL = { lunch: '午餐', dinner: '晚餐' };
 
+function nutriText(n) {
+  if (!n || n.calories == null) return '营养数据待补充';
+  return `${n.calories} kcal · 蛋白 ${n.protein}g · 脂肪 ${n.fat}g · 碳水 ${n.carbs}g`;
+}
+
 async function init() {
   const { schedule } = await api('/api/schedule?days=14');
   state.schedule = schedule;
   const sel = el('date-select');
   sel.innerHTML = schedule
-    .map(
-      (d) =>
-        `<option value="${d.date}">${d.date}（${d.weekday}${d.isWeekend ? ' · 周末' : ''}）</option>`,
-    )
+    .map((d) => `<option value="${d.date}">${d.date}（${d.weekday}${d.isWeekend ? ' · 周末' : ''}）</option>`)
     .join('');
   sel.addEventListener('change', () => selectDate(sel.value));
   el('member').addEventListener('input', updateOrderButtons);
@@ -50,7 +52,7 @@ async function selectMeal(meal) {
   document.querySelectorAll('.meal-tab').forEach((b) => {
     b.classList.toggle('active', b.dataset.meal === meal);
   });
-  el('meal-title').textContent = `${state.date} ${MEAL_LABEL[meal]} · 套餐选择`;
+  el('meal-title').textContent = `${state.date} ${MEAL_LABEL[meal]} · 套餐选择（A/B/C/D）`;
   clearStatus();
   try {
     const data = await api(`/api/meals?date=${state.date}&meal=${meal}`);
@@ -66,38 +68,39 @@ function renderOptions() {
   const grid = el('options');
   grid.innerHTML = state.options
     .map((opt) => {
-      const dishes = opt.dishes
-        .map(
-          (d) => `
-        <div class="dish">
-          <span class="tag ${d.type === 'meat' ? 'meat' : 'veg'}">${d.type === 'meat' ? '荤' : '素'}</span>
-          <span class="name">${d.name}</span>
-          <span class="cal">${d.calories} kcal</span>
-        </div>`,
-        )
+      const ingredients = opt.ingredientGroups
+        .map((g) => {
+          const items = g.items.map((it) => `<li>${it}</li>`).join('');
+          const label = g.label ? `<div class="ing-label">【${g.label}】</div>` : '';
+          return `${label}<ul>${items}</ul>`;
+        })
         .join('');
-      const ingredients = opt.ingredients
-        .map((i) => `<li>${i.name}：${i.amount} ${i.unit}</li>`)
-        .join('');
-      const n = opt.nutrition;
+      const steps = (opt.steps || []).map((s, i) => `<li>${stripMd(s)}</li>`).join('');
+      const sourceHtml = opt.source
+        ? `<div class="source">来源：${
+            opt.sourceUrl ? `<a href="${opt.sourceUrl}" target="_blank" rel="noopener">${opt.source}</a>` : opt.source
+          }</div>`
+        : '';
+      const cal = opt.nutrition && opt.nutrition.calories != null ? `${opt.nutrition.calories} kcal` : '营养待补充';
       return `
       <div class="option-card" data-label="${opt.label}">
         <div class="option-head">
           <span class="option-label">${opt.label}</span>
-          <span class="option-cal">${n.calories} kcal</span>
+          <span class="option-cal">${cal}</span>
         </div>
-        ${dishes}
-        <div class="nutri">
-          <span>蛋白 ${n.protein}g</span><span>脂肪 ${n.fat}g</span>
-          <span>碳水 ${n.carbs}g</span><span>纤维 ${n.fiber}g</span><span>钠 ${n.sodium}mg</span>
-        </div>
-        <details class="ingredients"><summary>食材与分量</summary><ul>${ingredients}</ul></details>
+        <div class="option-title">${opt.title}</div>
+        <div class="meal-meta">${opt.mealType || ''}</div>
+        <div class="nutri"><span>${nutriText(opt.nutrition)}</span></div>
+        ${sourceHtml}
+        <details class="ingredients"><summary>🛒 食材与分量</summary>${ingredients}</details>
+        ${steps ? `<details class="steps"><summary>👩‍🍳 做法步骤</summary><ol>${steps}</ol></details>` : ''}
       </div>`;
     })
     .join('');
 
   grid.querySelectorAll('.option-card').forEach((card) => {
-    card.addEventListener('click', () => {
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('details') || e.target.closest('a')) return;
       state.selectedLabel = card.dataset.label;
       grid.querySelectorAll('.option-card').forEach((c) => c.classList.remove('selected'));
       card.classList.add('selected');
@@ -136,12 +139,7 @@ async function submitOrder() {
     const data = await api('/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        member,
-        date: state.date,
-        meal: state.meal,
-        optionLabel: state.selectedLabel,
-      }),
+      body: JSON.stringify({ member, date: state.date, meal: state.meal, optionLabel: state.selectedLabel }),
     });
     showSuccess(data);
     const meals = await api(`/api/orders?date=${state.date}&meal=${state.meal}`);
@@ -158,16 +156,13 @@ function showSuccess({ order, mail }) {
   const box = el('status');
   box.className = 'status ok';
   let mailLine;
-  if (mail.sent) {
-    mailLine = `备菜邮件已发送 ✅（${mail.mode}）`;
-  } else if (mail.mode === 'outbox') {
-    mailLine = `邮件已生成预览（${mail.reason}）。预览文件：${mail.file}`;
-  } else {
-    mailLine = `邮件发送失败：${mail.error || mail.reason || '未知错误'}`;
-  }
-  box.innerHTML = `✅ <b>${order.member}</b> 已点 <b>${order.option.label} 餐</b>（${order.option.dishes
-    .map((d) => d.name)
-    .join(' + ')}），合计 ${order.option.nutrition.calories} kcal。<br>${mailLine}`;
+  if (mail.sent) mailLine = `备菜邮件已发送 ✅（${mail.mode}）`;
+  else if (mail.mode === 'outbox') mailLine = `邮件已生成预览（${mail.reason}）。预览文件：${mail.file}`;
+  else mailLine = `邮件发送失败：${mail.error || mail.reason || '未知错误'}`;
+
+  box.innerHTML = `✅ <b>${order.member}</b> 已点 <b>${order.option.label} 餐</b>：${order.option.title}（${nutriText(
+    order.option.nutrition,
+  )}）。<br>${mailLine}`;
   if (mail.preview) {
     box.innerHTML += `<details><summary style="cursor:pointer;margin-top:8px;">查看邮件内容预览</summary><pre>${escapeHtml(
       mail.preview,
@@ -202,16 +197,19 @@ function renderExisting(orders) {
   list.innerHTML = orders
     .map(
       (o) =>
-        `<li><b>${o.member}</b> · ${o.option.label} 餐 — ${o.option.dishes
-          .map((d) => d.name)
-          .join(' + ')} （${o.option.nutrition.calories} kcal）</li>`,
+        `<li><b>${o.member}</b> · ${o.option.label} 餐 — ${o.option.title}（${
+          o.option.nutrition && o.option.nutrition.calories != null ? `${o.option.nutrition.calories} kcal` : '营养待补充'
+        }）</li>`,
     )
     .join('');
   panel.classList.remove('hidden');
 }
 
+function stripMd(s) {
+  return escapeHtml(String(s).replace(/\*\*/g, ''));
+}
 function escapeHtml(s) {
-  return s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  return String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 }
 
 init().catch((err) => showError(err.message));
