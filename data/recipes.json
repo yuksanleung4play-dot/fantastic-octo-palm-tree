@@ -1,0 +1,256 @@
+{
+  "meta": {
+    "title": "家庭食谱库",
+    "version": "1.0.0",
+    "servingNote": "以下营养与食材分量均以「单人份」计。系统会根据点餐人数自动累加。",
+    "nutritionUnits": {
+      "calories": "kcal",
+      "protein": "g",
+      "fat": "g",
+      "carbs": "g",
+      "fiber": "g",
+      "sodium": "mg"
+    }
+  },
+  "dishes": [
+    {
+      "id": "m-gongbao-chicken",
+      "name": "宫保鸡丁",
+      "type": "meat",
+      "tags": ["川菜", "下饭"],
+      "calories": 380,
+      "nutrition": { "protein": 28, "fat": 22, "carbs": 16, "fiber": 2, "sodium": 760 },
+      "ingredients": [
+        { "name": "鸡胸肉", "amount": 180, "unit": "g" },
+        { "name": "花生米", "amount": 30, "unit": "g" },
+        { "name": "干辣椒", "amount": 5, "unit": "g" },
+        { "name": "大葱", "amount": 20, "unit": "g" },
+        { "name": "酱油", "amount": 10, "unit": "ml" },
+        { "name": "食用油", "amount": 15, "unit": "ml" }
+      ]
+    },
+    {
+      "id": "m-braised-pork",
+      "name": "红烧肉",
+      "type": "meat",
+      "tags": ["家常", "经典"],
+      "calories": 520,
+      "nutrition": { "protein": 22, "fat": 42, "carbs": 12, "fiber": 1, "sodium": 820 },
+      "ingredients": [
+        { "name": "五花肉", "amount": 200, "unit": "g" },
+        { "name": "冰糖", "amount": 15, "unit": "g" },
+        { "name": "生姜", "amount": 10, "unit": "g" },
+        { "name": "酱油", "amount": 15, "unit": "ml" },
+        { "name": "料酒", "amount": 10, "unit": "ml" }
+      ]
+    },
+    {
+      "id": "m-steamed-fish",
+      "name": "清蒸鲈鱼",
+      "type": "meat",
+      "tags": ["粤菜", "清淡", "高蛋白"],
+      "calories": 240,
+      "nutrition": { "protein": 34, "fat": 9, "carbs": 3, "fiber": 0, "sodium": 540 },
+      "ingredients": [
+        { "name": "鲈鱼", "amount": 250, "unit": "g" },
+        { "name": "大葱", "amount": 15, "unit": "g" },
+        { "name": "生姜", "amount": 10, "unit": "g" },
+        { "name": "蒸鱼豉油", "amount": 15, "unit": "ml" },
+        { "name": "食用油", "amount": 10, "unit": "ml" }
+      ]
+    },
+    {
+      "id": "m-tomato-egg",
+      "name": "番茄炒蛋",
+      "type": "meat",
+      "tags": ["家常", "快手"],
+      "calories": 260,
+      "nutrition": { "protein": 16, "fat": 18, "carbs": 10, "fiber": 2, "sodium": 480 },
+      "ingredients": [
+        { "name": "鸡蛋", "amount": 120, "unit": "g" },
+        { "name": "番茄", "amount": 150, "unit": "g" },
+        { "name": "大葱", "amount": 10, "unit": "g" },
+        { "name": "食用油", "amount": 15, "unit": "ml" },
+        { "name": "盐", "amount": 2, "unit": "g" }
+      ]
+    },
+    {
+      "id": "m-kungpao-shrimp",
+      "name": "盐煎虾仁",
+      "type": "meat",
+      "tags": ["海鲜", "高蛋白"],
+      "calories": 220,
+      "nutrition": { "protein": 30, "fat": 10, "carbs": 4, "fiber": 0, "sodium": 600 },
+      "ingredients": [
+        { "name": "虾仁", "amount": 180, "unit": "g" },
+        { "name": "蒜末", "amount": 10, "unit": "g" },
+        { "name": "黑胡椒", "amount": 2, "unit": "g" },
+        { "name": "食用油", "amount": 12, "unit": "ml" },
+        { "name": "盐", "amount": 2, "unit": "g" }
+      ]
+    },
+    {
+      "id": "m-beef-onion",
+      "name": "洋葱炒牛肉",
+      "type": "meat",
+      "tags": ["家常", "下饭"],
+      "calories": 360,
+      "nutrition": { "protein": 30, "fat": 20, "carbs": 12, "fiber": 2, "sodium": 700 },
+      "ingredients": [
+        { "name": "牛里脊", "amount": 170, "unit": "g" },
+        { "name": "洋葱", "amount": 100, "unit": "g" },
+        { "name": "酱油", "amount": 12, "unit": "ml" },
+        { "name": "淀粉", "amount": 8, "unit": "g" },
+        { "name": "食用油", "amount": 15, "unit": "ml" }
+      ]
+    },
+    {
+      "id": "m-chicken-mushroom",
+      "name": "香菇滑鸡",
+      "type": "meat",
+      "tags": ["家常", "营养"],
+      "calories": 300,
+      "nutrition": { "protein": 27, "fat": 15, "carbs": 11, "fiber": 3, "sodium": 650 },
+      "ingredients": [
+        { "name": "鸡腿肉", "amount": 180, "unit": "g" },
+        { "name": "香菇", "amount": 60, "unit": "g" },
+        { "name": "生姜", "amount": 8, "unit": "g" },
+        { "name": "酱油", "amount": 12, "unit": "ml" },
+        { "name": "食用油", "amount": 12, "unit": "ml" }
+      ]
+    },
+    {
+      "id": "m-pork-rib-soup",
+      "name": "玉米排骨汤",
+      "type": "meat",
+      "tags": ["汤品", "滋补"],
+      "calories": 340,
+      "nutrition": { "protein": 24, "fat": 20, "carbs": 16, "fiber": 3, "sodium": 560 },
+      "ingredients": [
+        { "name": "猪小排", "amount": 200, "unit": "g" },
+        { "name": "玉米", "amount": 120, "unit": "g" },
+        { "name": "胡萝卜", "amount": 60, "unit": "g" },
+        { "name": "生姜", "amount": 10, "unit": "g" },
+        { "name": "盐", "amount": 3, "unit": "g" }
+      ]
+    },
+    {
+      "id": "v-garlic-broccoli",
+      "name": "蒜蓉西兰花",
+      "type": "vegetable",
+      "tags": ["清淡", "高纤维"],
+      "calories": 120,
+      "nutrition": { "protein": 5, "fat": 7, "carbs": 10, "fiber": 5, "sodium": 320 },
+      "ingredients": [
+        { "name": "西兰花", "amount": 200, "unit": "g" },
+        { "name": "蒜末", "amount": 12, "unit": "g" },
+        { "name": "食用油", "amount": 10, "unit": "ml" },
+        { "name": "盐", "amount": 2, "unit": "g" }
+      ]
+    },
+    {
+      "id": "v-mapo-tofu",
+      "name": "麻婆豆腐",
+      "type": "vegetable",
+      "tags": ["川菜", "下饭"],
+      "calories": 230,
+      "nutrition": { "protein": 14, "fat": 15, "carbs": 12, "fiber": 3, "sodium": 880 },
+      "ingredients": [
+        { "name": "嫩豆腐", "amount": 250, "unit": "g" },
+        { "name": "豆瓣酱", "amount": 15, "unit": "g" },
+        { "name": "花椒", "amount": 2, "unit": "g" },
+        { "name": "大葱", "amount": 15, "unit": "g" },
+        { "name": "食用油", "amount": 12, "unit": "ml" }
+      ]
+    },
+    {
+      "id": "v-stir-spinach",
+      "name": "清炒菠菜",
+      "type": "vegetable",
+      "tags": ["清淡", "快手", "高纤维"],
+      "calories": 90,
+      "nutrition": { "protein": 4, "fat": 6, "carbs": 6, "fiber": 4, "sodium": 300 },
+      "ingredients": [
+        { "name": "菠菜", "amount": 220, "unit": "g" },
+        { "name": "蒜末", "amount": 8, "unit": "g" },
+        { "name": "食用油", "amount": 10, "unit": "ml" },
+        { "name": "盐", "amount": 2, "unit": "g" }
+      ]
+    },
+    {
+      "id": "v-braised-eggplant",
+      "name": "红烧茄子",
+      "type": "vegetable",
+      "tags": ["家常", "下饭"],
+      "calories": 210,
+      "nutrition": { "protein": 4, "fat": 14, "carbs": 18, "fiber": 5, "sodium": 720 },
+      "ingredients": [
+        { "name": "茄子", "amount": 220, "unit": "g" },
+        { "name": "蒜末", "amount": 10, "unit": "g" },
+        { "name": "酱油", "amount": 12, "unit": "ml" },
+        { "name": "食用油", "amount": 18, "unit": "ml" },
+        { "name": "白糖", "amount": 5, "unit": "g" }
+      ]
+    },
+    {
+      "id": "v-dry-beans",
+      "name": "干煸四季豆",
+      "type": "vegetable",
+      "tags": ["川菜", "下饭"],
+      "calories": 180,
+      "nutrition": { "protein": 6, "fat": 11, "carbs": 14, "fiber": 6, "sodium": 560 },
+      "ingredients": [
+        { "name": "四季豆", "amount": 200, "unit": "g" },
+        { "name": "蒜末", "amount": 10, "unit": "g" },
+        { "name": "干辣椒", "amount": 4, "unit": "g" },
+        { "name": "食用油", "amount": 14, "unit": "ml" },
+        { "name": "盐", "amount": 2, "unit": "g" }
+      ]
+    },
+    {
+      "id": "v-cucumber-salad",
+      "name": "凉拌黄瓜",
+      "type": "vegetable",
+      "tags": ["凉菜", "清爽", "快手"],
+      "calories": 70,
+      "nutrition": { "protein": 2, "fat": 4, "carbs": 7, "fiber": 2, "sodium": 420 },
+      "ingredients": [
+        { "name": "黄瓜", "amount": 200, "unit": "g" },
+        { "name": "蒜末", "amount": 8, "unit": "g" },
+        { "name": "香醋", "amount": 10, "unit": "ml" },
+        { "name": "香油", "amount": 6, "unit": "ml" },
+        { "name": "盐", "amount": 2, "unit": "g" }
+      ]
+    },
+    {
+      "id": "v-cabbage",
+      "name": "醋熘白菜",
+      "type": "vegetable",
+      "tags": ["家常", "快手"],
+      "calories": 110,
+      "nutrition": { "protein": 3, "fat": 7, "carbs": 10, "fiber": 4, "sodium": 480 },
+      "ingredients": [
+        { "name": "白菜", "amount": 250, "unit": "g" },
+        { "name": "香醋", "amount": 12, "unit": "ml" },
+        { "name": "干辣椒", "amount": 3, "unit": "g" },
+        { "name": "食用油", "amount": 12, "unit": "ml" },
+        { "name": "盐", "amount": 2, "unit": "g" }
+      ]
+    },
+    {
+      "id": "v-mushroom-greens",
+      "name": "香菇青菜",
+      "type": "vegetable",
+      "tags": ["清淡", "营养"],
+      "calories": 100,
+      "nutrition": { "protein": 5, "fat": 6, "carbs": 9, "fiber": 4, "sodium": 360 },
+      "ingredients": [
+        { "name": "上海青", "amount": 200, "unit": "g" },
+        { "name": "香菇", "amount": 60, "unit": "g" },
+        { "name": "蒜末", "amount": 8, "unit": "g" },
+        { "name": "食用油", "amount": 10, "unit": "ml" },
+        { "name": "蚝油", "amount": 10, "unit": "ml" }
+      ]
+    }
+  ]
+}

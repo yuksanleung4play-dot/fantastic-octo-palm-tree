@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>家庭点餐系统</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo">🍽️</span>
+        <div>
+          <h1>家庭点餐系统</h1>
+          <p>平日一餐 · 周末午晚餐 · 一荤一素 · A/B/C/D 自选</p>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="panel controls">
+        <div class="field">
+          <label>谁在点餐</label>
+          <input id="member" list="member-list" placeholder="输入名字，如：爸爸 / 妈妈 / 宝宝" />
+          <datalist id="member-list">
+            <option value="爸爸"></option>
+            <option value="妈妈"></option>
+            <option value="宝宝"></option>
+            <option value="爷爷"></option>
+            <option value="奶奶"></option>
+          </datalist>
+        </div>
+        <div class="field">
+          <label>选择日期</label>
+          <select id="date-select"></select>
+        </div>
+        <div class="field">
+          <label>餐次</label>
+          <div id="meal-tabs" class="meal-tabs"></div>
+        </div>
+      </section>
+
+      <section id="status" class="status hidden"></section>
+
+      <section class="panel">
+        <div class="section-head">
+          <h2 id="meal-title">本餐套餐</h2>
+          <span id="ordered-badge" class="badge hidden"></span>
+        </div>
+        <div id="options" class="options-grid"></div>
+      </section>
+
+      <section id="existing" class="panel hidden">
+        <h2>本餐已下单家人</h2>
+        <ul id="existing-list" class="existing-list"></ul>
+      </section>
+    </main>
+
+    <footer class="footer">
+      下单保存后会自动发送备菜邮件到家庭邮箱（需在 <code>.env</code> 配置 SMTP 与 NOTIFY_EMAIL）。
+    </footer>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>

@@ -1,0 +1,25 @@
+{
+  "name": "family-meal-ordering-system",
+  "version": "1.0.0",
+  "description": "家庭内部点餐系统：根据食谱库自动生成 A/B/C/D 套餐（一荤一素），平日一餐、周末午晚餐，标明热量与营养，下单后自动发送备菜邮件。",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "meal",
+    "ordering",
+    "family",
+    "recipe",
+    "nutrition",
+    "email"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",
+    "nodemailer": "^6.9.14"
+  }
+}
