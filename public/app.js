@@ -5,10 +5,12 @@ const state = {
   member: '',
   options: [],
   selectedLabel: null,
+  offline: false,
 };
 
 const MEMBERS = ['爸爸', '妈妈', '宝宝', '爷爷', '奶奶'];
 const MEAL_LABEL = { lunch: '午餐', dinner: '晚餐' };
+const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
 const el = (id) => document.getElementById(id);
 const api = async (url, opts) => {
@@ -26,6 +28,33 @@ function nutriText(n) {
 function formatDate(dateStr) {
   const [, m, d] = dateStr.split('-');
   return `${Number(m)}月${Number(d)}日`;
+}
+
+function toDateStr(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/* 后端不可用时（如 htmlpreview 静态预览）在前端计算排程，保证首屏可用。 */
+function buildScheduleClient(days = 14) {
+  const out = [];
+  const base = new Date();
+  base.setHours(0, 0, 0, 0);
+  for (let i = 0; i < days; i += 1) {
+    const d = new Date(base);
+    d.setDate(base.getDate() + i);
+    const day = d.getDay();
+    const isWeekend = day === 0 || day === 6;
+    out.push({
+      date: toDateStr(d),
+      weekday: WEEKDAYS[day],
+      isWeekend,
+      meals: isWeekend ? ['lunch', 'dinner'] : ['dinner'],
+    });
+  }
+  return out;
 }
 
 /* ===================== 首屏 ===================== */
@@ -75,18 +104,23 @@ function enterApp() {
 
 /* ===================== 主屏 ===================== */
 async function init() {
-  const { schedule } = await api('/api/schedule?days=14');
-  state.schedule = schedule;
+  try {
+    const { schedule } = await api('/api/schedule?days=14');
+    state.schedule = schedule;
+  } catch {
+    state.offline = true;
+    state.schedule = buildScheduleClient(14);
+  }
 
   const sel = el('date-select');
-  sel.innerHTML = schedule
+  sel.innerHTML = state.schedule
     .map((d) => `<option value="${d.date}">${d.date}（${d.weekday}${d.isWeekend ? ' · 周末' : ''}）</option>`)
     .join('');
   sel.addEventListener('change', () => selectDate(sel.value));
   el('submit').addEventListener('click', submitOrder);
 
   setupHome();
-  selectDate(schedule[0].date);
+  selectDate(state.schedule[0].date);
 }
 
 function selectDate(date) {
@@ -107,6 +141,15 @@ async function selectMeal(meal) {
   el('meal-title').textContent = `${formatDate(state.date)} ${MEAL_LABEL[meal]} · 选套餐`;
   clearStatus();
   updateOrderBar();
+
+  if (state.offline) {
+    state.options = [];
+    el('options').innerHTML =
+      '<p class="empty">📦 这是静态前端预览。套餐生成与下单需要运行后端：<br><code>npm install &amp;&amp; npm start</code>，再用本机地址打开。</p>';
+    renderExisting([]);
+    return;
+  }
+
   try {
     const data = await api(`/api/meals?date=${state.date}&meal=${meal}`);
     state.options = data.options;
@@ -167,7 +210,7 @@ function updateOrderBar() {
     info.textContent = `已选 ${opt.label} 餐 · ${opt.title}`;
     btn.disabled = !state.member;
   } else {
-    info.textContent = '请选择一个套餐';
+    info.textContent = state.offline ? '静态预览模式（需后端才能点餐）' : '请选择一个套餐';
     btn.disabled = true;
   }
 }
