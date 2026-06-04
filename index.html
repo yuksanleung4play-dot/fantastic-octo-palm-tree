@@ -1465,28 +1465,37 @@ function generateMealPlan() {
   }, 1200);
 }
 
+const DAY_NAMES = ["週一","週二","週三","週四","週五","週六","週日"];
+const MEAL_TYPE_LABELS = { breakfast: "早餐", lunch: "午餐", dinner: "晚餐" };
+const MEAL_ORDER = ["breakfast", "lunch", "dinner"];
+
+// 餐次規則：週一至週五只做一餐（晚餐），週末（週六、週日）做午餐與晚餐
+function mealsForDay(dayIdx) {
+  return dayIdx <= 4 ? ["dinner"] : ["lunch", "dinner"];
+}
+
+// 取得某日已排定餐次的中文標籤，例如「晚餐」或「午餐 · 晚餐」
+function mealScheduleLabel(dayIdx) {
+  return mealsForDay(dayIdx).map(t => MEAL_TYPE_LABELS[t]).join(" · ");
+}
+
 function generateWeekPlan(targets) {
   const db = MEAL_DB[currentGoal];
   const days = [];
   for (let i = 0; i < 7; i++) {
-    days.push({
-      breakfast: pickRandom(db.breakfast),
-      lunch: pickRandom(db.lunch),
-      dinner: pickRandom(db.dinner),
-      extras: []
-    });
+    const meals = {};
+    mealsForDay(i).forEach(type => { meals[type] = pickRandom(db[type]); });
+    days.push({ meals, extras: [] });
   }
   return { days, targets };
 }
 
-const DAY_NAMES = ["週一","週二","週三","週四","週五","週六","週日"];
-
-// 計算單日總攝取（含三餐與額外項目）
+// 計算單日總攝取（含已排定餐次與額外項目）
 function dayTotals(day) {
-  let cal = day.breakfast.kcal + day.lunch.kcal + day.dinner.kcal;
-  let prot = day.breakfast.protein + day.lunch.protein + day.dinner.protein;
-  let carb = day.breakfast.carbs + day.lunch.carbs + day.dinner.carbs;
-  let fat = day.breakfast.fat + day.lunch.fat + day.dinner.fat;
+  let cal = 0, prot = 0, carb = 0, fat = 0;
+  Object.values(day.meals || {}).forEach(m => {
+    cal += m.kcal; prot += m.protein; carb += m.carbs; fat += m.fat;
+  });
   (day.extras || []).forEach(e => { cal += e.kcal; prot += e.protein; carb += e.carbs; fat += e.fat; });
   return {
     cal: Math.round(cal), prot: Math.round(prot),
@@ -1589,12 +1598,14 @@ function renderDay(dayIdx, targets) {
     <!-- Meal cards -->
     <div>
       <div class="section-header">
-        <h2>🍽️ 三餐計劃 · ${GOAL_LABELS[currentGoal]}</h2>
+        <h2>🍽️ ${DAY_NAMES[dayIdx]}餐食安排（${mealScheduleLabel(dayIdx)}）· ${GOAL_LABELS[currentGoal]}</h2>
+      </div>
+      <div class="tip-card" style="margin-bottom:var(--space-4)">
+        <strong>🗓️ 餐次規則</strong>
+        週一至週五每日一餐（晚餐），週末（週六、週日）提供午餐與晚餐。可使用下方工具自行加入額外食材或餐食。
       </div>
       <div class="meals-grid">
-        ${buildMealCard(day.breakfast, "breakfast")}
-        ${buildMealCard(day.lunch, "lunch")}
-        ${buildMealCard(day.dinner, "dinner")}
+        ${MEAL_ORDER.filter(type => day.meals[type]).map(type => buildMealCard(day.meals[type], type)).join("")}
       </div>
     </div>
 
