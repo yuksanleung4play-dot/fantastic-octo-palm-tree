@@ -49,18 +49,11 @@ npm start                # 访问 http://localhost:3000
 
 编辑源数据后运行 `npm run build:recipes` 重新生成。缺少食材的食谱会自动从可点餐池中跳过（保证备菜清单可用）。
 
-### 菜品图片
+### 菜品图片（效果图）
 
-每道菜的图片从其 `source` 链接中自动提取（YouTube 缩略图 / 页面 `og:image` / JSON-LD / 正文首图），并下载到 `public/dish-images/`：
+由于从来源网页抓取的图片常与菜名不符，现改为**根据每道食谱内容用 AI 生成效果图**，确保图文相符。50 道菜全部配图，存放于 `public/dish-images/recipe-XX.jpg`（统一压缩为约 900px 宽的 JPEG，整体约 6MB），图片路径记录在 `data/recipe-images.json`（`from: "generated"`），由 `npm run build:recipes` 合并进 `data/recipes.json` 的 `image` 字段。
 
-```bash
-npm run fetch:images        # 抓取尚未成功的图片
-npm run fetch:images -- --retry   # 仅重试此前失败的
-npm run fetch:images -- --force   # 全部重新抓取
-npm run build:recipes       # 把图片合并进 data/recipes.json
-```
-
-抓取结果缓存于 `data/recipe-images.json`。部分站点为纯 JS 渲染或需要登录（如 goji、部分 IG），无法提取图片，前端会自动显示带 🍽️ 的占位图。当前约 30/50 道为真实照片。
+> 备用方案：`scripts/fetch-images.mjs`（`npm run fetch:images`）仍可从食谱 `source` 链接抓取真实图片（YouTube 缩略图 / `og:image` / JSON-LD / 正文首图）。前端在缺图时会显示带 🍽️ 的占位图。
 
 ## API
 
