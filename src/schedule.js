@@ -52,7 +52,7 @@ export function toDateStr(date) {
   return `${y}-${m}-${d}`;
 }
 
-const WEEKDAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+const WEEKDAY_NAMES = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
 export function weekdayName(date) {
   return WEEKDAY_NAMES[date.getDay()];
 }

@@ -8,7 +8,7 @@ const state = {
 };
 
 const MEAL_LABEL = { lunch: '午餐', dinner: '晚餐' };
-const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+const WEEKDAYS = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
 
 const el = (id) => document.getElementById(id);
 const api = async (url, opts) => {
@@ -59,7 +59,7 @@ function buildScheduleClient(days = 14) {
 function setupHome() {
   const today = state.schedule[0];
   el('home-date').textContent = `${formatDate(today.date)} ${today.weekday} · ${
-    today.isWeekend ? '周末' : '平日'
+    today.isWeekend ? '週末' : '平日'
   }（${today.meals.map((m) => MEAL_LABEL[m]).join('／')}）`;
 
   el('home-start').addEventListener('click', enterApp);
@@ -91,7 +91,7 @@ async function init() {
 
   const sel = el('date-select');
   sel.innerHTML = state.schedule
-    .map((d) => `<option value="${d.date}">${d.date}（${d.weekday}${d.isWeekend ? ' · 周末' : ''}）</option>`)
+    .map((d) => `<option value="${d.date}">${d.date}（${d.weekday}${d.isWeekend ? ' · 週末' : ''}）</option>`)
     .join('');
   sel.addEventListener('change', () => selectDate(sel.value));
   el('submit').addEventListener('click', submitOrder);

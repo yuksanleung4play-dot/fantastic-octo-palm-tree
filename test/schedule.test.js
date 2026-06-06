@@ -18,5 +18,5 @@ test('buildSchedule 生成连续日期', () => {
   assert.equal(s.length, 3);
   assert.equal(s[0].date, '2026-06-08');
   assert.equal(s[2].date, '2026-06-10');
-  assert.ok(s[0].weekday.startsWith('周'));
+  assert.ok(s[0].weekday.startsWith('週'));
 });
