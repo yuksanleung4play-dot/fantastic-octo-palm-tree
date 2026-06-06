@@ -1,11 +1,12 @@
 {
   "meta": {
     "title": "家庭食谱库",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "model": "meal",
     "servingNote": "每道食谱为一份完整的餐（含荤与素），营养与食材分量以食谱标注的人份计。",
     "generatedFrom": "data/source-recipes.json",
-    "generatedAt": "2026-06-04T13:56:41.247Z",
+    "imagesFrom": "data/recipe-images.json",
+    "generatedAt": "2026-06-06T01:26:16.907Z",
     "count": 50,
     "nutritionUnits": {
       "calories": "kcal",
@@ -21,6 +22,8 @@
       "title": "煎嫩雞胸＋優格醬佐酪梨蛋花椰菜沙拉＋小番茄蔬菜清湯",
       "source": "MASA（YouTube／IG @masa_cookingram）",
       "sourceUrl": "https://www.youtube.com/watch?v=ar6t1wVBKpk",
+      "image": "dish-images/recipe-01.jpg",
+      "imageSource": "https://i.ytimg.com/vi/ar6t1wVBKpk/hqdefault.jpg",
       "mealType": "午餐／晚餐｜1人份",
       "mealSlots": [
         "lunch",
@@ -121,6 +124,8 @@
       "title": "蒜香彩椒鮮蝦溫沙拉",
       "source": "健身工廠部落格",
       "sourceUrl": "https://www.fitnessfactory.com.tw/tw/blog/%E5%81%A5%E4%BA%BA%E7%9A%84%E7%87%9F%E9%A4%8A%E5%AD%B8/%E8%AE%93%E4%BD%A0%E8%B6%8A%E5%90%83%E8%B6%8A%E7%98%A6%E5%BF%85%E5%AD%B85%E9%81%93%E5%A4%8F%E6%97%A5%E6%B8%85%E7%88%BD%E7%B3%BB%E6%B8%9B%E9%86%A3%E9%A3%9F%E8%AD%9C_B",
+      "image": "dish-images/recipe-02.jpg",
+      "imageSource": "https://www.fitnessfactory.com.tw/upload/2023_05_12/2_202305121441416ew3tbHwB0.jpg",
       "mealType": "午餐／晚餐｜1–2人份",
       "mealSlots": [
         "lunch",
@@ -175,6 +180,8 @@
       "title": "塔香番茄鮮蝦櫛瓜麵",
       "source": "健身工廠部落格",
       "sourceUrl": "https://www.fitnessfactory.com.tw/tw/blog/%E5%81%A5%E4%BA%BA%E7%9A%84%E7%87%9F%E9%A4%8A%E5%AD%B8/%E8%AE%93%E4%BD%A0%E8%B6%8A%E5%90%83%E8%B6%8A%E7%98%A6%E5%BF%85%E5%AD%B85%E9%81%93%E5%A4%8F%E6%97%A5%E6%B8%85%E7%88%BD%E7%B3%BB%E6%B8%9B%E9%86%A3%E9%A3%9F%E8%AD%9C_B",
+      "image": "dish-images/recipe-03.jpg",
+      "imageSource": "https://www.fitnessfactory.com.tw/upload/2023_05_12/2_202305121441416ew3tbHwB0.jpg",
       "mealType": "午餐／晚餐｜1人份",
       "mealSlots": [
         "lunch",
@@ -226,6 +233,8 @@
       "title": "清爽涼拌雞絲",
       "source": "健身工廠部落格",
       "sourceUrl": "https://www.fitnessfactory.com.tw/tw/blog/%E5%81%A5%E4%BA%BA%E7%9A%84%E7%87%9F%E9%A4%8A%E5%AD%B8/%E8%AE%93%E4%BD%A0%E8%B6%8A%E5%90%83%E8%B6%8A%E7%98%A6%E5%BF%85%E5%AD%B85%E9%81%93%E5%A4%8F%E6%97%A5%E6%B8%85%E7%88%BD%E7%B3%BB%E6%B8%9B%E9%86%A3%E9%A3%9F%E8%AD%9C_B",
+      "image": "dish-images/recipe-04.jpg",
+      "imageSource": "https://www.fitnessfactory.com.tw/upload/2023_05_12/2_202305121441416ew3tbHwB0.jpg",
       "mealType": "午餐／晚餐｜1–2人份",
       "mealSlots": [
         "lunch",
@@ -278,6 +287,8 @@
       "title": "高蛋白台式打拋雞（控醣版）",
       "source": "May姐／health.gvm.com.tw",
       "sourceUrl": "https://health.gvm.com.tw/article/129398",
+      "image": "dish-images/recipe-05.jpg",
+      "imageSource": "https://imgs.gvm.com.tw/upload/gallery/20260415/229132.jpg",
       "mealType": "午餐／晚餐｜2–3人份",
       "mealSlots": [
         "lunch",
@@ -367,6 +378,8 @@
       "title": "紅椒煙燻雞柳藜麥碗",
       "source": "May Fit／meet.eslite.com",
       "sourceUrl": "https://meet.eslite.com/tw/tc/article/202108230010",
+      "image": "dish-images/recipe-06.jpg",
+      "imageSource": "https://meet.eslite.com/Content/Images/Article/may8572fit_20210823133002.jpg",
       "mealType": "午餐／晚餐｜1人份",
       "mealSlots": [
         "lunch",
@@ -430,6 +443,8 @@
       "title": "低脂麥脆烤雞胸",
       "source": "May Fit（YouTube）",
       "sourceUrl": "https://www.youtube.com/watch?v=dUpfwtwkuvc",
+      "image": "dish-images/recipe-07.jpg",
+      "imageSource": "https://i.ytimg.com/vi/dUpfwtwkuvc/hqdefault.jpg",
       "mealType": "午餐｜2人份",
       "mealSlots": [
         "lunch"
@@ -478,6 +493,8 @@
       "title": "BBQ烤雞胸配烤時蔬",
       "source": "perfit.hk 雞胸食譜",
       "sourceUrl": "https://perfit.hk/%E7%9B%B8%E9%97%9C%E8%B3%87%E8%A8%8A/%E9%9B%9E%E8%83%B8%E8%82%89%E6%B8%9B%E8%82%A5%E4%BB%B2%E5%8F%AF%E4%BB%A5%E5%A2%9E%E8%82%8C%EF%BC%9F%E7%87%9F%E9%A4%8A%E5%B8%AB%E6%8E%A8%E8%96%A66%E6%AC%BE%E6%83%B9%E5%91%B3%E9%9B%9E%E8%83%B8%E8%82%89%E6%B8%9B%E8%82%A5%E9%A3%9F%E8%AD%9C--%E5%A4%96%E9%A3%9F%E6%97%8F%E6%B8%9B%E8%82%A54%E5%80%8B%E5%B0%8F%E7%AB%85%E9%96%80%EF%BC%81",
+      "image": "dish-images/recipe-08.webp",
+      "imageSource": "https://static.perfit.hk/api/7e774110f7_11cfc4c71a.webp",
       "mealType": "午餐／晚餐｜1人份",
       "mealSlots": [
         "lunch",
@@ -525,6 +542,8 @@
       "title": "檸檬香草雞腿配彩椒洋蔥",
       "source": "perfit.hk 雞肉食譜",
       "sourceUrl": "https://perfit.hk/%E7%9B%B8%E9%97%9C%E8%B3%87%E8%A8%8A/%E9%9B%9E%E8%83%B8%E8%82%89%E6%B8%9B%E8%82%A5%E4%BB%B2%E5%8F%AF%E4%BB%A5%E5%A2%9E%E8%82%8C%EF%BC%9F%E7%87%9F%E9%A4%8A%E5%B8%AB%E6%8E%A8%E8%96%A66%E6%AC%BE%E6%83%B9%E5%91%B3%E9%9B%9E%E8%83%B8%E8%82%89%E6%B8%9B%E8%82%A5%E9%A3%9F%E8%AD%9C--%E5%A4%96%E9%A3%9F%E6%97%8F%E6%B8%9B%E8%82%A54%E5%80%8B%E5%B0%8F%E7%AB%85%E9%96%80%EF%BC%81",
+      "image": "dish-images/recipe-09.webp",
+      "imageSource": "https://static.perfit.hk/api/7e774110f7_11cfc4c71a.webp",
       "mealType": "晚餐｜1–2人份",
       "mealSlots": [
         "dinner"
@@ -578,6 +597,8 @@
       "title": "酸甜雞粒（IG低卡版）",
       "source": "IG @hongkong_fitness_girl",
       "sourceUrl": "https://www.instagram.com/p/DO6E-2cEVmb/",
+      "image": null,
+      "imageSource": null,
       "mealType": "午餐／晚餐｜1人份（4人份÷4）",
       "mealSlots": [
         "lunch",
@@ -641,6 +662,8 @@
       "title": "韓式雜菜雞胸肉拌飯",
       "source": "Goji Studios HK",
       "sourceUrl": "https://gojistudios.com.hk/1692/",
+      "image": null,
+      "imageSource": null,
       "mealType": "午餐（Meal Prep適合）｜1人份",
       "mealSlots": [
         "lunch"
@@ -702,6 +725,8 @@
       "title": "番茄菇菇手撕雞",
       "source": "May Fit YouTube（雞胸4款料理）",
       "sourceUrl": "https://www.youtube.com/watch?v=ff7CNzCOyiA",
+      "image": "dish-images/recipe-12.jpg",
+      "imageSource": "https://i.ytimg.com/vi/ff7CNzCOyiA/hqdefault.jpg",
       "mealType": "午餐／晚餐｜1–2人份",
       "mealSlots": [
         "lunch",
@@ -754,6 +779,8 @@
       "title": "三文魚扒配清炒蘆筍",
       "source": "Goji Studios HK",
       "sourceUrl": "https://gojistudios.com.hk/6131/",
+      "image": null,
+      "imageSource": null,
       "mealType": "午餐／晚餐｜1人份",
       "mealSlots": [
         "lunch",
@@ -799,6 +826,8 @@
       "title": "烤地瓜鯖魚毛豆炒蛋定食",
       "source": "May Fit／元氣網",
       "sourceUrl": "https://health.udn.com/health/story/6036/3860911",
+      "image": "dish-images/recipe-14.jpg",
+      "imageSource": "https://pgw.udn.com.tw/gw/photo.php?u=/photo/2019/06/09/6/6408158.jpg&x=0&y=176&sw=1133&sh=755&s=Y&w=1200&h=800&exp=3600",
       "mealType": "午餐｜1人份",
       "mealSlots": [
         "lunch"
@@ -857,6 +886,8 @@
       "title": "義式烤彩椒蝦仁飯",
       "source": "May Fit／元氣網",
       "sourceUrl": "https://health.udn.com/health/story/6036/3860911",
+      "image": "dish-images/recipe-15.jpg",
+      "imageSource": "https://pgw.udn.com.tw/gw/photo.php?u=/photo/2019/06/09/6/6408158.jpg&x=0&y=176&sw=1133&sh=755&s=Y&w=1200&h=800&exp=3600",
       "mealType": "午餐／晚餐｜1人份",
       "mealSlots": [
         "lunch",
@@ -924,6 +955,8 @@
       "title": "氣炸三文魚配西蘭花藜麥碗",
       "source": "Goji Studios HK",
       "sourceUrl": "https://gojistudios.com.hk/1692/",
+      "image": null,
+      "imageSource": null,
       "mealType": "午餐／晚餐｜1人份",
       "mealSlots": [
         "lunch",
@@ -973,6 +1006,8 @@
       "title": "燻鮭魚起司彩虹沙拉",
       "source": "健身工廠部落格",
       "sourceUrl": "https://www.fitnessfactory.com.tw/tw/blog/%E5%81%A5%E4%BA%BA%E7%9A%84%E7%87%9F%E9%A4%8A%E5%AD%B8/%E8%AE%93%E4%BD%A0%E8%B6%8A%E5%90%83%E8%B6%8A%E7%98%A6%E5%BF%85%E5%AD%B85%E9%81%93%E5%A4%8F%E6%97%A5%E6%B8%85%E7%88%BD%E7%B3%BB%E6%B8%9B%E9%86%A3%E9%A3%9F%E8%AD%9C_B",
+      "image": "dish-images/recipe-17.jpg",
+      "imageSource": "https://www.fitnessfactory.com.tw/upload/2023_05_12/2_202305121441416ew3tbHwB0.jpg",
       "mealType": "午餐｜1人份",
       "mealSlots": [
         "lunch"
@@ -1037,6 +1072,8 @@
       "title": "越南春捲＋魚露檸檬醬",
       "source": "健身工廠部落格",
       "sourceUrl": "https://www.fitnessfactory.com.tw/tw/blog/%E5%81%A5%E4%BA%BA%E7%9A%84%E7%87%9F%E9%A4%8A%E5%AD%B8/%E8%AE%93%E4%BD%A0%E8%B6%8A%E5%90%83%E8%B6%8A%E7%98%A6%E5%BF%85%E5%AD%B85%E9%81%93%E5%A4%8F%E6%97%A5%E6%B8%85%E7%88%BD%E7%B3%BB%E6%B8%9B%E9%86%A3%E9%A3%9F%E8%AD%9C_B",
+      "image": "dish-images/recipe-18.jpg",
+      "imageSource": "https://www.fitnessfactory.com.tw/upload/2023_05_12/2_202305121441416ew3tbHwB0.jpg",
       "mealType": "午餐｜1人份（4卷）",
       "mealSlots": [
         "lunch"
@@ -1101,6 +1138,8 @@
       "title": "清蒸蒜蓉蝦",
       "source": "健身教練菜單整合",
       "sourceUrl": "https://tw.news.yahoo.com/%E5%AF%A6%E6%B8%AC%E6%9C%89%E6%95%88%E5%81%A5%E8%BA%AB%E6%95%99%E7%B7%B4%E5%A4%A7%E6%8E%A8%E7%9A%84%E5%BF%AB%E6%89%8B%E6%87%B6%E4%BA%BA%E7%98%A6%E8%BA%AB%E9%A4%90%E8%87%AA%E7%84%B6%E6%B8%9B%E8%84%82%E9%82%84%E4%B8%8D%E5%9B%9E%E8%83%96-154238130.html",
+      "image": "dish-images/recipe-19.jpg",
+      "imageSource": "https://s.yimg.com/ny/api/res/1.2/fvroskfGF906BC1wmA0h6A--/YXBwaWQ9aGlnaGxhbmRlcjt3PTEyMDA7aD03MjA-/https://s.yimg.com/os/creatr-uploaded-images/2019-08/a586bed0-ca70-11e9-b5f2-052c9883b065",
       "mealType": "午餐／晚餐｜1人份",
       "mealSlots": [
         "lunch",
@@ -1152,6 +1191,8 @@
       "title": "吞拿魚酪梨沙拉飯碗",
       "source": "New Beauty HK 健身餐單",
       "sourceUrl": "https://new-beauty.hk/blog/s6-fat-reduction-body-contouring/meal-plan-for-gym-7-day-muscle-gain-fat-loss-guide/",
+      "image": null,
+      "imageSource": "https://new-beauty.hk/images/common/toggleBtn.png",
       "mealType": "午餐｜1人份",
       "mealSlots": [
         "lunch"
@@ -1207,6 +1248,8 @@
       "title": "番茄嫩蛋炒蝦仁",
       "source": "Goji Studios HK",
       "sourceUrl": "https://gojistudios.com.hk/1692/",
+      "image": null,
+      "imageSource": null,
       "mealType": "午餐／晚餐｜1人份",
       "mealSlots": [
         "lunch",
@@ -1259,6 +1302,8 @@
       "title": "烤三文魚藜麥豆腐沙拉碗",
       "source": "May Fit 健身碗概念",
       "sourceUrl": "https://health.udn.com/health/story/6036/3860911",
+      "image": "dish-images/recipe-22.jpg",
+      "imageSource": "https://pgw.udn.com.tw/gw/photo.php?u=/photo/2019/06/09/6/6408158.jpg&x=0&y=176&sw=1133&sh=755&s=Y&w=1200&h=800&exp=3600",
       "mealType": "晚餐｜1人份",
       "mealSlots": [
         "dinner"
@@ -1307,6 +1352,8 @@
       "title": "和風薑汁燒豚肉便當",
       "source": "Goji Studios HK Meal Prep系列",
       "sourceUrl": "https://gojistudios.com.hk/1692/",
+      "image": null,
+      "imageSource": null,
       "mealType": "午餐（Meal Prep）｜1人份",
       "mealSlots": [
         "lunch"
@@ -1361,6 +1408,8 @@
       "title": "低醣牛肉炒花椰菜飯",
       "source": "健身教練低醣食譜整合",
       "sourceUrl": "https://gojistudios.com.hk/1735/",
+      "image": null,
+      "imageSource": null,
       "mealType": "午餐／晚餐｜1人份",
       "mealSlots": [
         "lunch",
@@ -1416,6 +1465,8 @@
       "title": "紅酒燉牛腱配烤蔬菜",
       "source": "HK01 營養師餐單",
       "sourceUrl": "https://www.hk01.com/%E6%95%99%E7%85%AE/501784/%E6%B8%9B%E8%84%82%E5%A2%9E%E8%82%8C%E9%A3%9F%E8%AD%9C-%E7%87%9F%E9%A4%8A%E5%B8%AB8%E9%A4%90%E5%96%AE1%E5%BC%8F2%E6%AC%BE%E4%BB%BB%E6%8F%80-%E7%B4%85%E9%85%92%E7%89%9B%E9%83%BD%E6%9C%89%E5%94%94%E5%8F%AA%E9%9B%9E%E8%83%B8%E7%83%9A%E8%9B%8B",
+      "image": "dish-images/recipe-25.jpg",
+      "imageSource": "https://cdn.hk01.com/di/media/images/dw/20200724/363295356831797248.jpeg/1L6WUeLWzvw7n92v4lX6r0cQtystXoORxrfpLca36S0",
       "mealType": "晚餐｜1人份",
       "mealSlots": [
         "dinner"
@@ -1471,6 +1522,8 @@
       "title": "韓式牛肉拌飯（低油版）",
       "source": "增肌減脂博主整合",
       "sourceUrl": "https://gojistudios.com.hk/1735/",
+      "image": null,
+      "imageSource": null,
       "mealType": "午餐／晚餐｜1人份",
       "mealSlots": [
         "lunch",
@@ -1532,6 +1585,8 @@
       "title": "青椒洋蔥炒牛肉",
       "source": "perfit.hk 增肌減脂整合",
       "sourceUrl": "https://perfit.hk/%E7%9B%B8%E9%97%9C%E8%B3%87%E8%A8%8A/%E9%9B%9E%E8%83%B8%E8%82%89%E6%B8%9B%E8%82%A5%E4%BB%B2%E5%8F%AF%E4%BB%A5%E5%A2%9E%E8%82%8C%EF%BC%9F%E7%87%9F%E9%A4%8A%E5%B8%AB%E6%8E%A8%E8%96%A66%E6%AC%BE%E6%83%B9%E5%91%B3%E9%9B%9E%E8%83%B8%E8%82%89%E6%B8%9B%E8%82%A5%E9%A3%9F%E8%AD%9C--%E5%A4%96%E9%A3%9F%E6%97%8F%E6%B8%9B%E8%82%A54%E5%80%8B%E5%B0%8F%E7%AB%85%E9%96%80%EF%BC%81",
+      "image": "dish-images/recipe-27.webp",
+      "imageSource": "https://static.perfit.hk/api/7e774110f7_11cfc4c71a.webp",
       "mealType": "午餐／晚餐｜1人份",
       "mealSlots": [
         "lunch",
@@ -1585,6 +1640,8 @@
       "title": "豬里肌檸檬香草排",
       "source": "New Beauty HK 健身餐單",
       "sourceUrl": "https://new-beauty.hk/blog/s6-fat-reduction-body-contouring/meal-plan-for-gym-7-day-muscle-gain-fat-loss-guide/",
+      "image": null,
+      "imageSource": "https://new-beauty.hk/images/common/toggleBtn.png",
       "mealType": "晚餐｜1人份",
       "mealSlots": [
         "dinner"
@@ -1635,6 +1692,8 @@
       "title": "蒜泥白肉藜麥健康餐盒",
       "source": "達米肉舖健康餐盒",
       "sourceUrl": "https://www.da-meat.com/blog-detail/healthy_meal",
+      "image": "dish-images/recipe-29.png",
+      "imageSource": "https://www.da-meat.com/upfile/image/9c71e6c36450820ce4c73aae0a2b7c5bae15afc8.png",
       "mealType": "午餐（Meal Prep）｜1人份",
       "mealSlots": [
         "lunch"
@@ -1694,6 +1753,8 @@
       "title": "番茄燉牛肉糙米飯",
       "source": "增肌減脂博主整合",
       "sourceUrl": "https://gojistudios.com.hk/1735/",
+      "image": null,
+      "imageSource": null,
       "mealType": "晚餐｜1人份",
       "mealSlots": [
         "dinner"
@@ -1747,6 +1808,8 @@
       "title": "韓式泡菜豆腐鍋",
       "source": "Goji Studios HK",
       "sourceUrl": "https://gojistudios.com.hk/6131/",
+      "image": null,
+      "imageSource": null,
       "mealType": "午餐／晚餐｜1人份",
       "mealSlots": [
         "lunch",
@@ -1795,6 +1858,8 @@
       "title": "低脂雞胸蛋餅（高蛋白早午餐）",
       "source": "IG 健身食譜",
       "sourceUrl": "https://www.instagram.com/p/DO6E-2cEVmb/",
+      "image": null,
+      "imageSource": null,
       "mealType": "午餐（brunch）｜1人份",
       "mealSlots": [
         "lunch"
@@ -1842,6 +1907,8 @@
       "title": "毛豆鷹嘴豆藜麥沙拉碗",
       "source": "Goji Studios HK Meal Prep",
       "sourceUrl": "https://gojistudios.com.hk/1692/",
+      "image": null,
+      "imageSource": null,
       "mealType": "午餐｜1人份",
       "mealSlots": [
         "lunch"
@@ -1902,6 +1969,8 @@
       "title": "南瓜毛豆腐皮捲",
       "source": "Goji Studios HK 素食健身餐",
       "sourceUrl": "https://gojistudios.com.hk/1692/",
+      "image": null,
+      "imageSource": null,
       "mealType": "午餐／晚餐｜1–2人份（4卷）",
       "mealSlots": [
         "lunch",
@@ -1951,6 +2020,8 @@
       "title": "希臘乳酪醬烤天貝",
       "source": "Goji Studios HK 植物蛋白系列",
       "sourceUrl": "https://gojistudios.com.hk/1692/",
+      "image": null,
+      "imageSource": null,
       "mealType": "午餐／晚餐｜1人份",
       "mealSlots": [
         "lunch",
@@ -2002,6 +2073,8 @@
       "title": "菠菜番茄炒蛋",
       "source": "減脂菜單整合",
       "sourceUrl": "https://m.xiachufang.com/recipe/104556004/",
+      "image": null,
+      "imageSource": null,
       "mealType": "午餐／晚餐｜1人份",
       "mealSlots": [
         "lunch",
@@ -2050,6 +2123,8 @@
       "title": "鷹嘴豆泥全麥皮塔配蔬菜條",
       "source": "Goji Studios HK 植物蛋白系列",
       "sourceUrl": "https://gojistudios.com.hk/1692/",
+      "image": null,
+      "imageSource": null,
       "mealType": "午餐｜1人份",
       "mealSlots": [
         "lunch"
@@ -2093,6 +2168,8 @@
       "title": "豆腐毛豆煎餅",
       "source": "愛料理／健身餐整合",
       "sourceUrl": "https://icook.tw/search/%E5%81%A5%E8%BA%AB%E9%A4%90/",
+      "image": "dish-images/recipe-38.jpg",
+      "imageSource": "https://imgproxy.icook.network/safe/rs:fill:800:600:0:0/q:80/plain/http://tokyo-kitchen.icook.tw.s3.amazonaws.com/uploads/recipe/cover/459735/95ef91aa4ad6d39c.jpg",
       "mealType": "午餐｜1–2人份（4塊）",
       "mealSlots": [
         "lunch"
@@ -2141,6 +2218,8 @@
       "title": "蒜辣腰果雞丁便當",
       "source": "NutureFit 營養師團隊",
       "sourceUrl": "https://nuturefit.com/low-calories-packed-meal/",
+      "image": null,
+      "imageSource": null,
       "mealType": "午餐（Meal Prep）｜1人份",
       "mealSlots": [
         "lunch"
@@ -2210,6 +2289,8 @@
       "title": "手作豬小里肌漢堡排便當",
       "source": "NutureFit 營養師團隊",
       "sourceUrl": "https://nuturefit.com/low-calories-packed-meal/",
+      "image": "dish-images/recipe-40.jpg",
+      "imageSource": "https://s3.ap-northeast-1.amazonaws.com/nuturefit.com/wp-content/uploads/2025/01/low-calories-packed-meal-1024x512.jpg",
       "mealType": "午餐／晚餐｜1人份",
       "mealSlots": [
         "lunch",
@@ -2272,6 +2353,8 @@
       "title": "低醣海鮮藜麥粥",
       "source": "小冰's happy diet / YouTube",
       "sourceUrl": "https://www.youtube.com/watch?v=oQgesMdSCic",
+      "image": "dish-images/recipe-41.jpg",
+      "imageSource": "https://i.ytimg.com/vi/oQgesMdSCic/hqdefault.jpg",
       "mealType": "午餐／晚餐｜1人份",
       "mealSlots": [
         "lunch",
@@ -2331,6 +2414,8 @@
       "title": "零澱粉南瓜鮮蝦粥（花椰菜米版）",
       "source": "LON YO IG / Women's Health",
       "sourceUrl": "https://www.womenshealthmag.com/tw/food-nutrition/recipes/g35040790/8-fitness-bento/",
+      "image": "dish-images/recipe-42.jpg",
+      "imageSource": "https://hips.hearstapps.com/hmg-prod/images/%E8%AC%9D%E6%88%8E%E5%AE%A5-1608638764.jpg?crop=1.00xw:1.00xh;0,0&resize=1200:*",
       "mealType": "晚餐｜1人份",
       "mealSlots": [
         "dinner"
@@ -2385,6 +2470,8 @@
       "title": "櫛瓜牛肉番茄義大利麵",
       "source": "Marie Claire 減脂晚餐食譜",
       "sourceUrl": "https://www.marieclaire.com.tw/beauty/health-fitness/80392",
+      "image": "dish-images/recipe-43.jpg",
+      "imageSource": "https://i.marieclaire.com.tw/assets/mc/202407/668FAB6CECCEA1720691564.jpeg",
       "mealType": "晚餐｜1人份",
       "mealSlots": [
         "dinner"
@@ -2443,6 +2530,8 @@
       "title": "減醣絲瓜豆包麵",
       "source": "Dietitian Tracy",
       "sourceUrl": "https://www.dietitian-tracy.com/low-carb-diet/",
+      "image": "dish-images/recipe-44.png",
+      "imageSource": "https://www.dietitian-tracy.com/wp-content/uploads/2024/06/20240625123224_0_99b89a.png",
       "mealType": "午餐／晚餐｜1人份",
       "mealSlots": [
         "lunch",
@@ -2500,6 +2589,8 @@
       "title": "低卡雞肉咖哩花椰菜飯",
       "source": "小冰 / 愛料理",
       "sourceUrl": "https://icook.tw/search/%E4%BD%8E%E5%8D%A1%E5%92%96%E5%93%A9/",
+      "image": "dish-images/recipe-45.jpg",
+      "imageSource": "https://imgproxy.icook.network/safe/rs:fill:800:600:0:0/q:80/plain/http://tokyo-kitchen.icook.tw.s3.amazonaws.com/uploads/recipe/cover/366822/b9cde66ed558514f.jpg",
       "mealType": "午餐／晚餐｜1人份",
       "mealSlots": [
         "lunch",
@@ -2560,6 +2651,8 @@
       "title": "冷拌雞絲粉絲（低卡餐）",
       "source": "Marie Claire 減脂晚餐食譜",
       "sourceUrl": "https://www.marieclaire.com.tw/beauty/health-fitness/80392",
+      "image": "dish-images/recipe-46.jpg",
+      "imageSource": "https://i.marieclaire.com.tw/assets/mc/202407/668FAB6CECCEA1720691564.jpeg",
       "mealType": "晚餐｜1人份",
       "mealSlots": [
         "dinner"
@@ -2620,6 +2713,8 @@
       "title": "麻香蝦仁豆腐悶蛋",
       "source": "減脂料理分享 / IG",
       "sourceUrl": "https://www.instagram.com/reel/DSJeWjKEiBP/",
+      "image": null,
+      "imageSource": null,
       "mealType": "午／晚餐｜1人份",
       "mealSlots": [
         "lunch",
@@ -2675,6 +2770,8 @@
       "title": "杏鮑菇黑椒骰子牛",
       "source": "Marie Claire 減肥肉料理",
       "sourceUrl": "https://today.line.me/tw/v3/article/71Zx1k",
+      "image": "dish-images/recipe-48.jpg",
+      "imageSource": "https://today-obs.line-scdn.net/0hfmj9o-7TOUJXQBBbz5VGFW0WOi1kLCpBM3ZoQRQuZ3Ytdiocby91d3tCZnsteX4cPid1IHBJInMoIy5HOSB1/w1200",
       "mealType": "晚餐｜1人份",
       "mealSlots": [
         "dinner"
@@ -2743,6 +2840,8 @@
       "title": "氣炸/香煎無骨蜜汁雞翅排",
       "source": "NutureFit 營養師",
       "sourceUrl": "https://nuturefit.com/low-calories-packed-meal/",
+      "image": "dish-images/recipe-49.jpg",
+      "imageSource": "https://s3.ap-northeast-1.amazonaws.com/nuturefit.com/wp-content/uploads/2025/01/low-calories-packed-meal-1024x512.jpg",
       "mealType": "晚餐｜1人份",
       "mealSlots": [
         "dinner"
@@ -2795,6 +2894,8 @@
       "title": "蒜香金針菇蒸比目魚（或鯛魚）",
       "source": "Marie Claire 減肥肉料理",
       "sourceUrl": "https://today.line.me/tw/v3/article/71Zx1k",
+      "image": "dish-images/recipe-50.jpg",
+      "imageSource": "https://today-obs.line-scdn.net/0hfmj9o-7TOUJXQBBbz5VGFW0WOi1kLCpBM3ZoQRQuZ3Ytdiocby91d3tCZnsteX4cPid1IHBJInMoIy5HOSB1/w1200",
       "mealType": "晚餐｜1人份",
       "mealSlots": [
         "dinner"

@@ -43,6 +43,7 @@ function toOption(meal, label) {
     title: meal.title,
     source: meal.source,
     sourceUrl: meal.sourceUrl,
+    image: meal.image,
     mealType: meal.mealType,
     servings: meal.servings,
     nutrition: meal.nutrition,

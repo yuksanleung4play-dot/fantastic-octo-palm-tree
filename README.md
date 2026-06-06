@@ -49,6 +49,19 @@ npm start                # 访问 http://localhost:3000
 
 编辑源数据后运行 `npm run build:recipes` 重新生成。缺少食材的食谱会自动从可点餐池中跳过（保证备菜清单可用）。
 
+### 菜品图片
+
+每道菜的图片从其 `source` 链接中自动提取（YouTube 缩略图 / 页面 `og:image` / JSON-LD / 正文首图），并下载到 `public/dish-images/`：
+
+```bash
+npm run fetch:images        # 抓取尚未成功的图片
+npm run fetch:images -- --retry   # 仅重试此前失败的
+npm run fetch:images -- --force   # 全部重新抓取
+npm run build:recipes       # 把图片合并进 data/recipes.json
+```
+
+抓取结果缓存于 `data/recipe-images.json`。部分站点为纯 JS 渲染或需要登录（如 goji、部分 IG），无法提取图片，前端会自动显示带 🍽️ 的占位图。当前约 30/50 道为真实照片。
+
 ## API
 
 | 方法 | 路径 | 说明 |

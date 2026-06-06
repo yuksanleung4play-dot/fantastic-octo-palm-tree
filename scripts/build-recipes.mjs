@@ -1,17 +1,20 @@
 #!/usr/bin/env node
 /**
  * 将上传的原始食谱（data/source-recipes.json，整餐食谱列表）规范化为
- * 系统使用的 data/recipes.json（含解析后的餐次、人份、营养、食材分组）。
+ * 系统使用的 data/recipes.json（含解析后的餐次、人份、营养、食材分组、图片）。
+ *
+ * 图片来自 data/recipe-images.json（由 scripts/fetch-images.mjs 从 source 链接抓取）。
  *
  * 运行： npm run build:recipes
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SRC = join(__dirname, '..', 'data', 'source-recipes.json');
 const OUT = join(__dirname, '..', 'data', 'recipes.json');
+const IMAGES = join(__dirname, '..', 'data', 'recipe-images.json');
 
 const FRACTIONS = { '½': 0.5, '¼': 0.25, '⅓': 1 / 3, '⅔': 2 / 3, '¾': 0.75, '⅛': 0.125 };
 
@@ -85,7 +88,7 @@ function parseIngredientLine(line) {
   return { label, items };
 }
 
-function buildRecipe(entry, index) {
+function buildRecipe(entry, index, images) {
   const { no, title } = parseTitle(entry.title || '');
   const { source, sourceUrl } = parseSource(entry.source || '');
   const { mealSlots, servings } = parseMealType(entry.meal_type || '');
@@ -94,12 +97,18 @@ function buildRecipe(entry, index) {
   const ingredientGroups = (entry.ingredients || []).map(parseIngredientLine);
   const ingredients = ingredientGroups.flatMap((g) => g.items);
 
+  const id = `recipe-${String(no ?? index + 1).padStart(2, '0')}`;
+  const imgEntry = images[id];
+  const image = imgEntry && imgEntry.file ? `dish-images/${imgEntry.file}` : null;
+
   return {
-    id: `recipe-${String(no ?? index + 1).padStart(2, '0')}`,
+    id,
     no: no ?? index + 1,
     title,
     source,
     sourceUrl,
+    image,
+    imageSource: imgEntry && imgEntry.src ? imgEntry.src : null,
     mealType: entry.meal_type || '',
     mealSlots,
     servings,
@@ -112,15 +121,17 @@ function buildRecipe(entry, index) {
 
 function main() {
   const src = JSON.parse(readFileSync(SRC, 'utf-8'));
-  const meals = src.map(buildRecipe);
+  const images = existsSync(IMAGES) ? JSON.parse(readFileSync(IMAGES, 'utf-8')) : {};
+  const meals = src.map((entry, i) => buildRecipe(entry, i, images));
 
   const data = {
     meta: {
       title: '家庭食谱库',
-      version: '2.0.0',
+      version: '2.1.0',
       model: 'meal',
       servingNote: '每道食谱为一份完整的餐（含荤与素），营养与食材分量以食谱标注的人份计。',
       generatedFrom: 'data/source-recipes.json',
+      imagesFrom: 'data/recipe-images.json',
       generatedAt: new Date().toISOString(),
       count: meals.length,
       nutritionUnits: { calories: 'kcal', protein: 'g', fat: 'g', carbs: 'g' },
@@ -131,9 +142,9 @@ function main() {
   writeFileSync(OUT, `${JSON.stringify(data, null, 2)}\n`, 'utf-8');
   const lunch = meals.filter((m) => m.mealSlots.includes('lunch')).length;
   const dinner = meals.filter((m) => m.mealSlots.includes('dinner')).length;
-  const noNut = meals.filter((m) => m.nutrition.calories == null).length;
+  const withImg = meals.filter((m) => m.image).length;
   console.log(`✅ 生成 ${meals.length} 道食谱 → ${OUT}`);
-  console.log(`   可作午餐：${lunch}，可作晚餐：${dinner}，缺营养数据：${noNut}`);
+  console.log(`   可作午餐：${lunch}，可作晚餐：${dinner}，含图片：${withImg}/${meals.length}`);
 }
 
 main();

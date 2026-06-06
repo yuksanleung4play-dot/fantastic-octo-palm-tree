@@ -156,8 +156,12 @@ function renderOptions() {
           }</div>`
         : '';
       const cal = opt.nutrition && opt.nutrition.calories != null ? `${opt.nutrition.calories} kcal` : '营养待补充';
+      const photo = `<div class="option-photo">${
+        opt.image ? `<img src="${opt.image}" alt="${escapeHtml(opt.title)}" loading="lazy" onerror="this.remove()" />` : ''
+      }</div>`;
       return `
       <div class="option-card" data-label="${opt.label}">
+        ${photo}
         <div class="option-head"><span class="option-label">${opt.label}</span><span class="option-cal">${cal}</span></div>
         <div class="option-title">${opt.title}</div>
         <div class="meal-meta">${opt.mealType || ''}</div>
@@ -260,7 +264,10 @@ function renderRecords(orders) {
   list.innerHTML = orders
     .map((o, i) => {
       const cal = o.option.nutrition && o.option.nutrition.calories != null ? `${o.option.nutrition.calories} kcal` : '营养待补充';
-      return `<li><b>${i + 1}.</b> ${MEAL_LABEL[o.meal] || o.meal} · ${o.option.label} 餐 — ${o.option.title}（${cal}）</li>`;
+      const thumb = `<span class="rec-thumb">${
+        o.option.image ? `<img src="${o.option.image}" alt="" loading="lazy" onerror="this.remove()" />` : '🍽️'
+      }</span>`;
+      return `<li>${thumb}<span class="rec-text"><b>${i + 1}.</b> ${MEAL_LABEL[o.meal] || o.meal} · ${o.option.label} 餐 — ${o.option.title}（${cal}）</span></li>`;
     })
     .join('');
   panel.classList.remove('hidden');
