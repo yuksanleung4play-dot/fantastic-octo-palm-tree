@@ -219,17 +219,12 @@ async function submitOrder() {
   }
 }
 
-function showSuccess({ order, allOrders, mail }) {
+function showSuccess({ order, allOrders }) {
   const box = el('status');
   box.className = 'status ok';
-  let mailLine;
-  if (mail.sent) mailLine = `备菜邮件已发送 ✅（${mail.mode}）`;
-  else if (mail.mode === 'outbox') mailLine = `邮件未发送：${mail.reason}`;
-  else mailLine = `邮件发送失败：${mail.error || mail.reason || '未知错误'}`;
-
   box.innerHTML = `✅ 已保存 <b>${order.option.label} 餐</b>：${order.option.title}（${nutriText(
     order.option.nutrition,
-  )}）。当天共 <b>${(allOrders || []).length}</b> 笔记录。<br>${mailLine}`;
+  )}）。当天共 <b>${(allOrders || []).length}</b> 笔记录（每餐只保留最新选择）。<br>📧 本周餐单将于 <b>周六下午 5:00</b> 统一发送备菜邮件。`;
   box.classList.remove('hidden');
   box.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }

@@ -10,11 +10,12 @@
   - 周末（周六、周日）：**午餐 + 晚餐**
 - **自动生成 A/B/C/D 四套餐**：每套是一道完整食谱，按餐次（午/晚）从可用食谱中**确定性**挑选——同一餐次始终一致，四套互不相同。
 - **标明热量与营养成分**：每道食谱显示热量、蛋白质、脂肪、碳水。
-- **不区分点餐人 · 按天汇总**：无需登录或选择「我是谁」，任何人选好套餐保存即可。**同一天内保存的所有记录都会一起显示，并在每次保存时发送备菜邮件**。
-- **下单即发邮件**：保存后自动发送邮件到你的邮箱，列出：
-  - 本次新增的食谱与营养
-  - **当天已保存的全部记录**（跨午餐/晚餐）
-  - **需要准备的全部食材与分量**：按食谱合并、按份数标注（如 `×2 份`），方便买菜备菜。
+- **不区分点餐人 · 每餐只留最新**：无需登录或选择「我是谁」，任何人选好套餐保存即可。**每天每餐最多保留一条记录，重复保存只覆盖为最新选择**。
+- **每周统一发邮件（周六 17:00）**：不再每次保存就发邮件，而是**每周六下午 5 点统一发送一封「下周一至周五」的餐单与备菜邮件**，内容包括：
+  - 每日已点餐单（未点的日子标注「未点餐」）
+  - **一周备菜清单**：按食谱合并、按份数标注（如 `×2 份`）
+  - 全部营养合计
+  - 发送时间/星期/时区可在 `.env` 调整（见下）。手动测试可调用 `POST /api/send-weekly`。
 
 ## 快速开始
 
@@ -39,6 +40,9 @@ npm start                # 访问 http://localhost:3000
 | `SMTP_HOST` / `SMTP_PORT` | SMTP 服务器，如 `smtp.gmail.com` / `587` |
 | `SMTP_USER` / `SMTP_PASS` | 发信账号与密码（Gmail 需用「应用专用密码」） |
 | `SMTP_FROM` | 可选，发件人显示名 |
+| `WEEKLY_SEND_DOW` / `WEEKLY_SEND_HOUR` / `WEEKLY_SEND_MINUTE` | 每周发送的星期(0–6)/小时/分钟，默认 6/17/0（周六 17:00） |
+| `WEEKLY_SEND_TZ_OFFSET` | 时区分钟偏移，默认 480（UTC+8 香港） |
+| `WEEKLY_SEND_ENABLED` | 设为 `false` 可关闭定时发送 |
 
 > 未配置 SMTP 时，系统不会报错，而是把邮件以 HTML 形式落盘到 `data/outbox/` 供预览，方便先在本地体验。
 
@@ -64,8 +68,10 @@ npm start                # 访问 http://localhost:3000
 | `GET` | `/api/recipes` | 食谱库全部食谱 |
 | `GET` | `/api/schedule?start=YYYY-MM-DD&days=14` | 排程（平日/周末餐次） |
 | `GET` | `/api/meals?date=YYYY-MM-DD&meal=lunch\|dinner` | 该餐 A/B/C/D 选项；`existingOrders` 为当天全部记录 |
-| `POST` | `/api/orders` | 保存记录并发当天备菜邮件，body：`{date,meal,optionLabel}` |
+| `POST` | `/api/orders` | 保存记录（每餐只留最新，不即时发邮件），body：`{date,meal,optionLabel}` |
 | `GET` | `/api/orders?date=YYYY-MM-DD` | 查看某一天的全部记录 |
+| `GET` | `/api/weekly-info` | 下次发送时间与即将到来的周一至周五区间 |
+| `POST` | `/api/send-weekly` | 手动触发本周餐单邮件，可选 body：`{start:"YYYY-MM-DD"}`（指定周一） |
 
 ## 项目结构
 
@@ -78,8 +84,10 @@ scripts/build-recipes.mjs 源数据 → 结构化食谱库的构建脚本
 src/recipes.js            食谱加载/校验/营养汇总
 src/schedule.js           平日一餐 / 周末午晚餐排程
 src/mealGenerator.js      A/B/C/D 确定性挑选
-src/store.js              记录持久化（按天，不区分点餐人）
-src/mailer.js             备菜邮件构建与发送
+src/store.js              记录持久化（每餐只留最新）
+src/mailer.js             每周餐单邮件构建与发送
+src/scheduler.js          每周六 17:00 定时发送（时区/星期/时间可配置）
+src/env.js                零依赖 .env 加载器
 src/server.js             Express 服务与 API
 public/                   前端页面（首屏 + 点餐主屏，Safari 优化 / PWA）
 test/                     单元测试（node --test）

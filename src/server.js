@@ -6,7 +6,7 @@ import { loadRecipes } from './recipes.js';
 import { buildSchedule, mealsForDate, MEAL_LABELS, toDateStr } from './schedule.js';
 import { generateMealOptions, findOption } from './mealGenerator.js';
 import { saveOrder, ordersForDay } from './store.js';
-import { sendMealEmail } from './mailer.js';
+import { startScheduler, runWeeklySend, nextSendTime, upcomingWeekdayRange } from './scheduler.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -46,8 +46,8 @@ app.get('/api/meals', (req, res) => {
   });
 });
 
-/** 保存一条记录并发送当天备菜邮件（不区分点餐人）。 */
-app.post('/api/orders', async (req, res) => {
+/** 保存一条记录（每天每餐最多一条，重复保存只留最新）。不再即时发邮件——统一周六发送。 */
+app.post('/api/orders', (req, res) => {
   const { date, meal, optionLabel } = req.body || {};
   if (!date || !meal || !optionLabel) {
     return res.status(400).json({ error: '缺少 date / meal / optionLabel' });
@@ -60,15 +60,22 @@ app.post('/api/orders', async (req, res) => {
 
   const record = saveOrder({ date, meal, option });
   const allOrders = ordersForDay(date);
+  res.status(201).json({ order: record, allOrders, nextEmail: nextSendTime(new Date()).toISOString() });
+});
 
-  let mail;
+/** 手动触发本周餐单邮件（便于测试）。可选 body.start 指定某个周一。 */
+app.post('/api/send-weekly', async (req, res) => {
   try {
-    mail = await sendMealEmail({ order: record, allOrders });
+    const result = await runWeeklySend(new Date(), (req.body && req.body.start) || null);
+    res.json(result);
   } catch (err) {
-    mail = { sent: false, mode: 'error', error: err.message };
+    res.status(500).json({ error: err.message });
   }
+});
 
-  res.status(201).json({ order: record, allOrders, mail });
+/** 查看下一次发送时间与本周（即将到来的周一至周五）区间。 */
+app.get('/api/weekly-info', (req, res) => {
+  res.json({ nextSend: nextSendTime(new Date()).toISOString(), range: upcomingWeekdayRange(new Date()) });
 });
 
 /** 查看某一天的全部记录。 */
@@ -82,6 +89,7 @@ const PORT = process.env.PORT || 3000;
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`🍽️  家庭点餐系统已启动： http://localhost:${PORT}`);
+    startScheduler();
   });
 }
 
