@@ -37,16 +37,16 @@ export function nextSendTime(now, cfg = getConfig()) {
   return new Date(instant);
 }
 
-/** 计算给定时刻之后“即将到来的”周一至周五日期区间（按目标时区）。 */
-export function upcomingWeekdayRange(now, cfg = getConfig()) {
+/** 计算给定时刻之后“即将到来的”周一至周六日期区间（按目标时区）。 */
+export function upcomingWeekRange(now, cfg = getConfig()) {
   const offMs = cfg.offsetMin * 60000;
   const tz = new Date(now.getTime() + offMs);
   const daysUntilMon = ((1 - tz.getUTCDay() + 7) % 7) || 7; // 严格的下一个周一
   const mon = new Date(Date.UTC(tz.getUTCFullYear(), tz.getUTCMonth(), tz.getUTCDate() + daysUntilMon));
-  const fri = new Date(mon.getTime() + 4 * 86400000);
+  const sat = new Date(mon.getTime() + 5 * 86400000);
   return {
     start: fmt(mon.getUTCFullYear(), mon.getUTCMonth(), mon.getUTCDate()),
-    end: fmt(fri.getUTCFullYear(), fri.getUTCMonth(), fri.getUTCDate()),
+    end: fmt(sat.getUTCFullYear(), sat.getUTCMonth(), sat.getUTCDate()),
   };
 }
 
@@ -58,10 +58,10 @@ export async function runWeeklySend(now = new Date(), startMonday = null) {
   if (startMonday) {
     start = startMonday;
     const m = new Date(`${startMonday}T00:00:00Z`);
-    const fri = new Date(m.getTime() + 4 * 86400000);
-    end = fmt(fri.getUTCFullYear(), fri.getUTCMonth(), fri.getUTCDate());
+    const sat = new Date(m.getTime() + 5 * 86400000);
+    end = fmt(sat.getUTCFullYear(), sat.getUTCMonth(), sat.getUTCDate());
   } else {
-    ({ start, end } = upcomingWeekdayRange(now, cfg));
+    ({ start, end } = upcomingWeekRange(now, cfg));
   }
   const orders = ordersForRange(start, end);
   const result = await sendWeeklyEmail({ orders, rangeStart: start, rangeEnd: end });

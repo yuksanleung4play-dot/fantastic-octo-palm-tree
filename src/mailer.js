@@ -63,7 +63,7 @@ export function dateRange(start, end) {
 }
 
 /**
- * 构建「本周餐单」邮件：覆盖 rangeStart~rangeEnd（通常为周一至周五）。
+ * 构建「本周餐单」邮件：覆盖 rangeStart~rangeEnd（通常为周一至周六）。
  * 含每日已点餐单、按食谱合并的备菜清单与营养合计。
  */
 export function buildWeeklyEmail({ orders, rangeStart, rangeEnd }) {

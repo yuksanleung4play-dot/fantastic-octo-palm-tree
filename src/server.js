@@ -6,7 +6,7 @@ import { loadRecipes } from './recipes.js';
 import { buildSchedule, mealsForDate, MEAL_LABELS, toDateStr } from './schedule.js';
 import { generateMealOptions, findOption } from './mealGenerator.js';
 import { saveOrder, ordersForDay } from './store.js';
-import { startScheduler, runWeeklySend, nextSendTime, upcomingWeekdayRange } from './scheduler.js';
+import { startScheduler, runWeeklySend, nextSendTime, upcomingWeekRange } from './scheduler.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -73,9 +73,9 @@ app.post('/api/send-weekly', async (req, res) => {
   }
 });
 
-/** 查看下一次发送时间与本周（即将到来的周一至周五）区间。 */
+/** 查看下一次发送时间与本周（即将到来的周一至周六）区间。 */
 app.get('/api/weekly-info', (req, res) => {
-  res.json({ nextSend: nextSendTime(new Date()).toISOString(), range: upcomingWeekdayRange(new Date()) });
+  res.json({ nextSend: nextSendTime(new Date()).toISOString(), range: upcomingWeekRange(new Date()) });
 });
 
 /** 查看某一天的全部记录。 */
