@@ -29,6 +29,8 @@ npm start                # 访问 http://localhost:3000
 
 ## 邮件配置
 
+> 启动时会自动加载项目根目录的 `.env`（由 `src/env.js` 零依赖实现，无需 dotenv 或 `--env-file`）。系统环境变量优先级高于 `.env`。
+
 在 `.env` 中配置（参考 `.env.example`）：
 
 | 变量 | 说明 |
