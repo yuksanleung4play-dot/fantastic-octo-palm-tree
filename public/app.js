@@ -224,17 +224,12 @@ function showSuccess({ order, allOrders, mail }) {
   box.className = 'status ok';
   let mailLine;
   if (mail.sent) mailLine = `备菜邮件已发送 ✅（${mail.mode}）`;
-  else if (mail.mode === 'outbox') mailLine = `邮件已生成预览（${mail.reason}）。预览文件：${mail.file}`;
+  else if (mail.mode === 'outbox') mailLine = `邮件未发送：${mail.reason}`;
   else mailLine = `邮件发送失败：${mail.error || mail.reason || '未知错误'}`;
 
   box.innerHTML = `✅ 已保存 <b>${order.option.label} 餐</b>：${order.option.title}（${nutriText(
     order.option.nutrition,
   )}）。当天共 <b>${(allOrders || []).length}</b> 笔记录。<br>${mailLine}`;
-  if (mail.preview) {
-    box.innerHTML += `<details><summary style="cursor:pointer;margin-top:8px;">查看邮件内容预览</summary><pre>${escapeHtml(
-      mail.preview,
-    )}</pre></details>`;
-  }
   box.classList.remove('hidden');
   box.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
