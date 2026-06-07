@@ -55,6 +55,13 @@ npm start                # 访问 http://localhost:3000
 
 编辑源数据后运行 `npm run build:recipes` 重新生成。缺少食材的食谱会自动从可点餐池中跳过（保证备菜清单可用）。
 
+此外还支持合并**已结构化的额外食谱库**（与 `recipes.json` 同结构的 `{meta, meals}`），在 `scripts/build-recipes.mjs` 的 `EXTRA_LIBS` 中列出即可，构建时会按 `id` 去重合并并套用图片缓存。当前已合并：
+
+- `data/lib-hkda.json`：香港营养师协会主菜食谱库（39 道）
+- `data/lib-my.json`：私家食谱库（4 道）
+
+合计食谱库约 93 道，全部配有按食谱内容生成的效果图。
+
 ### 菜品图片（效果图）
 
 由于从来源网页抓取的图片常与菜名不符，现改为**根据每道食谱内容用 AI 生成效果图**，确保图文相符。50 道菜全部配图，存放于 `public/dish-images/recipe-XX.jpg`（统一压缩为约 900px 宽的 JPEG，整体约 6MB），图片路径记录在 `data/recipe-images.json`（`from: "generated"`），由 `npm run build:recipes` 合并进 `data/recipes.json` 的 `image` 字段。

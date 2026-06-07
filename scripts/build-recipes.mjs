@@ -15,6 +15,21 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const SRC = join(__dirname, '..', 'data', 'source-recipes.json');
 const OUT = join(__dirname, '..', 'data', 'recipes.json');
 const IMAGES = join(__dirname, '..', 'data', 'recipe-images.json');
+// 额外的「已结构化」食谱库（与 recipes.json 同结构，直接合并）
+const EXTRA_LIBS = [
+  join(__dirname, '..', 'data', 'lib-hkda.json'),
+  join(__dirname, '..', 'data', 'lib-my.json'),
+];
+
+/** 为已结构化的食谱套用图片缓存（按 id）。 */
+function applyImage(meal, images) {
+  const e = images[meal.id];
+  return {
+    ...meal,
+    image: e && e.file ? `dish-images/${e.file}` : meal.image || null,
+    imageSource: e && e.src ? e.src : meal.imageSource || null,
+  };
+}
 
 const FRACTIONS = { '½': 0.5, '¼': 0.25, '⅓': 1 / 3, '⅔': 2 / 3, '¾': 0.75, '⅛': 0.125 };
 
@@ -124,13 +139,26 @@ function main() {
   const images = existsSync(IMAGES) ? JSON.parse(readFileSync(IMAGES, 'utf-8')) : {};
   const meals = src.map((entry, i) => buildRecipe(entry, i, images));
 
+  // 合并额外的结构化食谱库（去重 by id），并套用图片缓存。
+  const seen = new Set(meals.map((m) => m.id));
+  for (const libPath of EXTRA_LIBS) {
+    if (!existsSync(libPath)) continue;
+    const lib = JSON.parse(readFileSync(libPath, 'utf-8'));
+    for (const meal of lib.meals || []) {
+      if (seen.has(meal.id)) continue;
+      meals.push(applyImage(meal, images));
+      seen.add(meal.id);
+    }
+  }
+
   const data = {
     meta: {
       title: '家庭食谱库',
-      version: '2.1.0',
+      version: '2.2.0',
       model: 'meal',
       servingNote: '每道食谱为一份完整的餐（含荤与素），营养与食材分量以食谱标注的人份计。',
       generatedFrom: 'data/source-recipes.json',
+      extraLibraries: ['data/lib-hkda.json', 'data/lib-my.json'],
       imagesFrom: 'data/recipe-images.json',
       generatedAt: new Date().toISOString(),
       count: meals.length,
