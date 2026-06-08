@@ -6,6 +6,7 @@
 
 | 欄位 | 說明 | 範例 |
 | --- | --- | --- |
+| `status` | 交易狀態；PDF 含 `***** PLEASE VOID THIS CONFIRMATION, TRADE IS NOT VALID *****` 時為 `void`，否則 `valid` | `void` |
 | `trade_id` | Trade ID | `3394221 S` |
 | `symbol` | 合約代號 (Symbo) | `SMT` |
 | `qty` | 數量 (Qty / Barrel) | `31000` |

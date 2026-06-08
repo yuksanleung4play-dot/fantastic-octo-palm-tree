@@ -26,12 +26,23 @@ except ImportError:  # pragma: no cover
 
 # --- 各欄位的擷取規則 ------------------------------------------------------
 
+# 作廢標記，例： "***** PLEASE VOID THIS CONFIRMATION, TRADE IS NOT VALID *****"
+RE_VOID = re.compile(r"PLEASE VOID THIS CONFIRMATION", re.IGNORECASE)
+
 # Trade ID: 3394221 S  (其後接 Version 號，需排除)
 RE_TRADE_ID = re.compile(r"Trade ID:\s*([0-9]+(?:\s+[A-Z]+)?)")
 
-# Leg 資料列，例： "1 SMT ICE (Euro) International Futures 31,000 0"
-#   group1 = leg 編號, group2 = symbol, 倒數兩個數字 = qty、price
-RE_LEG = re.compile(r"^\s*(\d+)\s+([A-Z]{2,6})\b.*?([\d,]+)\s+([\d.]+)\s*$")
+# Leg 資料列，倒數兩個數字為 qty、price。leg 編號後須接空白與非數字，
+# 以排除 "06/01/2026 - 06/30/2026 ..." 之類的日期/結算列。
+#   例1： "1 SMT ICE (Euro) International Futures 31,000 0"
+#   例2： "1 Unleaded (Platts) Mini SMV ICE (Euro) International Futures 5,300 0"
+RE_LEG = re.compile(r"^\s*(\d+)\s+\S.*?([\d,]+)\s+(\d+(?:\.\d+)?)\s*$")
+
+# leg 列開頭的 symbol（全大寫代號），例： "1 SMT ..."
+RE_LEG_SYMBOL = re.compile(r"^\s*\d+\s+([A-Z]{2,6})\b")
+
+# 文件中括號內的全大寫合約代號，例： "(SMT)"、"(SMV)"
+RE_PAREN_SYMBOL = re.compile(r"\(([A-Z]{2,6})\)")
 
 # 每個 leg 的佣金，例： "Commission: 186.00 (Leg 1S) = USD 186.00"
 RE_COMMISSION_LEG = re.compile(r"Commission:\s*([\d,]+(?:\.\d+)?)\s*\(Leg\s*(\d+)")
@@ -63,6 +74,8 @@ def _num(value: str) -> str:
 
 def parse_invoice(text: str, source: str) -> list[dict]:
     """從單張 invoice 全文解析出每個 leg 的欄位，回傳 list[dict]。"""
+    status = "void" if RE_VOID.search(text) else "valid"
+
     trade_id = ""
     if m := RE_TRADE_ID.search(text):
         trade_id = m.group(1).strip()
@@ -78,10 +91,23 @@ def parse_invoice(text: str, source: str) -> list[dict]:
     if m := RE_COMMISSION.search(text):
         total_commission = _num(m.group(1))
 
+    # 文件層級的合約代號 (依出現順序、去重)，作為 leg 列抓不到 symbol 時的後備
+    doc_symbols = list(dict.fromkeys(RE_PAREN_SYMBOL.findall(text)))
+
     legs: list[dict] = []
     for line in text.splitlines():
         if lm := RE_LEG.match(line):
-            leg_no, symbol, qty, price = lm.groups()
+            leg_no, qty, price = lm.groups()
+            idx = len(legs)
+            # symbol 優先序：leg 列開頭代號 -> 同列括號代號 -> 文件層級代號
+            if sm := RE_LEG_SYMBOL.match(line):
+                symbol = sm.group(1)
+            elif sp := RE_PAREN_SYMBOL.search(line):
+                symbol = sp.group(1)
+            elif idx < len(doc_symbols):
+                symbol = doc_symbols[idx]
+            else:
+                symbol = doc_symbols[0] if doc_symbols else ""
             legs.append(
                 {
                     "leg": leg_no,
@@ -106,6 +132,7 @@ def parse_invoice(text: str, source: str) -> list[dict]:
         rows.append(
             {
                 "file": source,
+                "status": status,
                 "trade_id": trade_id,
                 "symbol": leg["symbol"],
                 "qty": leg["qty"],
@@ -120,6 +147,7 @@ def parse_invoice(text: str, source: str) -> list[dict]:
         rows.append(
             {
                 "file": source,
+                "status": status,
                 "trade_id": trade_id,
                 "symbol": "",
                 "qty": "",
@@ -131,7 +159,16 @@ def parse_invoice(text: str, source: str) -> list[dict]:
     return rows
 
 
-FIELDS = ["file", "trade_id", "symbol", "qty", "price", "commission", "commission_rate"]
+FIELDS = [
+    "file",
+    "status",
+    "trade_id",
+    "symbol",
+    "qty",
+    "price",
+    "commission",
+    "commission_rate",
+]
 
 
 def organize(folder: Path, output: Path) -> list[dict]:
