@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+invoice_summary.csv
+sample_invoices/invoice_summary.csv
