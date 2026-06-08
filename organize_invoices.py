@@ -29,6 +29,9 @@ except ImportError:  # pragma: no cover
 # 作廢標記，例： "***** PLEASE VOID THIS CONFIRMATION, TRADE IS NOT VALID *****"
 RE_VOID = re.compile(r"PLEASE VOID THIS CONFIRMATION", re.IGNORECASE)
 
+# Date: 05/11/2026
+RE_DATE = re.compile(r"Date:\s*(\d{1,2}/\d{1,2}/\d{2,4})")
+
 # Trade ID: 3394221 S  (其後接 Version 號，需排除)
 RE_TRADE_ID = re.compile(r"Trade ID:\s*([0-9]+(?:\s+[A-Z]+)?)")
 
@@ -75,6 +78,10 @@ def _num(value: str) -> str:
 def parse_invoice(text: str, source: str) -> list[dict]:
     """從單張 invoice 全文解析出每個 leg 的欄位，回傳 list[dict]。"""
     status = "void" if RE_VOID.search(text) else "valid"
+
+    date = ""
+    if m := RE_DATE.search(text):
+        date = m.group(1).strip()
 
     trade_id = ""
     if m := RE_TRADE_ID.search(text):
@@ -133,6 +140,7 @@ def parse_invoice(text: str, source: str) -> list[dict]:
             {
                 "file": source,
                 "status": status,
+                "date": date,
                 "trade_id": trade_id,
                 "symbol": leg["symbol"],
                 "qty": leg["qty"],
@@ -148,6 +156,7 @@ def parse_invoice(text: str, source: str) -> list[dict]:
             {
                 "file": source,
                 "status": status,
+                "date": date,
                 "trade_id": trade_id,
                 "symbol": "",
                 "qty": "",
@@ -162,6 +171,7 @@ def parse_invoice(text: str, source: str) -> list[dict]:
 FIELDS = [
     "file",
     "status",
+    "date",
     "trade_id",
     "symbol",
     "qty",
