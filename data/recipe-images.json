@@ -1,0 +1,432 @@
+{
+  "recipe-01": {
+    "file": "recipe-01.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-02": {
+    "file": "recipe-02.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-04": {
+    "file": "recipe-04.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-05": {
+    "file": "recipe-05.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-06": {
+    "file": "recipe-06.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-07": {
+    "file": "recipe-07.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-08": {
+    "file": "recipe-08.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-09": {
+    "file": "recipe-09.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-10": {
+    "file": "recipe-10.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-11": {
+    "file": "recipe-11.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-12": {
+    "file": "recipe-12.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-13": {
+    "file": "recipe-13.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-15": {
+    "file": "recipe-15.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-16": {
+    "file": "recipe-16.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-18": {
+    "file": "recipe-18.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-19": {
+    "file": "recipe-19.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-20": {
+    "file": "recipe-20.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-21": {
+    "file": "recipe-21.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-22": {
+    "file": "recipe-22.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-23": {
+    "file": "recipe-23.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-25": {
+    "file": "recipe-25.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-26": {
+    "file": "recipe-26.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-27": {
+    "file": "recipe-27.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-28": {
+    "file": "recipe-28.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-30": {
+    "file": "recipe-30.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-31": {
+    "file": "recipe-31.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-32": {
+    "file": "recipe-32.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-39": {
+    "file": "recipe-39.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-40": {
+    "file": "recipe-40.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-43": {
+    "file": "recipe-43.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-46": {
+    "file": "recipe-46.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-47": {
+    "file": "recipe-47.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-48": {
+    "file": "recipe-48.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "recipe-50": {
+    "file": "recipe-50.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "hkda-main-04": {
+    "file": "hkda-main-04.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "hkda-main-05": {
+    "file": "hkda-main-05.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "hkda-main-19": {
+    "file": "hkda-main-19.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "hkda-main-25": {
+    "file": "hkda-main-25.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "hkda-main-27": {
+    "file": "hkda-main-27.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "hkda-main-28": {
+    "file": "hkda-main-28.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "hkda-main-30": {
+    "file": "hkda-main-30.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "hkda-main-34": {
+    "file": "hkda-main-34.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "hkda-main-39": {
+    "file": "hkda-main-39.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-01": {
+    "file": "shipu-01.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-02": {
+    "file": "shipu-02.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-03": {
+    "file": "shipu-03.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-04": {
+    "file": "shipu-04.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-05": {
+    "file": "shipu-05.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-06": {
+    "file": "shipu-06.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-07": {
+    "file": "shipu-07.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-08": {
+    "file": "shipu-08.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-09": {
+    "file": "shipu-09.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-10": {
+    "file": "shipu-10.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-11": {
+    "file": "shipu-11.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-12": {
+    "file": "shipu-12.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-13": {
+    "file": "shipu-13.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-14": {
+    "file": "shipu-14.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-15": {
+    "file": "shipu-15.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-16": {
+    "file": "shipu-16.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-17": {
+    "file": "shipu-17.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-18": {
+    "file": "shipu-18.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-19": {
+    "file": "shipu-19.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-20": {
+    "file": "shipu-20.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-21": {
+    "file": "shipu-21.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-22": {
+    "file": "shipu-22.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-23": {
+    "file": "shipu-23.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-24": {
+    "file": "shipu-24.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-25": {
+    "file": "shipu-25.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-26": {
+    "file": "shipu-26.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-27": {
+    "file": "shipu-27.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-28": {
+    "file": "shipu-28.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-29": {
+    "file": "shipu-29.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-30": {
+    "file": "shipu-30.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-31": {
+    "file": "shipu-31.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-32": {
+    "file": "shipu-32.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-33": {
+    "file": "shipu-33.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-34": {
+    "file": "shipu-34.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-35": {
+    "file": "shipu-35.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-36": {
+    "file": "shipu-36.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-37": {
+    "file": "shipu-37.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-38": {
+    "file": "shipu-38.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-39": {
+    "file": "shipu-39.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-40": {
+    "file": "shipu-40.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-41": {
+    "file": "shipu-41.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-42": {
+    "file": "shipu-42.jpg",
+    "src": null,
+    "from": "generated"
+  },
+  "shipu-43": {
+    "file": "shipu-43.jpg",
+    "src": null,
+    "from": "generated"
+  }
+}

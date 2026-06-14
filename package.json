@@ -1,0 +1,27 @@
+{
+  "name": "family-meal-ordering-system",
+  "version": "2.1.0",
+  "description": "家庭内部点餐系统：基于真实整餐食谱库自动生成 A/B/C/D 餐，平日一餐、周末午晚餐，标明热量与营养，附菜品图片，下单后自动发送备菜邮件。",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "fetch:images": "node scripts/fetch-images.mjs",
+    "build:recipes": "node scripts/build-recipes.mjs",
+    "test": "node --test"
+  },
+  "keywords": [
+    "meal",
+    "ordering",
+    "family",
+    "recipe",
+    "nutrition",
+    "email"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",
+    "nodemailer": "^6.9.14"
+  }
+}

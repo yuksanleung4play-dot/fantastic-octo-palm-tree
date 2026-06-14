@@ -1,0 +1,15 @@
+{
+  "name": "家庭点餐系统",
+  "short_name": "家庭点餐",
+  "description": "家庭内部点餐：平日一餐、周末午晚餐，A/B/C/D 自选，下单自动发备菜邮件。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fff7ed",
+  "theme_color": "#ea580c",
+  "lang": "zh-CN",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

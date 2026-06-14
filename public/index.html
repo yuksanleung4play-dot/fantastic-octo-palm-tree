@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5"
+    />
+    <title>家庭点餐系统</title>
+    <meta name="description" content="家庭内部点餐：平日一餐、周末午晚餐，A/B/C/D 自选，下单自动发备菜邮件。" />
+
+    <!-- iOS Safari / 添加到主屏幕 -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="家庭点餐" />
+    <meta name="theme-color" content="#ea580c" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="apple-touch-icon" href="./icon.svg" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <!-- ========== 前置首屏 ========== -->
+    <section id="home" class="screen home active">
+      <div class="home-inner">
+        <div class="home-logo">🍽️</div>
+        <h1 class="home-title">家庭點餐</h1>
+        <p class="home-sub">今日想食咩？</p>
+        <div id="home-date" class="home-date">—</div>
+
+        <div class="home-card">
+          <p class="home-note">想食咩就嗌，嗌完睇下雪櫃有冇</p>
+        </div>
+
+        <button id="home-start" class="btn-hero">開始點餐</button>
+        <p class="home-hint">無需登入，全家共享同一份當日清單</p>
+      </div>
+    </section>
+
+    <!-- ========== 点餐主屏 ========== -->
+    <section id="app" class="screen app">
+      <header class="appbar">
+        <button id="back-home" class="appbar-back" aria-label="返回">‹</button>
+        <div class="appbar-title">
+          <strong>家庭点餐</strong>
+          <span id="appbar-member" class="appbar-member">全家共享当日清单</span>
+        </div>
+      </header>
+
+      <main class="container">
+        <section class="panel controls">
+          <div class="field">
+            <label>选择日期</label>
+            <select id="date-select"></select>
+          </div>
+          <div class="field">
+            <label>餐次</label>
+            <div id="meal-tabs" class="meal-tabs"></div>
+          </div>
+        </section>
+
+        <section id="status" class="status hidden"></section>
+
+        <section class="panel">
+          <div class="section-head">
+            <h2 id="meal-title">本餐套餐</h2>
+            <span id="ordered-badge" class="badge hidden"></span>
+          </div>
+          <div id="options" class="options-grid"></div>
+        </section>
+
+        <section id="existing" class="panel hidden">
+          <h2>当天已保存记录</h2>
+          <ul id="existing-list" class="existing-list"></ul>
+        </section>
+
+        <div class="bottom-spacer"></div>
+      </main>
+
+      <!-- 底部固定操作栏（含 iOS 安全区） -->
+      <div id="order-bar" class="order-bar">
+        <div class="order-bar-info" id="order-bar-info">请选择一个套餐</div>
+        <button id="submit" class="btn-primary" disabled>保存点餐</button>
+      </div>
+    </section>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
