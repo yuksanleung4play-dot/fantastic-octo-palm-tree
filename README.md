@@ -4,7 +4,7 @@
 
 ## 功能特性
 
-- **真实食谱库驱动**：50 道完整食谱（每道为一份含荤与素的均衡正餐，部分带汤），来自 `data/source-recipes.json`，经 `npm run build:recipes` 规范化为 `data/recipes.json`。
+- **真实食谱库驱动**：共 **86 道**完整主菜食谱，由两个已结构化的来源库合并而成（`data/recipes-base.json` 整合基底库 + `data/lib-shipu.json` 港式精选库），经 `npm run build:recipes` 生成 `data/recipes.json`，每道均配有按食谱内容生成的效果图。
 - **智能排程**：
   - 平日（周一至周五）：**一餐（晚餐）**
   - 周末（周六、周日）：**午餐 + 晚餐**
@@ -48,23 +48,16 @@ npm start                # 访问 http://localhost:3000
 
 ## 食谱库与自定义
 
-食谱库分两层：
+食谱库由若干**已结构化的来源库**（`{meta, meals}`）合并而成，在 `scripts/build-recipes.mjs` 的 `LIBRARIES` 中按顺序列出，构建时按 `id` 去重合并并套用图片缓存。当前来源：
 
-- `data/source-recipes.json`：**原始食谱**（人类可读，整餐列表）。新增/修改菜谱在这里编辑。
-- `data/recipes.json`：由构建脚本生成的**结构化数据**（解析后的餐次、人份、营养、食材分组），系统实际读取它。
+- `data/recipes-base.json`：整合基底库（家庭食谱 + 香港营养师协会主菜，精选合并，43 道）
+- `data/lib-shipu.json`：港式精选食谱库（43 道；由 `scripts/gen-shipu.py` 依据 `data/source-shipu.md` 的菜名/链接整理而成，营养为估算值）
 
-编辑源数据后运行 `npm run build:recipes` 重新生成。缺少食材的食谱会自动从可点餐池中跳过（保证备菜清单可用）。
-
-此外还支持合并**已结构化的额外食谱库**（与 `recipes.json` 同结构的 `{meta, meals}`），在 `scripts/build-recipes.mjs` 的 `EXTRA_LIBS` 中列出即可，构建时会按 `id` 去重合并并套用图片缓存。当前已合并：
-
-- `data/lib-hkda.json`：香港营养师协会主菜食谱库（39 道）
-- `data/lib-my.json`：私家食谱库（4 道）
-
-合计食谱库约 93 道，全部配有按食谱内容生成的效果图。
+`data/recipes.json` 即合并后的最终数据（共 86 道），系统实际读取它。要新增来源库，把同结构 JSON 放进 `data/` 并加入 `LIBRARIES` 即可，运行 `npm run build:recipes` 重建。
 
 ### 菜品图片（效果图）
 
-由于从来源网页抓取的图片常与菜名不符，现改为**根据每道食谱内容用 AI 生成效果图**，确保图文相符。50 道菜全部配图，存放于 `public/dish-images/recipe-XX.jpg`（统一压缩为约 900px 宽的 JPEG，整体约 6MB），图片路径记录在 `data/recipe-images.json`（`from: "generated"`），由 `npm run build:recipes` 合并进 `data/recipes.json` 的 `image` 字段。
+由于从来源网页抓取的图片常与菜名不符，改为**根据每道食谱内容用 AI 生成效果图**，确保图文相符。86 道菜全部配图，存放于 `public/dish-images/<id>.jpg`（统一压缩为约 900px 宽的 JPEG，整体约 11MB），图片路径记录在 `data/recipe-images.json`（`from: "generated"`），由 `npm run build:recipes` 合并进 `data/recipes.json` 的 `image` 字段。
 
 > 备用方案：`scripts/fetch-images.mjs`（`npm run fetch:images`）仍可从食谱 `source` 链接抓取真实图片（YouTube 缩略图 / `og:image` / JSON-LD / 正文首图）。前端在缺图时会显示带 🍽️ 的占位图。
 
@@ -83,11 +76,14 @@ npm start                # 访问 http://localhost:3000
 ## 项目结构
 
 ```
-data/source-recipes.json  原始食谱（可编辑）
+data/recipes-base.json    整合基底库（家庭+HKDA 精选）
+data/lib-shipu.json       港式精选库（gen-shipu.py 整理）
+data/source-shipu.md      港式食谱清单（菜名 + 来源链接）
 data/recipes.json         构建生成的结构化食谱库
 data/orders.json          记录存储（自动生成，已 gitignore）
 data/outbox/              未配置 SMTP 时的邮件预览（已 gitignore）
-scripts/build-recipes.mjs 源数据 → 结构化食谱库的构建脚本
+scripts/build-recipes.mjs 合并各来源库 → data/recipes.json
+scripts/gen-shipu.py      由 source-shipu.md 整理港式食谱库
 src/recipes.js            食谱加载/校验/营养汇总
 src/schedule.js           平日一餐 / 周末午晚餐排程
 src/mealGenerator.js      A/B/C/D 确定性挑选

@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 /**
- * 将上传的原始食谱（data/source-recipes.json，整餐食谱列表）规范化为
- * 系统使用的 data/recipes.json（含解析后的餐次、人份、营养、食材分组、图片）。
+ * 重建系统使用的食谱库 data/recipes.json。
  *
- * 图片来自 data/recipe-images.json（由 scripts/fetch-images.mjs 从 source 链接抓取）。
+ * 来源（均为「已结构化」的 {meta, meals}）：
+ *   - data/recipes-base.json  整合基底库（家庭食谱 + 香港营养师协会主菜，精选合并）
+ *   - data/lib-shipu.json     港式精选食谱库（由 scripts/gen-shipu.py 从 Shi-Pu 清单整理）
+ *
+ * 图片来自 data/recipe-images.json（由 scripts/fetch-images.mjs 抓取或 AI 生成），按 id 套用。
  *
  * 运行： npm run build:recipes
  */
@@ -12,153 +15,57 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SRC = join(__dirname, '..', 'data', 'source-recipes.json');
-const OUT = join(__dirname, '..', 'data', 'recipes.json');
-const IMAGES = join(__dirname, '..', 'data', 'recipe-images.json');
-// 额外的「已结构化」食谱库（与 recipes.json 同结构，直接合并）
-const EXTRA_LIBS = [
-  join(__dirname, '..', 'data', 'lib-hkda.json'),
-  join(__dirname, '..', 'data', 'lib-my.json'),
+const DATA = join(__dirname, '..', 'data');
+const OUT = join(DATA, 'recipes.json');
+const IMAGES = join(DATA, 'recipe-images.json');
+
+// 食谱来源（按顺序合并，按 id 去重）
+const LIBRARIES = [
+  { path: join(DATA, 'recipes-base.json'), name: '整合基底库' },
+  { path: join(DATA, 'lib-shipu.json'), name: '港式精选食谱库' },
 ];
 
-/** 为已结构化的食谱套用图片缓存（按 id）。 */
-function applyImage(meal, images) {
+/** 套用图片缓存并补全字段（扁平 ingredients / no）。 */
+function normalize(meal, images, index) {
   const e = images[meal.id];
+  const groups = meal.ingredientGroups || [];
+  const flat =
+    meal.ingredients && meal.ingredients.length ? meal.ingredients : groups.flatMap((g) => g.items || []);
   return {
     ...meal,
+    no: meal.no ?? index + 1,
     image: e && e.file ? `dish-images/${e.file}` : meal.image || null,
     imageSource: e && e.src ? e.src : meal.imageSource || null,
-  };
-}
-
-const FRACTIONS = { '½': 0.5, '¼': 0.25, '⅓': 1 / 3, '⅔': 2 / 3, '¾': 0.75, '⅛': 0.125 };
-
-/** 去除 markdown 加粗与「約」等修饰，提取首个数字。 */
-function parseNumber(value) {
-  if (value == null) return null;
-  const cleaned = String(value).replace(/[*約约\s]/g, '');
-  const match = cleaned.match(/-?\d+(?:\.\d+)?/);
-  return match ? Number(match[0]) : null;
-}
-
-function parseNutrition(nut = {}) {
-  return {
-    calories: parseNumber(nut.calories),
-    protein: parseNumber(nut.protein),
-    fat: parseNumber(nut.fat),
-    carbs: parseNumber(nut.carbs),
-  };
-}
-
-/** 标题形如「食譜01｜煎嫩雞胸＋...」→ { no, title }。 */
-function parseTitle(raw) {
-  const parts = raw.split(/｜|\|/);
-  if (parts.length >= 2) {
-    const noMatch = parts[0].match(/\d+/);
-    return { no: noMatch ? Number(noMatch[0]) : null, title: parts.slice(1).join('｜').trim() };
-  }
-  return { no: null, title: raw.trim() };
-}
-
-/** 从 source 文本中拆出展示名与链接（markdown [text](url)）。 */
-function parseSource(raw = '') {
-  const urlMatch = raw.match(/\[[^\]]*\]\((https?:\/\/[^)]+)\)/);
-  const sourceUrl = urlMatch ? urlMatch[1] : null;
-  const name = raw
-    .replace(/\s*\[[^\]]*\]\([^)]*\)/g, '')
-    .replace(/\s*\[[^\]]*\]/g, '')
-    .trim();
-  return { source: name, sourceUrl };
-}
-
-/** meal_type → 适用餐次（lunch/dinner）与基础人份。 */
-function parseMealType(raw = '') {
-  const slots = [];
-  const hasLunch = /午餐|午／晚|午\/晚|brunch/i.test(raw);
-  const hasDinner = /晚餐|午／晚|午\/晚/.test(raw);
-  if (hasLunch) slots.push('lunch');
-  if (hasDinner) slots.push('dinner');
-  if (slots.length === 0) slots.push('lunch', 'dinner');
-  const servingMatch = raw.match(/(\d+)\s*人份/);
-  const servings = servingMatch ? Number(servingMatch[1]) : 1;
-  return { mealSlots: slots, servings };
-}
-
-const GROUP_LABEL_RE = /^([^、：:0-9]{2,8})[：:]/;
-
-/** 解析单行食材为 { label, items[] }。items 为去除前缀后的食材文本。 */
-function parseIngredientLine(line) {
-  const trimmed = line.trim();
-  let label = null;
-  let rest = trimmed;
-  const m = trimmed.match(GROUP_LABEL_RE);
-  if (m) {
-    label = m[1].trim();
-    rest = trimmed.slice(m[0].length).trim();
-  }
-  const items = rest
-    .split(/、|，|,/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return { label, items };
-}
-
-function buildRecipe(entry, index, images) {
-  const { no, title } = parseTitle(entry.title || '');
-  const { source, sourceUrl } = parseSource(entry.source || '');
-  const { mealSlots, servings } = parseMealType(entry.meal_type || '');
-  const nutrition = parseNutrition(entry.nutrition || {});
-
-  const ingredientGroups = (entry.ingredients || []).map(parseIngredientLine);
-  const ingredients = ingredientGroups.flatMap((g) => g.items);
-
-  const id = `recipe-${String(no ?? index + 1).padStart(2, '0')}`;
-  const imgEntry = images[id];
-  const image = imgEntry && imgEntry.file ? `dish-images/${imgEntry.file}` : null;
-
-  return {
-    id,
-    no: no ?? index + 1,
-    title,
-    source,
-    sourceUrl,
-    image,
-    imageSource: imgEntry && imgEntry.src ? imgEntry.src : null,
-    mealType: entry.meal_type || '',
-    mealSlots,
-    servings,
-    nutrition,
-    ingredientGroups,
-    ingredients,
-    steps: entry.steps || [],
+    ingredients: flat,
   };
 }
 
 function main() {
-  const src = JSON.parse(readFileSync(SRC, 'utf-8'));
   const images = existsSync(IMAGES) ? JSON.parse(readFileSync(IMAGES, 'utf-8')) : {};
-  const meals = src.map((entry, i) => buildRecipe(entry, i, images));
+  const meals = [];
+  const seen = new Set();
+  const usedLibs = [];
 
-  // 合并额外的结构化食谱库（去重 by id），并套用图片缓存。
-  const seen = new Set(meals.map((m) => m.id));
-  for (const libPath of EXTRA_LIBS) {
-    if (!existsSync(libPath)) continue;
-    const lib = JSON.parse(readFileSync(libPath, 'utf-8'));
-    for (const meal of lib.meals || []) {
-      if (seen.has(meal.id)) continue;
-      meals.push(applyImage(meal, images));
+  for (const lib of LIBRARIES) {
+    if (!existsSync(lib.path)) continue;
+    const data = JSON.parse(readFileSync(lib.path, 'utf-8'));
+    let added = 0;
+    for (const meal of data.meals || []) {
+      if (!meal.id || seen.has(meal.id)) continue;
+      meals.push(normalize(meal, images, meals.length));
       seen.add(meal.id);
+      added += 1;
     }
+    usedLibs.push(`${lib.name}(${added})`);
   }
 
   const data = {
     meta: {
       title: '家庭食谱库',
-      version: '2.2.0',
+      version: '3.0.0',
       model: 'meal',
-      servingNote: '每道食谱为一份完整的餐（含荤与素），营养与食材分量以食谱标注的人份计。',
-      generatedFrom: 'data/source-recipes.json',
-      extraLibraries: ['data/lib-hkda.json', 'data/lib-my.json'],
+      servingNote: '每道食谱为一份完整主菜，营养与食材分量以食谱标注的人份计；部分营养为估算值。',
+      libraries: LIBRARIES.map((l) => l.path.replace(`${DATA}/`, 'data/')),
       imagesFrom: 'data/recipe-images.json',
       generatedAt: new Date().toISOString(),
       count: meals.length,
@@ -172,6 +79,7 @@ function main() {
   const dinner = meals.filter((m) => m.mealSlots.includes('dinner')).length;
   const withImg = meals.filter((m) => m.image).length;
   console.log(`✅ 生成 ${meals.length} 道食谱 → ${OUT}`);
+  console.log(`   来源：${usedLibs.join('，')}`);
   console.log(`   可作午餐：${lunch}，可作晚餐：${dinner}，含图片：${withImg}/${meals.length}`);
 }
 

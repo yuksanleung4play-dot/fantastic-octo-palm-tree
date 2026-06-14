@@ -1,0 +1,2487 @@
+{
+  "meta": {
+    "title": "港式精選食譜庫",
+    "version": "1.0.0",
+    "model": "meal",
+    "source": "Shi-Pu 清單",
+    "count": 43,
+    "nutritionNote": "營養素為每份估算值，依港式家常標準做法整理，僅供參考。",
+    "nutritionUnits": {
+      "calories": "kcal",
+      "protein": "g",
+      "fat": "g",
+      "carbs": "g"
+    }
+  },
+  "meals": [
+    {
+      "id": "shipu-01",
+      "no": 1,
+      "title": "柚子胡椒雞拌杏鮑菇",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DXmIqFZEeiG/?igsh=MXdscHg5ZTRvampscw==",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 330,
+        "protein": 34,
+        "fat": 16,
+        "carbs": 12
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞髀肉 2件（去骨切塊）",
+            "杏鮑菇 2條（切片）",
+            "葱 1棵（切段）"
+          ]
+        },
+        {
+          "label": "醃料",
+          "items": [
+            "鹽 1/4茶匙",
+            "胡椒粉 少許",
+            "生粉 1茶匙"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "柚子胡椒 1茶匙",
+            "味醂 1湯匙",
+            "生抽 1湯匙",
+            "橄欖油 1湯匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞髀肉 2件（去骨切塊）",
+        "杏鮑菇 2條（切片）",
+        "葱 1棵（切段）",
+        "鹽 1/4茶匙",
+        "胡椒粉 少許",
+        "生粉 1茶匙",
+        "柚子胡椒 1茶匙",
+        "味醂 1湯匙",
+        "生抽 1湯匙",
+        "橄欖油 1湯匙"
+      ],
+      "steps": [
+        "雞肉以醃料拌勻靜置15分鐘。",
+        "熱鑊下油，雞塊煎至兩面金黃及熟透，盛起。",
+        "原鑊炒香杏鮑菇至軟身上色。",
+        "加回雞肉，下柚子胡椒、味醂、生抽兜勻，撒葱段即成。"
+      ]
+    },
+    {
+      "id": "shipu-02",
+      "no": 2,
+      "title": "蜂蜜芥末雞胸溫沙拉",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DZSJoAtJPE0/?igsh=MW9taHZ1ZnRqOGoxdw==",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 320,
+        "protein": 33,
+        "fat": 12,
+        "carbs": 20
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞胸肉 1塊（約250克）",
+            "西生菜 適量",
+            "車厘茄 8粒（對半切）",
+            "粟米粒 3湯匙"
+          ]
+        },
+        {
+          "label": "醃料",
+          "items": [
+            "鹽 1/4茶匙",
+            "黑胡椒 少許",
+            "橄欖油 1茶匙"
+          ]
+        },
+        {
+          "label": "醬汁",
+          "items": [
+            "蜂蜜 1湯匙",
+            "法式芥末籽醬 1湯匙",
+            "檸檬汁 1茶匙",
+            "橄欖油 1湯匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞胸肉 1塊（約250克）",
+        "西生菜 適量",
+        "車厘茄 8粒（對半切）",
+        "粟米粒 3湯匙",
+        "鹽 1/4茶匙",
+        "黑胡椒 少許",
+        "橄欖油 1茶匙",
+        "蜂蜜 1湯匙",
+        "法式芥末籽醬 1湯匙",
+        "檸檬汁 1茶匙",
+        "橄欖油 1湯匙"
+      ],
+      "steps": [
+        "雞胸以醃料拌勻，中火煎至兩面金黃及熟透，靜置後切片。",
+        "沙律菜、車厘茄、粟米粒鋪碗。",
+        "放上溫熱雞片，淋上拌勻的蜂蜜芥末醬即成。"
+      ]
+    },
+    {
+      "id": "shipu-03",
+      "no": 3,
+      "title": "柚子胡椒炒雞丁",
+      "source": "PIXNET",
+      "sourceUrl": "https://chrysie.pixnet.net/blog/posts/7114303113",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 340,
+        "protein": 32,
+        "fat": 17,
+        "carbs": 13
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞髀肉 2件（切丁）",
+            "彩椒 半個（切丁）",
+            "洋蔥 1/4個（切丁）"
+          ]
+        },
+        {
+          "label": "醃料",
+          "items": [
+            "生抽 1茶匙",
+            "生粉 1茶匙",
+            "胡椒粉 少許"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "柚子胡椒 1茶匙",
+            "味醂 1湯匙",
+            "生抽 1茶匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞髀肉 2件（切丁）",
+        "彩椒 半個（切丁）",
+        "洋蔥 1/4個（切丁）",
+        "生抽 1茶匙",
+        "生粉 1茶匙",
+        "胡椒粉 少許",
+        "柚子胡椒 1茶匙",
+        "味醂 1湯匙",
+        "生抽 1茶匙"
+      ],
+      "steps": [
+        "雞丁醃15分鐘。",
+        "熱鑊下油爆香洋蔥，下雞丁炒至轉色。",
+        "加彩椒同炒，下柚子胡椒、味醂、生抽兜勻收汁即成。"
+      ]
+    },
+    {
+      "id": "shipu-04",
+      "no": 4,
+      "title": "韓式煎雞扒配蕃薯",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DZH1ur-vv9t/?igsh=YTllMnVnejl2OGs2",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 430,
+        "protein": 30,
+        "fat": 15,
+        "carbs": 45
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞髀扒 2件",
+            "蕃薯 1個（切角）",
+            "西蘭花 半棵"
+          ]
+        },
+        {
+          "label": "醃料",
+          "items": [
+            "韓式辣椒醬 1湯匙",
+            "蒜蓉 1茶匙",
+            "生抽 1湯匙",
+            "糖 1茶匙",
+            "麻油 1茶匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞髀扒 2件",
+        "蕃薯 1個（切角）",
+        "西蘭花 半棵",
+        "韓式辣椒醬 1湯匙",
+        "蒜蓉 1茶匙",
+        "生抽 1湯匙",
+        "糖 1茶匙",
+        "麻油 1茶匙"
+      ],
+      "steps": [
+        "雞扒以醃料拌勻醃30分鐘。",
+        "蕃薯角焗或氣炸至軟（200°C約20分鐘）。",
+        "雞扒中火煎至皮脆肉熟，切件。",
+        "配蕃薯及灼熟西蘭花上碟。"
+      ]
+    },
+    {
+      "id": "shipu-05",
+      "no": 5,
+      "title": "雞肉撈檬",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DYsFHQaNXHL/?igsh=ZmVuN2FmY3VzMmE=",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 380,
+        "protein": 28,
+        "fat": 10,
+        "carbs": 48
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞髀肉 2件（切條）",
+            "越式檬粉 150克",
+            "青瓜絲、紅蘿蔔絲、生菜絲 適量",
+            "炒香花生碎 1湯匙"
+          ]
+        },
+        {
+          "label": "醃料",
+          "items": [
+            "魚露 1茶匙",
+            "蒜蓉 1茶匙",
+            "糖 1/2茶匙"
+          ]
+        },
+        {
+          "label": "醬汁",
+          "items": [
+            "魚露 1.5湯匙",
+            "青檸汁 1湯匙",
+            "糖 1湯匙",
+            "暖水 2湯匙",
+            "蒜蓉、指天椒 少許"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞髀肉 2件（切條）",
+        "越式檬粉 150克",
+        "青瓜絲、紅蘿蔔絲、生菜絲 適量",
+        "炒香花生碎 1湯匙",
+        "魚露 1茶匙",
+        "蒜蓉 1茶匙",
+        "糖 1/2茶匙",
+        "魚露 1.5湯匙",
+        "青檸汁 1湯匙",
+        "糖 1湯匙",
+        "暖水 2湯匙",
+        "蒜蓉、指天椒 少許"
+      ],
+      "steps": [
+        "檬粉灼熟過冷河瀝乾。",
+        "雞肉醃15分鐘後煎熟切片。",
+        "碗內放檬粉、雜菜絲、雞片，淋酸甜魚露汁，撒花生碎拌勻即成。"
+      ]
+    },
+    {
+      "id": "shipu-06",
+      "no": 6,
+      "title": "乳酪烤雞拌飯",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DVinZV3iks4/?igsh=MXdyZXh2cGs3ZHRoMw==",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 450,
+        "protein": 34,
+        "fat": 14,
+        "carbs": 48
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞髀肉 2件",
+            "白飯 2碗",
+            "西蘭花、車厘茄 適量"
+          ]
+        },
+        {
+          "label": "醃料",
+          "items": [
+            "原味乳酪 3湯匙",
+            "咖喱粉 1茶匙",
+            "蒜蓉 1茶匙",
+            "鹽 1/4茶匙",
+            "檸檬汁 1茶匙"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "黑胡椒 少許"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞髀肉 2件",
+        "白飯 2碗",
+        "西蘭花、車厘茄 適量",
+        "原味乳酪 3湯匙",
+        "咖喱粉 1茶匙",
+        "蒜蓉 1茶匙",
+        "鹽 1/4茶匙",
+        "檸檬汁 1茶匙",
+        "黑胡椒 少許"
+      ],
+      "steps": [
+        "雞肉以乳酪醃料醃最少30分鐘。",
+        "焗爐200°C烤約20分鐘至熟並微焦。",
+        "雞肉切件，鋪在白飯上，配灼菜即成。"
+      ]
+    },
+    {
+      "id": "shipu-07",
+      "no": 7,
+      "title": "鮮蔬幹燜滑雞",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DZaTpfVTqsR/?igsh=c3VhdnFwMGt1MDd1",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 360,
+        "protein": 30,
+        "fat": 18,
+        "carbs": 14
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞 半隻（斬件）",
+            "冬菇 4朵",
+            "紅蘿蔔 1/2條",
+            "薑 3片",
+            "葱 2棵"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "生抽 2湯匙",
+            "蠔油 1湯匙",
+            "紹酒 1湯匙",
+            "糖 1茶匙",
+            "水 半杯"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞 半隻（斬件）",
+        "冬菇 4朵",
+        "紅蘿蔔 1/2條",
+        "薑 3片",
+        "葱 2棵",
+        "生抽 2湯匙",
+        "蠔油 1湯匙",
+        "紹酒 1湯匙",
+        "糖 1茶匙",
+        "水 半杯"
+      ],
+      "steps": [
+        "雞件汆水或煎香備用。",
+        "爆香薑葱冬菇，下雞件炒勻。",
+        "加調味及紅蘿蔔，加蓋中小火燜約15分鐘至收汁即成。"
+      ]
+    },
+    {
+      "id": "shipu-08",
+      "no": 8,
+      "title": "蔥油雞",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DZAUKMlylRg/?igsh=dm5qMmQ2ajB4cXhz",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜3人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 3,
+      "nutrition": {
+        "calories": 350,
+        "protein": 30,
+        "fat": 22,
+        "carbs": 4
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞 半隻",
+            "葱 4棵（切絲）",
+            "薑 4片"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "鹽 適量",
+            "花生油 3湯匙",
+            "生抽 1湯匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞 半隻",
+        "葱 4棵（切絲）",
+        "薑 4片",
+        "鹽 適量",
+        "花生油 3湯匙",
+        "生抽 1湯匙"
+      ],
+      "steps": [
+        "雞與薑放滾水浸煮約25分鐘（關火焗熟），過冷河斬件。",
+        "葱絲鋪雞上。",
+        "燒熱花生油淋在葱絲上逼出香味，淋少許生抽即成。"
+      ]
+    },
+    {
+      "id": "shipu-09",
+      "no": 9,
+      "title": "雙蔥雞腿扒",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DYJM4y5zYqk/?igsh=cHhhZ3duN2ltb2Uw",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 380,
+        "protein": 31,
+        "fat": 20,
+        "carbs": 10
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞髀扒 2件",
+            "洋蔥 1/2個（切絲）",
+            "葱 2棵（切段）"
+          ]
+        },
+        {
+          "label": "醃料",
+          "items": [
+            "生抽 1湯匙",
+            "紹酒 1茶匙",
+            "胡椒粉 少許",
+            "生粉 1茶匙"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "蠔油 1湯匙",
+            "糖 1/2茶匙",
+            "水 3湯匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞髀扒 2件",
+        "洋蔥 1/2個（切絲）",
+        "葱 2棵（切段）",
+        "生抽 1湯匙",
+        "紹酒 1茶匙",
+        "胡椒粉 少許",
+        "生粉 1茶匙",
+        "蠔油 1湯匙",
+        "糖 1/2茶匙",
+        "水 3湯匙"
+      ],
+      "steps": [
+        "雞扒醃15分鐘，中火煎至皮脆肉熟，切件。",
+        "原鑊炒軟洋蔥，下調味煮滾。",
+        "回鑊雞件兜勻，撒葱段即成。"
+      ]
+    },
+    {
+      "id": "shipu-10",
+      "no": 10,
+      "title": "鹽水雞",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DZPsbCfTtBG/?igsh=MWU0YnQ2YjFpcjdoNw==",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜3人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 3,
+      "nutrition": {
+        "calories": 300,
+        "protein": 30,
+        "fat": 18,
+        "carbs": 2
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞 半隻",
+            "薑 4片",
+            "葱 2棵",
+            "花椒 1茶匙"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "鹽 2茶匙",
+            "紹酒 1湯匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞 半隻",
+        "薑 4片",
+        "葱 2棵",
+        "花椒 1茶匙",
+        "鹽 2茶匙",
+        "紹酒 1湯匙"
+      ],
+      "steps": [
+        "水加薑葱花椒鹽酒煮滾成鹽水。",
+        "放入雞中小火浸煮約20分鐘，關火焗10分鐘。",
+        "取出過冷河，斬件，淋少許鹽水即成。"
+      ]
+    },
+    {
+      "id": "shipu-11",
+      "no": 11,
+      "title": "韓式辣醬氣炸雞腿扒配飯",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DZLZoztuA6z/?igsh=MThqNTdjZzhvdW5zcQ==",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 460,
+        "protein": 32,
+        "fat": 16,
+        "carbs": 46
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞髀扒 2件",
+            "白飯 2碗",
+            "白芝麻、葱花 少許"
+          ]
+        },
+        {
+          "label": "醃料",
+          "items": [
+            "韓式辣椒醬 1.5湯匙",
+            "蒜蓉 1茶匙",
+            "生抽 1湯匙",
+            "蜂蜜 1湯匙",
+            "麻油 1茶匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞髀扒 2件",
+        "白飯 2碗",
+        "白芝麻、葱花 少許",
+        "韓式辣椒醬 1.5湯匙",
+        "蒜蓉 1茶匙",
+        "生抽 1湯匙",
+        "蜂蜜 1湯匙",
+        "麻油 1茶匙"
+      ],
+      "steps": [
+        "雞扒以醃料醃30分鐘。",
+        "氣炸200°C約15分鐘（中途反面）至熟透微焦。",
+        "切件鋪飯上，撒芝麻葱花即成。"
+      ]
+    },
+    {
+      "id": "shipu-12",
+      "no": 12,
+      "title": "蔥花雞",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DXZP7lfEpTr/?igsh=ZjJ5cDdjYWlhbmF5",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 340,
+        "protein": 30,
+        "fat": 20,
+        "carbs": 5
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞髀肉 2件（切塊）",
+            "大量葱花",
+            "薑蓉 1茶匙"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "鹽 1/3茶匙",
+            "生抽 1湯匙",
+            "花生油 2湯匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞髀肉 2件（切塊）",
+        "大量葱花",
+        "薑蓉 1茶匙",
+        "鹽 1/3茶匙",
+        "生抽 1湯匙",
+        "花生油 2湯匙"
+      ],
+      "steps": [
+        "雞塊以鹽生抽醃10分鐘，煎或蒸熟。",
+        "葱花、薑蓉放碗。",
+        "燒熱油淋下逼香，拌雞件即成。"
+      ]
+    },
+    {
+      "id": "shipu-13",
+      "no": 13,
+      "title": "薑蔥鹽焗雞髀",
+      "source": "薑䓤蒜焗雞",
+      "sourceUrl": null,
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 360,
+        "protein": 31,
+        "fat": 22,
+        "carbs": 4
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞髀 2隻",
+            "薑蓉 2湯匙",
+            "葱花 3湯匙"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "鹽焗雞粉 1茶匙",
+            "鹽 1/4茶匙",
+            "油 2湯匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞髀 2隻",
+        "薑蓉 2湯匙",
+        "葱花 3湯匙",
+        "鹽焗雞粉 1茶匙",
+        "鹽 1/4茶匙",
+        "油 2湯匙"
+      ],
+      "steps": [
+        "雞髀抹乾，以鹽焗雞粉及鹽抹勻醃20分鐘。",
+        "氣炸或焗200°C約18分鐘至皮脆。",
+        "薑蓉葱花以熱油逼香成醬，伴雞享用。"
+      ]
+    },
+    {
+      "id": "shipu-14",
+      "no": 14,
+      "title": "香焗雞下髀",
+      "source": "butcher.hk",
+      "sourceUrl": "https://butcher.hk/zh/blogs/air-fryer-recipes/roasted-chicken-drumsticks",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 350,
+        "protein": 30,
+        "fat": 21,
+        "carbs": 4
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞下髀 4隻"
+          ]
+        },
+        {
+          "label": "醃料",
+          "items": [
+            "生抽 1湯匙",
+            "蠔油 1湯匙",
+            "蒜蓉 1茶匙",
+            "蜂蜜 1茶匙",
+            "五香粉 少許"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞下髀 4隻",
+        "生抽 1湯匙",
+        "蠔油 1湯匙",
+        "蒜蓉 1茶匙",
+        "蜂蜜 1茶匙",
+        "五香粉 少許"
+      ],
+      "steps": [
+        "雞下髀以醃料醃最少1小時。",
+        "氣炸或焗200°C約20分鐘，中途反面掃醃汁。",
+        "至皮脆金黃即成。"
+      ]
+    },
+    {
+      "id": "shipu-15",
+      "no": 15,
+      "title": "無水花雕豉油雞",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DUQerr_kkro/?igsh=b2dnaGphYjR1a2Vs",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜3人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 3,
+      "nutrition": {
+        "calories": 340,
+        "protein": 30,
+        "fat": 18,
+        "carbs": 6
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞 半隻",
+            "薑 4片",
+            "葱 2棵"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "花雕酒 3湯匙",
+            "生抽 2湯匙",
+            "老抽 1湯匙",
+            "冰糖 1茶匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞 半隻",
+        "薑 4片",
+        "葱 2棵",
+        "花雕酒 3湯匙",
+        "生抽 2湯匙",
+        "老抽 1湯匙",
+        "冰糖 1茶匙"
+      ],
+      "steps": [
+        "鑊底鋪薑葱，放入雞件。",
+        "下花雕、生抽、老抽、冰糖。",
+        "加蓋中小火無水焗煮約20分鐘，中途反面至熟及上色即成。"
+      ]
+    },
+    {
+      "id": "shipu-16",
+      "no": 16,
+      "title": "番茄麻辣雞扒飯",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DVIo6NAEXmF/?igsh=NWQ4ZXA1b2x6Yngx",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 470,
+        "protein": 31,
+        "fat": 17,
+        "carbs": 48
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞髀扒 2件",
+            "番茄 2個（切塊）",
+            "白飯 2碗"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "豆瓣醬 1湯匙",
+            "麻辣醬 1茶匙",
+            "生抽 1湯匙",
+            "糖 1茶匙",
+            "水 半杯"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞髀扒 2件",
+        "番茄 2個（切塊）",
+        "白飯 2碗",
+        "豆瓣醬 1湯匙",
+        "麻辣醬 1茶匙",
+        "生抽 1湯匙",
+        "糖 1茶匙",
+        "水 半杯"
+      ],
+      "steps": [
+        "雞扒煎香切件備用。",
+        "爆香豆瓣麻辣醬，下番茄炒出汁。",
+        "加水及調味煮成醬汁，回鑊雞件略煮，伴飯即成。"
+      ]
+    },
+    {
+      "id": "shipu-17",
+      "no": 17,
+      "title": "蔥花雞腿蛋炒飯",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DXjhThdDfdN/?igsh=MWM0ZDB6bHEyM2gzeQ==",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 520,
+        "protein": 26,
+        "fat": 18,
+        "carbs": 62
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞髀肉 1件（切粒）",
+            "隔夜白飯 2碗",
+            "雞蛋 2隻",
+            "大量葱花"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "生抽 1湯匙",
+            "鹽 1/4茶匙",
+            "胡椒粉 少許"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞髀肉 1件（切粒）",
+        "隔夜白飯 2碗",
+        "雞蛋 2隻",
+        "大量葱花",
+        "生抽 1湯匙",
+        "鹽 1/4茶匙",
+        "胡椒粉 少許"
+      ],
+      "steps": [
+        "雞粒煎香盛起。",
+        "蛋液炒散，下白飯炒鬆。",
+        "回鑊雞粒、下調味及大量葱花炒勻即成。"
+      ]
+    },
+    {
+      "id": "shipu-18",
+      "no": 18,
+      "title": "蟲草花蒸雞",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DYBIelRBL3Q/?igsh=MXI0ZGU0OGl1dzVrdA==",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜3人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 3,
+      "nutrition": {
+        "calories": 300,
+        "protein": 30,
+        "fat": 15,
+        "carbs": 6
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞 半隻（斬件）",
+            "蟲草花 15克",
+            "薑絲 1湯匙",
+            "紅棗 4粒",
+            "枸杞 1茶匙"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "生抽 1湯匙",
+            "蠔油 1茶匙",
+            "紹酒 1茶匙",
+            "生粉 1茶匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞 半隻（斬件）",
+        "蟲草花 15克",
+        "薑絲 1湯匙",
+        "紅棗 4粒",
+        "枸杞 1茶匙",
+        "生抽 1湯匙",
+        "蠔油 1茶匙",
+        "紹酒 1茶匙",
+        "生粉 1茶匙"
+      ],
+      "steps": [
+        "蟲草花略浸洗淨。",
+        "雞件與蟲草花、薑絲、紅棗及調味拌勻。",
+        "隔水大火蒸約15分鐘至熟，撒枸杞即成。"
+      ]
+    },
+    {
+      "id": "shipu-19",
+      "no": 19,
+      "title": "柚子汁雞肉冷麵",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DZMtKECBuUq/?igsh=dGJnOTc0ZG94bTU5",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 400,
+        "protein": 28,
+        "fat": 8,
+        "carbs": 55
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞胸肉 1塊",
+            "蕎麥麵或烏冬 2份",
+            "青瓜絲、海苔絲 適量"
+          ]
+        },
+        {
+          "label": "醬汁",
+          "items": [
+            "柚子醋 3湯匙",
+            "日式醬油 1湯匙",
+            "味醂 1湯匙",
+            "柚子胡椒 少許"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞胸肉 1塊",
+        "蕎麥麵或烏冬 2份",
+        "青瓜絲、海苔絲 適量",
+        "柚子醋 3湯匙",
+        "日式醬油 1湯匙",
+        "味醂 1湯匙",
+        "柚子胡椒 少許"
+      ],
+      "steps": [
+        "雞胸灼熟撕條。",
+        "麵灼熟過冷河瀝乾。",
+        "麵上鋪雞絲青瓜，淋柚子醬汁，撒海苔即成。"
+      ]
+    },
+    {
+      "id": "shipu-20",
+      "no": 20,
+      "title": "雞肉丸子湯河",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DYzYDiGJVN_/?igsh=ZHVubnhvbXRlaDFy",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 420,
+        "protein": 30,
+        "fat": 12,
+        "carbs": 48
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "免治雞肉 250克",
+            "河粉 2份",
+            "白菜、葱花 適量"
+          ]
+        },
+        {
+          "label": "丸子調味",
+          "items": [
+            "薑蓉 1茶匙",
+            "生抽 1茶匙",
+            "生粉 1湯匙",
+            "胡椒粉 少許"
+          ]
+        },
+        {
+          "label": "湯底",
+          "items": [
+            "雞湯 3杯",
+            "鹽 適量"
+          ]
+        }
+      ],
+      "ingredients": [
+        "免治雞肉 250克",
+        "河粉 2份",
+        "白菜、葱花 適量",
+        "薑蓉 1茶匙",
+        "生抽 1茶匙",
+        "生粉 1湯匙",
+        "胡椒粉 少許",
+        "雞湯 3杯",
+        "鹽 適量"
+      ],
+      "steps": [
+        "免治雞加調味攪起膠，搓成丸子。",
+        "雞湯煮滾下丸子煮熟。",
+        "加河粉及白菜煮軟，撒葱花即成。"
+      ]
+    },
+    {
+      "id": "shipu-21",
+      "no": 21,
+      "title": "咖喱雞胸肉雜炊",
+      "source": "Cookpad",
+      "sourceUrl": "https://cookpad.com/tw/食譜/25102063?ref=search&find_method=search_top&search_term=雞胸肉",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 430,
+        "protein": 30,
+        "fat": 12,
+        "carbs": 52
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞胸肉 1塊（切粒）",
+            "白飯 1.5碗",
+            "洋蔥 1/4個",
+            "甘筍粒、雞蛋 1隻"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "咖喱粉 1湯匙",
+            "日式醬油 1湯匙",
+            "水 1.5杯"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞胸肉 1塊（切粒）",
+        "白飯 1.5碗",
+        "洋蔥 1/4個",
+        "甘筍粒、雞蛋 1隻",
+        "咖喱粉 1湯匙",
+        "日式醬油 1湯匙",
+        "水 1.5杯"
+      ],
+      "steps": [
+        "爆香洋蔥下雞粒炒至轉色。",
+        "加水、咖喱粉、甘筍煮滾。",
+        "下白飯煮成雜炊，最後打入蛋液拌熟即成。"
+      ]
+    },
+    {
+      "id": "shipu-22",
+      "no": 22,
+      "title": "香滑雞髀南瓜菇飯",
+      "source": "Beti's Kitchen",
+      "sourceUrl": "https://betiskitchen.com/2023/05/22/香滑雞髀南瓜菇飯-中式食譜/",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜3人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 3,
+      "nutrition": {
+        "calories": 480,
+        "protein": 28,
+        "fat": 16,
+        "carbs": 55
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞髀 2隻",
+            "新鮮冬菇 5粒",
+            "南瓜 50克",
+            "米 2杯",
+            "乾葱碎 2湯匙"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "麻油 2湯匙",
+            "米酒 1湯匙",
+            "生抽 1.5湯匙",
+            "老抽 1/2湯匙",
+            "鹽 1茶匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞髀 2隻",
+        "新鮮冬菇 5粒",
+        "南瓜 50克",
+        "米 2杯",
+        "乾葱碎 2湯匙",
+        "麻油 2湯匙",
+        "米酒 1湯匙",
+        "生抽 1.5湯匙",
+        "老抽 1/2湯匙",
+        "鹽 1茶匙"
+      ],
+      "steps": [
+        "雞髀以調味及乾葱醃20分鐘。",
+        "米洗淨加等量水，鋪上南瓜粒及雞件。",
+        "電飯煲煮熟後焗10分鐘，撒葱花拌勻即成。"
+      ]
+    },
+    {
+      "id": "shipu-23",
+      "no": 23,
+      "title": "無水蔬菜精華雞煲",
+      "source": "Beti's Kitchen",
+      "sourceUrl": "https://betiskitchen.com/2026/01/17/無水蔬菜精華雞煲-中式食譜/",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜3人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 3,
+      "nutrition": {
+        "calories": 330,
+        "protein": 28,
+        "fat": 16,
+        "carbs": 14
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞髀 2隻（切件）",
+            "洋蔥 1個",
+            "甘筍 1條",
+            "番茄 2個",
+            "椰菜 1/4個",
+            "蒜蓉 1湯匙"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "鹽 1茶匙",
+            "生抽 1湯匙",
+            "黑胡椒 少許"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞髀 2隻（切件）",
+        "洋蔥 1個",
+        "甘筍 1條",
+        "番茄 2個",
+        "椰菜 1/4個",
+        "蒜蓉 1湯匙",
+        "鹽 1茶匙",
+        "生抽 1湯匙",
+        "黑胡椒 少許"
+      ],
+      "steps": [
+        "鍋底鋪洋蔥、椰菜、番茄、甘筍。",
+        "放上雞件，下蒜蓉及調味。",
+        "加蓋小火無水燜約30分鐘，靠蔬菜出水煮熟即成。"
+      ]
+    },
+    {
+      "id": "shipu-24",
+      "no": 24,
+      "title": "韓國海鮮煎餅",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DYJ-1gWpW3F/?igsh=MXBtOWJqbWZwaGY3Mg==",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 420,
+        "protein": 18,
+        "fat": 18,
+        "carbs": 45
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雜錦海鮮 200克",
+            "葱 4棵（切段）",
+            "煎餅粉 1杯",
+            "水 3/4杯",
+            "雞蛋 1隻"
+          ]
+        },
+        {
+          "label": "蘸醬",
+          "items": [
+            "生抽 1湯匙",
+            "醋 1湯匙",
+            "糖 1/2茶匙",
+            "辣椒粉、芝麻 少許"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雜錦海鮮 200克",
+        "葱 4棵（切段）",
+        "煎餅粉 1杯",
+        "水 3/4杯",
+        "雞蛋 1隻",
+        "生抽 1湯匙",
+        "醋 1湯匙",
+        "糖 1/2茶匙",
+        "辣椒粉、芝麻 少許"
+      ],
+      "steps": [
+        "煎餅粉加水及蛋拌成粉漿，加葱段及海鮮。",
+        "熱鑊下油，倒入粉漿煎至兩面金黃香脆。",
+        "切件配蘸醬享用。"
+      ]
+    },
+    {
+      "id": "shipu-25",
+      "no": 25,
+      "title": "日式醬油慢煮雞胸",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/p/CqDBs3TrXW1/?img_index=1&igsh=Znk3eWJydzA4dmx4",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 220,
+        "protein": 38,
+        "fat": 5,
+        "carbs": 4
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞胸肉 2塊"
+          ]
+        },
+        {
+          "label": "醃汁",
+          "items": [
+            "日式醬油 2湯匙",
+            "味醂 1湯匙",
+            "清酒 1湯匙",
+            "薑 2片"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞胸肉 2塊",
+        "日式醬油 2湯匙",
+        "味醂 1湯匙",
+        "清酒 1湯匙",
+        "薑 2片"
+      ],
+      "steps": [
+        "雞胸與醃汁放入密實袋。",
+        "以63°C慢煮約1.5小時。",
+        "取出可略煎上色，切片即成。"
+      ]
+    },
+    {
+      "id": "shipu-26",
+      "no": 26,
+      "title": "咖喱薑黃慢煮雞胸",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/p/CqDBs3TrXW1/?img_index=1&igsh=Znk3eWJydzA4dmx4",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 230,
+        "protein": 38,
+        "fat": 6,
+        "carbs": 5
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "雞胸肉 2塊"
+          ]
+        },
+        {
+          "label": "醃料",
+          "items": [
+            "咖喱粉 1茶匙",
+            "薑黃粉 1/2茶匙",
+            "鹽 1/2茶匙",
+            "橄欖油 1茶匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "雞胸肉 2塊",
+        "咖喱粉 1茶匙",
+        "薑黃粉 1/2茶匙",
+        "鹽 1/2茶匙",
+        "橄欖油 1茶匙"
+      ],
+      "steps": [
+        "雞胸抹勻醃料放入密實袋。",
+        "以63°C慢煮約1.5小時。",
+        "切片即成，可作沙律或便當。"
+      ]
+    },
+    {
+      "id": "shipu-27",
+      "no": 27,
+      "title": "慢煮雞胸沙律配香橙芥末醬",
+      "source": "Big Boy Recipe",
+      "sourceUrl": "https://www.bigboyrecipe.com/post/慢煮雞胸沙律配香橙芥末醬-sous-vide-chicken-breast-salad-with-orange-mustard-sauce#google_vignette",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 300,
+        "protein": 36,
+        "fat": 12,
+        "carbs": 14
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "慢煮雞胸 2塊（切片）",
+            "混合沙律菜 適量",
+            "橙 1個（取肉）",
+            "車厘茄 適量"
+          ]
+        },
+        {
+          "label": "醬汁",
+          "items": [
+            "橙汁 2湯匙",
+            "法式芥末籽醬 1湯匙",
+            "蜂蜜 1茶匙",
+            "橄欖油 1湯匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "慢煮雞胸 2塊（切片）",
+        "混合沙律菜 適量",
+        "橙 1個（取肉）",
+        "車厘茄 適量",
+        "橙汁 2湯匙",
+        "法式芥末籽醬 1湯匙",
+        "蜂蜜 1茶匙",
+        "橄欖油 1湯匙"
+      ],
+      "steps": [
+        "沙律菜、橙肉、車厘茄鋪碗。",
+        "放上雞胸片。",
+        "淋香橙芥末醬即成。"
+      ]
+    },
+    {
+      "id": "shipu-28",
+      "no": 28,
+      "title": "黑椒雙色牛柳",
+      "source": "李錦記",
+      "sourceUrl": "https://hk.lkk.com/zh-hk/recipes/strir-fried-black-pepper-beef-tenderloin",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 360,
+        "protein": 30,
+        "fat": 20,
+        "carbs": 12
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "牛柳 250克（切條）",
+            "紅椒、青椒 各半個",
+            "洋蔥 1/4個"
+          ]
+        },
+        {
+          "label": "醃料",
+          "items": [
+            "生抽 1茶匙",
+            "生粉 1茶匙",
+            "油 1茶匙"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "黑椒碎 1茶匙",
+            "蠔油 1湯匙",
+            "生抽 1茶匙",
+            "糖 1/2茶匙",
+            "水 3湯匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "牛柳 250克（切條）",
+        "紅椒、青椒 各半個",
+        "洋蔥 1/4個",
+        "生抽 1茶匙",
+        "生粉 1茶匙",
+        "油 1茶匙",
+        "黑椒碎 1茶匙",
+        "蠔油 1湯匙",
+        "生抽 1茶匙",
+        "糖 1/2茶匙",
+        "水 3湯匙"
+      ],
+      "steps": [
+        "牛柳醃15分鐘，大火快炒至七成熟盛起。",
+        "爆香洋蔥及雙色椒。",
+        "回鑊牛柳，下黑椒醬汁兜勻即成。"
+      ]
+    },
+    {
+      "id": "shipu-29",
+      "no": 29,
+      "title": "燒汁雜菌炒牛柳粒",
+      "source": "PIXNET",
+      "sourceUrl": "https://leononline66.pixnet.net/blog/posts/12099433816",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 370,
+        "protein": 29,
+        "fat": 20,
+        "carbs": 14
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "牛柳 250克（切粒）",
+            "雜菌（蘑菇、鴻禧菇）150克",
+            "洋蔥 1/4個"
+          ]
+        },
+        {
+          "label": "醃料",
+          "items": [
+            "生抽 1茶匙",
+            "生粉 1茶匙"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "燒汁 2湯匙",
+            "蠔油 1茶匙",
+            "糖 1/2茶匙",
+            "水 2湯匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "牛柳 250克（切粒）",
+        "雜菌（蘑菇、鴻禧菇）150克",
+        "洋蔥 1/4個",
+        "生抽 1茶匙",
+        "生粉 1茶匙",
+        "燒汁 2湯匙",
+        "蠔油 1茶匙",
+        "糖 1/2茶匙",
+        "水 2湯匙"
+      ],
+      "steps": [
+        "牛粒醃15分鐘，大火煎香盛起。",
+        "炒香洋蔥及雜菌至出水收乾。",
+        "回鑊牛粒下燒汁兜勻即成。"
+      ]
+    },
+    {
+      "id": "shipu-30",
+      "no": 30,
+      "title": "西芹炒牛柳",
+      "source": "Cookpad",
+      "sourceUrl": "https://cookpad.com/tw/食譜/25771460?ref=search&search_term=牛柳",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 330,
+        "protein": 28,
+        "fat": 18,
+        "carbs": 10
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "牛柳 250克（切片）",
+            "西芹 2根（切段）",
+            "紅蘿蔔片 少許"
+          ]
+        },
+        {
+          "label": "醃料",
+          "items": [
+            "生抽 1茶匙",
+            "生粉 1茶匙",
+            "油 1茶匙"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "蠔油 1湯匙",
+            "鹽 少許",
+            "水 2湯匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "牛柳 250克（切片）",
+        "西芹 2根（切段）",
+        "紅蘿蔔片 少許",
+        "生抽 1茶匙",
+        "生粉 1茶匙",
+        "油 1茶匙",
+        "蠔油 1湯匙",
+        "鹽 少許",
+        "水 2湯匙"
+      ],
+      "steps": [
+        "牛柳醃15分鐘，大火快炒至轉色盛起。",
+        "西芹紅蘿蔔下鑊炒至爽脆。",
+        "回鑊牛柳下調味兜勻即成。"
+      ]
+    },
+    {
+      "id": "shipu-31",
+      "no": 31,
+      "title": "嫩煎牛裡脊時蔬",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DYCdAyrPWu5/?igsh=MXVmc2U5OWpqNWg4OA==",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 340,
+        "protein": 30,
+        "fat": 20,
+        "carbs": 8
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "牛裡脊 250克",
+            "蘆筍、車厘茄、洋蔥 適量"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "海鹽 適量",
+            "黑胡椒 適量",
+            "橄欖油 1湯匙",
+            "牛油 1小塊"
+          ]
+        }
+      ],
+      "ingredients": [
+        "牛裡脊 250克",
+        "蘆筍、車厘茄、洋蔥 適量",
+        "海鹽 適量",
+        "黑胡椒 適量",
+        "橄欖油 1湯匙",
+        "牛油 1小塊"
+      ],
+      "steps": [
+        "牛裡脊回溫抹乾，撒鹽及黑胡椒。",
+        "熱鑊下油大火每面煎1.5分鐘，加牛油淋面，靜置。",
+        "原鑊炒香時蔬，伴切片牛肉上碟。"
+      ]
+    },
+    {
+      "id": "shipu-32",
+      "no": 32,
+      "title": "慢煮西冷牛扒",
+      "source": "Afterwork Kitchen",
+      "sourceUrl": "https://www.afterwork-kitchen.com/recipes/sous-vide-sirloin-steak",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 420,
+        "protein": 34,
+        "fat": 30,
+        "carbs": 2
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "西冷牛扒 1塊（約300克）"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "海鹽、黑胡椒 適量",
+            "蒜 2瓣",
+            "百里香 少許",
+            "牛油 1湯匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "西冷牛扒 1塊（約300克）",
+        "海鹽、黑胡椒 適量",
+        "蒜 2瓣",
+        "百里香 少許",
+        "牛油 1湯匙"
+      ],
+      "steps": [
+        "牛扒調味放密實袋與蒜及百里香。",
+        "以55°C慢煮約1.5小時。",
+        "抹乾後大火每面煎30秒上色，靜置切片即成。"
+      ]
+    },
+    {
+      "id": "shipu-33",
+      "no": 33,
+      "title": "滷水牛展",
+      "source": "Christine's Recipes",
+      "sourceUrl": "https://www.christinesrecipes.com/2009/06/spiced-beef-shin.html?m=1",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜4人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 4,
+      "nutrition": {
+        "calories": 300,
+        "protein": 32,
+        "fat": 14,
+        "carbs": 6
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "牛展 2條",
+            "薑 4片",
+            "葱 2棵"
+          ]
+        },
+        {
+          "label": "滷汁",
+          "items": [
+            "生抽 4湯匙",
+            "老抽 1湯匙",
+            "冰糖 2湯匙",
+            "八角 2粒",
+            "桂皮 1小塊",
+            "滷水包 1個",
+            "水 適量"
+          ]
+        }
+      ],
+      "ingredients": [
+        "牛展 2條",
+        "薑 4片",
+        "葱 2棵",
+        "生抽 4湯匙",
+        "老抽 1湯匙",
+        "冰糖 2湯匙",
+        "八角 2粒",
+        "桂皮 1小塊",
+        "滷水包 1個",
+        "水 適量"
+      ],
+      "steps": [
+        "牛展汆水去血水，滷汁煮滾。",
+        "放入牛展中小火滷約1.5小時至軟。",
+        "關火浸泡入味，切片即成。"
+      ]
+    },
+    {
+      "id": "shipu-34",
+      "no": 34,
+      "title": "番茄燜牛展",
+      "source": "Elanie Kitchen",
+      "sourceUrl": "https://elanie-kitchen.blogspot.com/2016/12/blog-post_13.html?m=1",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜4人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 4,
+      "nutrition": {
+        "calories": 340,
+        "protein": 30,
+        "fat": 16,
+        "carbs": 16
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "牛展 2條（切塊）",
+            "番茄 4個",
+            "洋蔥 1個",
+            "薯仔 1個"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "茄膏 2湯匙",
+            "生抽 2湯匙",
+            "糖 1茶匙",
+            "月桂葉 2片",
+            "水 適量"
+          ]
+        }
+      ],
+      "ingredients": [
+        "牛展 2條（切塊）",
+        "番茄 4個",
+        "洋蔥 1個",
+        "薯仔 1個",
+        "茄膏 2湯匙",
+        "生抽 2湯匙",
+        "糖 1茶匙",
+        "月桂葉 2片",
+        "水 適量"
+      ],
+      "steps": [
+        "牛展汆水備用。",
+        "炒香洋蔥番茄及茄膏。",
+        "加牛展、調味及水，中小火燜約1.5小時，加薯仔再燜至軟即成。"
+      ]
+    },
+    {
+      "id": "shipu-35",
+      "no": 35,
+      "title": "青紅椒炒牛展",
+      "source": "下廚房",
+      "sourceUrl": "https://m.xiachufang.com/recipe/104741530/",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜3人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 3,
+      "nutrition": {
+        "calories": 320,
+        "protein": 30,
+        "fat": 15,
+        "carbs": 12
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "滷牛展 1條（切片）",
+            "青椒、紅椒 各1個",
+            "洋蔥 1/4個"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "豆瓣醬 1茶匙",
+            "生抽 1湯匙",
+            "糖 1/2茶匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "滷牛展 1條（切片）",
+        "青椒、紅椒 各1個",
+        "洋蔥 1/4個",
+        "豆瓣醬 1茶匙",
+        "生抽 1湯匙",
+        "糖 1/2茶匙"
+      ],
+      "steps": [
+        "爆香洋蔥及豆瓣醬。",
+        "下青紅椒大火快炒。",
+        "加牛展片及調味兜勻即成。"
+      ]
+    },
+    {
+      "id": "shipu-36",
+      "no": 36,
+      "title": "辣椒炒肉",
+      "source": "家常",
+      "sourceUrl": null,
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 380,
+        "protein": 24,
+        "fat": 26,
+        "carbs": 8
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "豬梅頭肉 250克（切片）",
+            "青尖椒 4條",
+            "紅椒 1個",
+            "蒜片 1湯匙",
+            "豆豉 1茶匙"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "生抽 1湯匙",
+            "老抽 1/2茶匙",
+            "糖 1/2茶匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "豬梅頭肉 250克（切片）",
+        "青尖椒 4條",
+        "紅椒 1個",
+        "蒜片 1湯匙",
+        "豆豉 1茶匙",
+        "生抽 1湯匙",
+        "老抽 1/2茶匙",
+        "糖 1/2茶匙"
+      ],
+      "steps": [
+        "熱鑊煸炒尖椒至虎皮盛起。",
+        "爆香蒜片豆豉，下豬肉炒至轉色。",
+        "回鑊辣椒，下調味大火兜勻即成。"
+      ]
+    },
+    {
+      "id": "shipu-37",
+      "no": 37,
+      "title": "黑胡椒炒豬柳",
+      "source": "PIXNET",
+      "sourceUrl": "https://p22772.pixnet.net/blog/posts/12223527744",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 350,
+        "protein": 26,
+        "fat": 20,
+        "carbs": 12
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "豬柳 250克（切條）",
+            "洋蔥 1/2個",
+            "彩椒 半個"
+          ]
+        },
+        {
+          "label": "醃料",
+          "items": [
+            "生抽 1茶匙",
+            "生粉 1茶匙"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "黑椒碎 1茶匙",
+            "蠔油 1湯匙",
+            "糖 1/2茶匙",
+            "水 3湯匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "豬柳 250克（切條）",
+        "洋蔥 1/2個",
+        "彩椒 半個",
+        "生抽 1茶匙",
+        "生粉 1茶匙",
+        "黑椒碎 1茶匙",
+        "蠔油 1湯匙",
+        "糖 1/2茶匙",
+        "水 3湯匙"
+      ],
+      "steps": [
+        "豬柳醃15分鐘，大火炒至轉色盛起。",
+        "炒香洋蔥彩椒。",
+        "回鑊豬柳下黑椒汁兜勻即成。"
+      ]
+    },
+    {
+      "id": "shipu-38",
+      "no": 38,
+      "title": "節瓜豬肉片",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DZg3llYl3y2/?igsh=MXNhdmN4dWo5d2x4bA==",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 300,
+        "protein": 22,
+        "fat": 16,
+        "carbs": 12
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "豬肉片 200克",
+            "節瓜 1個（切片）",
+            "薑絲、蒜蓉 少許",
+            "木耳 少許"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "生抽 1湯匙",
+            "蠔油 1茶匙",
+            "鹽 少許",
+            "水 3湯匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "豬肉片 200克",
+        "節瓜 1個（切片）",
+        "薑絲、蒜蓉 少許",
+        "木耳 少許",
+        "生抽 1湯匙",
+        "蠔油 1茶匙",
+        "鹽 少許",
+        "水 3湯匙"
+      ],
+      "steps": [
+        "豬肉片略醃，炒至轉色盛起。",
+        "爆香薑蒜下節瓜及木耳炒軟。",
+        "回鑊豬肉下調味兜勻即成。"
+      ]
+    },
+    {
+      "id": "shipu-39",
+      "no": 39,
+      "title": "吞拿魚青瓜沙律",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DLC6JXhzCMq/?igsh=MWozcDFyYTJsdHY2",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 240,
+        "protein": 20,
+        "fat": 14,
+        "carbs": 8
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "罐裝吞拿魚 1罐（瀝油）",
+            "青瓜 1條（切粒）",
+            "車厘茄、紫洋蔥 適量"
+          ]
+        },
+        {
+          "label": "醬汁",
+          "items": [
+            "乳酪或沙律醬 2湯匙",
+            "檸檬汁 1茶匙",
+            "黑胡椒 少許"
+          ]
+        }
+      ],
+      "ingredients": [
+        "罐裝吞拿魚 1罐（瀝油）",
+        "青瓜 1條（切粒）",
+        "車厘茄、紫洋蔥 適量",
+        "乳酪或沙律醬 2湯匙",
+        "檸檬汁 1茶匙",
+        "黑胡椒 少許"
+      ],
+      "steps": [
+        "青瓜、車厘茄、洋蔥切粒。",
+        "加入吞拿魚。",
+        "下醬汁拌勻冷藏即成。"
+      ]
+    },
+    {
+      "id": "shipu-40",
+      "no": 40,
+      "title": "蒜蓉粉絲蝦",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DWMBGRtE9sV/?igsh=cnA5cGFpNXo4dXFy",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 280,
+        "protein": 26,
+        "fat": 10,
+        "carbs": 18
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "大蝦 8隻（開背）",
+            "粉絲 1紮（浸軟）",
+            "蒜蓉 3湯匙",
+            "葱花 適量"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "蒸魚豉油 2湯匙",
+            "糖 1/2茶匙",
+            "油 1湯匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "大蝦 8隻（開背）",
+        "粉絲 1紮（浸軟）",
+        "蒜蓉 3湯匙",
+        "葱花 適量",
+        "蒸魚豉油 2湯匙",
+        "糖 1/2茶匙",
+        "油 1湯匙"
+      ],
+      "steps": [
+        "粉絲鋪碟，排上開背蝦。",
+        "蒜蓉炒香鋪面。",
+        "大火蒸約6分鐘，淋豉油及熱油，撒葱花即成。"
+      ]
+    },
+    {
+      "id": "shipu-41",
+      "no": 41,
+      "title": "日式三文魚栗子本菇飯",
+      "source": "Beti's Kitchen",
+      "sourceUrl": "https://betiskitchen.com/2026/01/18/日式三文魚栗子本菇飯-日式食譜/",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜3人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 3,
+      "nutrition": {
+        "calories": 490,
+        "protein": 26,
+        "fat": 16,
+        "carbs": 58
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "無骨三文魚 200克",
+            "去殼栗子 80克",
+            "本菇 1包",
+            "米 2杯"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "日式醬油 2湯匙",
+            "味醂 1湯匙",
+            "清酒 1湯匙",
+            "昆布 1小片"
+          ]
+        }
+      ],
+      "ingredients": [
+        "無骨三文魚 200克",
+        "去殼栗子 80克",
+        "本菇 1包",
+        "米 2杯",
+        "日式醬油 2湯匙",
+        "味醂 1湯匙",
+        "清酒 1湯匙",
+        "昆布 1小片"
+      ],
+      "steps": [
+        "米洗淨加調味及等量水，鋪上栗子及本菇。",
+        "放上三文魚塊。",
+        "電飯煲煮熟後焗10分鐘，拌散三文魚即成。"
+      ]
+    },
+    {
+      "id": "shipu-42",
+      "no": 42,
+      "title": "泡菜大醬湯鍋",
+      "source": "Instagram",
+      "sourceUrl": "https://www.instagram.com/reel/DYPa_OWtlKD/?igsh=bTJhOGp0eXc4bzd4",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 260,
+        "protein": 16,
+        "fat": 12,
+        "carbs": 18
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "韓式泡菜 150克",
+            "板豆腐 1磚",
+            "豬肉片 100克",
+            "金菇、葱 適量"
+          ]
+        },
+        {
+          "label": "湯底",
+          "items": [
+            "韓式大醬 1.5湯匙",
+            "蒜蓉 1茶匙",
+            "水 3杯",
+            "麻油 1茶匙"
+          ]
+        }
+      ],
+      "ingredients": [
+        "韓式泡菜 150克",
+        "板豆腐 1磚",
+        "豬肉片 100克",
+        "金菇、葱 適量",
+        "韓式大醬 1.5湯匙",
+        "蒜蓉 1茶匙",
+        "水 3杯",
+        "麻油 1茶匙"
+      ],
+      "steps": [
+        "爆香泡菜及豬肉片。",
+        "加水及大醬煮滾。",
+        "下豆腐金菇煮約8分鐘，撒葱花即成。"
+      ]
+    },
+    {
+      "id": "shipu-43",
+      "no": 43,
+      "title": "特濃番茄滑蛋封門柳烏冬",
+      "source": "Isti Dining Table",
+      "sourceUrl": "https://istidiningtable.com/tomato-udon/",
+      "image": null,
+      "imageSource": null,
+      "mealType": "主菜｜2人份",
+      "mealSlots": [
+        "lunch",
+        "dinner"
+      ],
+      "servings": 2,
+      "nutrition": {
+        "calories": 520,
+        "protein": 28,
+        "fat": 18,
+        "carbs": 60
+      },
+      "ingredientGroups": [
+        {
+          "label": "主料",
+          "items": [
+            "急凍烏冬 2份",
+            "封門柳（牛肉片）150克",
+            "雞蛋 2隻",
+            "罐裝番茄 1罐",
+            "洋蔥 1/4個"
+          ]
+        },
+        {
+          "label": "調味",
+          "items": [
+            "茄膏 1湯匙",
+            "生抽 1湯匙",
+            "糖 1茶匙",
+            "鹽 適量",
+            "水 1.5杯"
+          ]
+        }
+      ],
+      "ingredients": [
+        "急凍烏冬 2份",
+        "封門柳（牛肉片）150克",
+        "雞蛋 2隻",
+        "罐裝番茄 1罐",
+        "洋蔥 1/4個",
+        "茄膏 1湯匙",
+        "生抽 1湯匙",
+        "糖 1茶匙",
+        "鹽 適量",
+        "水 1.5杯"
+      ],
+      "steps": [
+        "牛肉略醃快炒盛起。",
+        "炒香洋蔥及茄膏，下罐裝番茄及水煮成濃湯。",
+        "下烏冬煮軟，回鑊牛肉，最後淋蛋液煮成滑蛋即成。"
+      ]
+    }
+  ]
+}
