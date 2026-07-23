@@ -1,38 +1,35 @@
 #!/usr/bin/env python3
-"""Create a cross-year reusable department shift roster Excel template."""
+# -*- coding: utf-8 -*-
+"""Create a cross-year reusable department shift roster Excel template (v2)."""
 
-from datetime import date, timedelta
+from datetime import date
 
 from openpyxl import Workbook
-from openpyxl.formatting.rule import FormulaRule, CellIsRule
-from openpyxl.styles import (
-    Alignment,
-    Border,
-    Font,
-    PatternFill,
-    Side,
-    NamedStyle,
-    Protection,
-)
+from openpyxl.formatting.rule import CellIsRule, FormulaRule
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
+from openpyxl.worksheet.table import Table, TableStyleInfo
+from openpyxl.workbook.defined_name import DefinedName
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 DISPLAY_YEAR = 2026
 BASE_DATE = date(2026, 6, 29)  # Permanent rotation anchor (Monday)
-AL_QUOTA = 12
+DEFAULT_AL_QUOTA = 12
 NUM_WEEKS = 53
+LEAVE_ROWS = 500  # capacity for 請假登記 list
+HOLIDAY_ROWS = 80
 
 EMPLOYEES = [
-    # name, role (S=fixed, R=rotate, V=vacant), offset
-    ("ARTHUR", "S", None),
-    ("PATRICK", "R", 0),
-    ("CARREY", "R", 4),
-    ("CESC", "R", 8),
-    ("LUCAS", "R", 12),
-    ("", "V", 0),  # vacant slot ready for future hire
+    # name, role (S=fixed, R=rotate, V=vacant), offset, al_quota
+    ("ARTHUR", "S", None, DEFAULT_AL_QUOTA),
+    ("PATRICK", "R", 0, DEFAULT_AL_QUOTA),
+    ("CARREY", "R", 4, DEFAULT_AL_QUOTA),
+    ("CESC", "R", 8, DEFAULT_AL_QUOTA),
+    ("LUCAS", "R", 12, DEFAULT_AL_QUOTA),
+    ("", "V", 0, None),  # vacant
 ]
 
 HOLIDAYS_2026 = [
@@ -54,7 +51,6 @@ HOLIDAYS_2026 = [
     (date(2026, 12, 26), "聖誕節後第一個周日"),
 ]
 
-# Colors
 FILL_HEADER = PatternFill("solid", fgColor="1F4E79")
 FILL_SUBHDR = PatternFill("solid", fgColor="2E75B6")
 FILL_SETTINGS = PatternFill("solid", fgColor="D6EAF8")
@@ -72,20 +68,20 @@ FILL_STAT = PatternFill("solid", fgColor="E2EFDA")
 FILL_WARN = PatternFill("solid", fgColor="FF6B6B")
 FILL_INPUT = PatternFill("solid", fgColor="FFF9E6")
 FILL_ANCHOR = PatternFill("solid", fgColor="FCE4D6")
+FILL_READONLY = PatternFill("solid", fgColor="F8F9FA")
 
-# Cell refs on 設定 sheet
 YEAR_CELL = "'設定'!$B$3"
 BASE_CELL = "'設定'!$B$4"
-QUOTA_CELL = "'設定'!$B$5"
-EMP_FIRST_ROW = 9  # 設定!B9:B14 names
+EMP_FIRST_ROW = 8  # 設定!B8:B13 names
 
 FONT_WHITE = Font(name="Microsoft JhengHei", bold=True, color="FFFFFF", size=11)
 FONT_TITLE = Font(name="Microsoft JhengHei", bold=True, size=16, color="1F4E79")
 FONT_HDR = Font(name="Microsoft JhengHei", bold=True, size=10, color="FFFFFF")
 FONT_NORMAL = Font(name="Microsoft JhengHei", size=10)
 FONT_BOLD = Font(name="Microsoft JhengHei", bold=True, size=10)
-FONT_SMALL = Font(name="Microsoft JhengHei", size=9)
+FONT_SMALL = Font(name="Microsoft JhengHei", size=8)
 FONT_NOTE = Font(name="Microsoft JhengHei", size=9, italic=True, color="C00000")
+FONT_TINY = Font(name="Microsoft JhengHei", size=7)
 
 THIN = Border(
     left=Side(style="thin", color="B0B0B0"),
@@ -93,16 +89,19 @@ THIN = Border(
     top=Side(style="thin", color="B0B0B0"),
     bottom=Side(style="thin", color="B0B0B0"),
 )
+HOLIDAY_BORDER = Border(
+    left=Side(style="medium", color="8E7CC3"),
+    right=Side(style="medium", color="8E7CC3"),
+    top=Side(style="medium", color="8E7CC3"),
+    bottom=Side(style="medium", color="8E7CC3"),
+)
 CENTER = Alignment(horizontal="center", vertical="center", wrap_text=True)
-LEFT = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
-FIRST_WEEK_COL = 8  # column H
-STAT_COLS = {"al_used": 2, "al_left": 3, "sl_used": 4, "comp_bal": 5, "comp_open": 6, "comp_year": 7}
+# Roster layout: A name, B AL used, C AL left, D comp bal, E open, F year new, G+ weeks
+FIRST_WEEK_COL = 7  # column G
 
 
 def week_start_formula(week_index: int) -> str:
-    """First Monday on/after Jan 1 of display year, plus week_index*7; blank if past Dec 31."""
-    # Matches examples like 1/5, 1/12, 1/19 for 2026
     first = (
         f"DATE({YEAR_CELL},1,1)"
         f"+MOD(8-WEEKDAY(DATE({YEAR_CELL},1,1),2),7)"
@@ -111,18 +110,80 @@ def week_start_formula(week_index: int) -> str:
     return f'=IF(({week})>DATE({YEAR_CELL},12,31),"",{week})'
 
 
+def rotate_shift_expr(week_monday_ref: str, offset_cell: str) -> str:
+    """A/P/N from 16-week cycle given a Monday date ref and offset cell."""
+    mod = (
+        f"MOD(INT(({week_monday_ref}-{BASE_CELL})/7)"
+        f"+IF({offset_cell}=\"\",0,{offset_cell}),16)"
+    )
+    return (
+        f'IF({mod}<4,"A",IF({mod}<8,"P",IF({mod}<12,"N","P")))'
+    )
+
+
+def planned_shift_formula(date_ref: str, set_row: int) -> str:
+    """Planned S/A/P/N for a calendar date (uses that date's Monday)."""
+    name_c = f"'設定'!$B${set_row}"
+    role_c = f"'設定'!$C${set_row}"
+    off_c = f"'設定'!$D${set_row}"
+    monday = f"({date_ref}-WEEKDAY({date_ref},2)+1)"
+    return (
+        f'IF({name_c}="","",'
+        f'IF({role_c}="S","S",'
+        f'IF({role_c}="R",{rotate_shift_expr(monday, off_c)},"")))'
+    )
+
+
+def leave_lookup_formula(name_ref: str, date_ref: str) -> str:
+    """Return AL/SL from 請假登記 for name+date, else blank."""
+    # SUMPRODUCT / INDEX-MATCH style via COUNTIFS + helper:
+    # Prefer looking up 假別 where name and date match.
+    return (
+        f'IFERROR(INDEX(LeaveType,MATCH(1,('
+        f'(LeaveName={name_ref})*(LeaveDate={date_ref})),0)),"")'
+    )
+
+
+def leave_or_shift_day_formula(name_ref: str, date_ref: str, set_row: int) -> str:
+    """Display leave if registered, else planned shift. Blank if no date/name."""
+    leave = (
+        f'IFERROR(INDEX(LeaveType,MATCH(1,('
+        f'(LeaveName={name_ref})*(LeaveDate={date_ref})),0)),"")'
+    )
+    planned = planned_shift_formula(date_ref, set_row)
+    return (
+        f'IF(OR({date_ref}="",{name_ref}=""),"",'
+        f'IF({leave}<>"",{leave},{planned}))'
+    )
+
+
+def add_shift_cf(ws, range_str: str) -> None:
+    for code, fill in [
+        ("S", FILL_S),
+        ("A", FILL_A),
+        ("P", FILL_P),
+        ("N", FILL_N),
+        ("AL", FILL_AL),
+        ("SL", FILL_SL),
+    ]:
+        ws.conditional_formatting.add(
+            range_str,
+            CellIsRule(operator="equal", formula=[f'"{code}"'], fill=fill),
+        )
+
+
 def build_workbook():
     wb = Workbook()
 
     # =====================================================================
-    # Sheet: 設定
+    # 設定
     # =====================================================================
     ws_set = wb.active
     ws_set.title = "設定"
 
     ws_set["A1"] = "部門更表 — 設定區"
     ws_set["A1"].font = FONT_TITLE
-    ws_set.merge_cells("A1:F1")
+    ws_set.merge_cells("A1:G1")
 
     ws_set["A3"] = "顯示年份"
     ws_set["A3"].font = FONT_BOLD
@@ -144,123 +205,112 @@ def build_workbook():
     ws_set["C4"] = "← 永遠不要修改！所有輪班以此日為錨點跨年連續計算"
     ws_set["C4"].font = FONT_NOTE
 
-    ws_set["A5"] = "年假額度（天／人／年）"
-    ws_set["B5"] = AL_QUOTA
-    ws_set["B5"].fill = FILL_INPUT
-    ws_set["B5"].border = THIN
-    ws_set["C5"] = "← 可調整；剩餘年假 = 額度 − 已用年假（按顯示年份）"
-    ws_set["C5"].font = FONT_SMALL
-
-    ws_set["A6"] = "說明"
-    ws_set["B6"] = (
-        "16週循環：4週A → 4週P → 4週N → 4週P。offset 錯開 0/4/8/12，確保每週 A/P/N 皆有人。"
+    ws_set["A5"] = "說明"
+    ws_set["B5"] = (
+        "16週循環：4週A → 4週P → 4週N → 4週P。Offset 錯開 0/4/8/12。"
+        "年假額度改為每人獨立設定（見下表）。請假請只在「請假登記」輸入。"
     )
-    ws_set.merge_cells("B6:F6")
-    ws_set["B6"].font = FONT_SMALL
+    ws_set.merge_cells("B5:G5")
+    ws_set["B5"].font = FONT_SMALL
 
-    # Employee table header (row 8); employee data rows 9–14
-    headers = ["編號", "員工姓名", "班次類型", "初始Offset", "說明"]
+    headers = ["編號", "員工姓名", "班次類型", "初始Offset", "年假額度（天）", "說明"]
     for i, h in enumerate(headers, 1):
-        cell = ws_set.cell(8, i, h)
+        cell = ws_set.cell(7, i, h)
         cell.fill = FILL_HEADER
         cell.font = FONT_HDR
         cell.alignment = CENTER
         cell.border = THIN
 
-    role_labels = {
-        "S": "S＝固定正常班（不輪班）",
-        "R": "R＝參與 A/P/N 輪班",
-        "V": "V＝空缺（留空待啟用）",
-    }
     notes = [
         "固定 S 班，全年不變",
-        "輪班 offset=0（循環起點）",
-        "輪班 offset=4（錯開一段）",
-        "輪班 offset=8（錯開兩段）",
-        "輪班 offset=12（錯開三段）",
-        "填入姓名後，將類型改為 R 並設定 offset（建議 0/4/8/12 錯開）",
+        "輪班 offset=0",
+        "輪班 offset=4",
+        "輪班 offset=8",
+        "輪班 offset=12",
+        "填姓名後類型改 R/S，並設定 Offset 與年假額度",
     ]
-
-    for i, (name, role, offset) in enumerate(EMPLOYEES):
+    for i, (name, role, offset, quota) in enumerate(EMPLOYEES):
         row = EMP_FIRST_ROW + i
         ws_set.cell(row, 1, i + 1).border = THIN
         ws_set.cell(row, 1).alignment = CENTER
 
-        name_cell = ws_set.cell(row, 2, name if name else None)
-        name_cell.fill = FILL_INPUT
-        name_cell.border = THIN
-        name_cell.font = FONT_BOLD
-        name_cell.alignment = CENTER
+        c_name = ws_set.cell(row, 2, name if name else None)
+        c_name.fill = FILL_INPUT
+        c_name.border = THIN
+        c_name.font = FONT_BOLD
+        c_name.alignment = CENTER
 
-        role_cell = ws_set.cell(row, 3, role)
-        role_cell.fill = FILL_INPUT
-        role_cell.border = THIN
-        role_cell.alignment = CENTER
+        c_role = ws_set.cell(row, 3, role)
+        c_role.fill = FILL_INPUT
+        c_role.border = THIN
+        c_role.alignment = CENTER
 
-        off_cell = ws_set.cell(row, 4, offset if offset is not None else None)
-        off_cell.fill = FILL_INPUT
-        off_cell.border = THIN
-        off_cell.alignment = CENTER
+        c_off = ws_set.cell(row, 4, offset if offset is not None else None)
+        c_off.fill = FILL_INPUT
+        c_off.border = THIN
+        c_off.alignment = CENTER
 
-        note_cell = ws_set.cell(row, 5, notes[i])
-        note_cell.font = FONT_SMALL
-        note_cell.border = THIN
+        c_q = ws_set.cell(row, 5, quota)
+        c_q.fill = FILL_INPUT
+        c_q.border = THIN
+        c_q.alignment = CENTER
 
-        for c in range(1, 6):
-            ws_set.cell(row, c).fill = FILL_SETTINGS if role != "V" else FILL_VACANT
-            if c in (2, 3, 4):
-                ws_set.cell(row, c).fill = FILL_INPUT
+        c_note = ws_set.cell(row, 6, notes[i])
+        c_note.font = FONT_SMALL
+        c_note.border = THIN
 
-    # Named-style legend
-    ws_set["A16"] = "班次代碼說明"
-    ws_set["A16"].font = FONT_BOLD
+        if role == "V":
+            for c in range(1, 7):
+                if c not in (2, 3, 4, 5):
+                    ws_set.cell(row, c).fill = FILL_VACANT
+
+    dv_role = DataValidation(type="list", formula1='"S,R,V"', allow_blank=True)
+    ws_set.add_data_validation(dv_role)
+    dv_role.add(f"C{EMP_FIRST_ROW}:C{EMP_FIRST_ROW + 5}")
+
+    # Legend
+    ws_set["A15"] = "班次／假別顏色圖例（與排班表、月曆一致）"
+    ws_set["A15"].font = FONT_BOLD
     legends = [
-        ("S", "正常班（ARTHUR 固定）", FILL_S),
+        ("S", "正常班", FILL_S),
         ("A", "早班", FILL_A),
         ("P", "中班", FILL_P),
         ("N", "晚班", FILL_N),
-        ("AL", "年假 Annual Leave（手動輸入覆蓋）", FILL_AL),
-        ("SL", "病假 Sick Leave（手動輸入覆蓋）", FILL_SL),
+        ("AL", "年假", FILL_AL),
+        ("SL", "病假", FILL_SL),
     ]
     for i, (code, desc, fill) in enumerate(legends):
-        ws_set.cell(17 + i, 1, code).fill = fill
-        ws_set.cell(17 + i, 1).border = THIN
-        ws_set.cell(17 + i, 1).alignment = CENTER
-        ws_set.cell(17 + i, 1).font = FONT_BOLD
-        ws_set.cell(17 + i, 2, desc).font = FONT_NORMAL
+        ws_set.cell(16, 1 + i, code).fill = fill
+        ws_set.cell(16, 1 + i).border = THIN
+        ws_set.cell(16, 1 + i).alignment = CENTER
+        ws_set.cell(16, 1 + i).font = FONT_BOLD
+        ws_set.cell(17, 1 + i, desc).font = FONT_SMALL
+        ws_set.cell(17, 1 + i).alignment = CENTER
 
-    ws_set["A24"] = "輪班計算公式（供參考）"
-    ws_set["A24"].font = FONT_BOLD
-    ws_set["A25"] = (
-        "週序 = INT((該週起始日 − 輪班基準日) / 7) + Offset；"
-        "位置 = MOD(週序, 16)；"
-        "0–3→A，4–7→P，8–11→N，12–15→P"
+    ws_set["A19"] = "輪班公式"
+    ws_set["A19"].font = FONT_BOLD
+    ws_set["A20"] = (
+        "週序=INT((該週一−基準日)/7)+Offset；MOD(週序,16)：0–3→A，4–7→P，8–11→N，12–15→P"
     )
-    ws_set.merge_cells("A25:F25")
-    ws_set["A25"].font = FONT_SMALL
+    ws_set.merge_cells("A20:G20")
+    ws_set["A20"].font = FONT_SMALL
 
-    ws_set.column_dimensions["A"].width = 22
-    ws_set.column_dimensions["B"].width = 16
-    ws_set.column_dimensions["C"].width = 12
-    ws_set.column_dimensions["D"].width = 12
-    ws_set.column_dimensions["E"].width = 55
-    ws_set.column_dimensions["F"].width = 20
+    for col, w in zip("ABCDEFG", [10, 14, 10, 12, 14, 50, 12]):
+        ws_set.column_dimensions[col].width = w
 
-    # Data validation for role
-    dv_role = DataValidation(type="list", formula1='"S,R,V"', allow_blank=True)
-    ws_set.add_data_validation(dv_role)
-    dv_role.add(f"C{EMP_FIRST_ROW}:C{EMP_FIRST_ROW+5}")
+    # Named ranges for employee names (for dropdowns)
+    wb.defined_names.add(
+        DefinedName(name="EmpNames", attr_text=f"'設定'!$B${EMP_FIRST_ROW}:$B${EMP_FIRST_ROW + 5}")
+    )
 
     # =====================================================================
-    # Sheet: 公眾假期
+    # 公眾假期
     # =====================================================================
     ws_hol = wb.create_sheet("公眾假期")
     ws_hol["A1"] = "公眾假期資料表"
     ws_hol["A1"].font = FONT_TITLE
     ws_hol.merge_cells("A1:C1")
-    ws_hol["A2"] = (
-        "每年年頭在此表底部追加新一年假期即可；主表標色與補假計算會自動延續。請勿刪除表頭。"
-    )
+    ws_hol["A2"] = "每年年頭在此表底部追加新一年假期即可。請勿刪除表頭。"
     ws_hol["A2"].font = FONT_NOTE
     ws_hol.merge_cells("A2:C2")
 
@@ -277,10 +327,9 @@ def build_workbook():
         ws_hol.cell(row, 1).border = THIN
         ws_hol.cell(row, 1).fill = FILL_HOLIDAY
         ws_hol.cell(row, 2, name).border = THIN
-        ws_hol.cell(row, 3, f"=IF(A{row}=\"\",\"\",YEAR(A{row}))").border = THIN
+        ws_hol.cell(row, 3, f'=IF(A{row}="","",YEAR(A{row}))').border = THIN
 
-    # Pre-format extra rows for future years (rows 21–80)
-    for row in range(5 + len(HOLIDAYS_2026), 81):
+    for row in range(5 + len(HOLIDAYS_2026), 5 + HOLIDAY_ROWS):
         ws_hol.cell(row, 1).number_format = "YYYY-MM-DD"
         ws_hol.cell(row, 1).border = THIN
         ws_hol.cell(row, 1).fill = FILL_INPUT
@@ -292,71 +341,194 @@ def build_workbook():
     ws_hol.column_dimensions["B"].width = 36
     ws_hol.column_dimensions["C"].width = 14
 
-    # Define a workbook-scoped name for holiday dates range
-    from openpyxl.workbook.defined_name import DefinedName
-
-    wb.defined_names.add(DefinedName(name="HolidayDates", attr_text="'公眾假期'!$A$5:$A$80"))
-    wb.defined_names.add(DefinedName(name="HolidayNames", attr_text="'公眾假期'!$B$5:$B$80"))
+    wb.defined_names.add(DefinedName(name="HolidayDates", attr_text="'公眾假期'!$A$5:$A$84"))
+    wb.defined_names.add(DefinedName(name="HolidayNames", attr_text="'公眾假期'!$B$5:$B$84"))
 
     # =====================================================================
-    # Sheet: 請假登錄
+    # 請假登記（唯一請假輸入源）
     # =====================================================================
-    ws_leave = wb.create_sheet("請假登錄")
-    ws_leave["A1"] = "請假登錄（在對應人員／週份格輸入 AL 或 SL）"
+    ws_leave = wb.create_sheet("請假登記")
+    ws_leave["A1"] = "請假登記（全年唯一請假輸入源）"
     ws_leave["A1"].font = FONT_TITLE
-    ws_leave.merge_cells("A1:H1")
+    ws_leave.merge_cells("A1:D1")
     ws_leave["A2"] = (
-        "此表欄位與「排班表」週份對齊。輸入 AL/SL 後，排班表對應格會自動覆蓋原班次。"
-        "換年後若欄位仍留有舊假碼，請清除或改填新一年請假。"
+        "每一行＝一位員工某一天的請假。連續多日請逐日新增多行。"
+        "排班表／月曆的 AL・SL 顯示與年假統計皆從此表用公式查找，請勿在其他表輸入請假。"
     )
     ws_leave["A2"].font = FONT_NOTE
-    ws_leave.merge_cells("A2:H2")
+    ws_leave.merge_cells("A2:D2")
 
-    # Week date headers — same formulas as main sheet (row 4)
-    ws_leave["A4"] = "員工"
-    ws_leave["A4"].fill = FILL_HEADER
-    ws_leave["A4"].font = FONT_HDR
-    ws_leave["A4"].border = THIN
-
-    for w in range(NUM_WEEKS):
-        col = 2 + w  # B=2
-        cell = ws_leave.cell(4, col)
-        cell.value = week_start_formula(w)
-        cell.number_format = "M/D"
+    for i, h in enumerate(["員工姓名", "請假日期", "假別"], 1):
+        cell = ws_leave.cell(4, i, h)
         cell.fill = FILL_HEADER
         cell.font = FONT_HDR
         cell.alignment = CENTER
         cell.border = THIN
-        ws_leave.column_dimensions[get_column_letter(col)].width = 5
 
-    for i in range(6):
-        row = 5 + i
-        # Name linked from 設定
-        ws_leave.cell(row, 1, f"='設定'!B{EMP_FIRST_ROW+i}")
-        ws_leave.cell(row, 1).font = FONT_BOLD
-        ws_leave.cell(row, 1).border = THIN
-        ws_leave.cell(row, 1).fill = FILL_SETTINGS
-        for w in range(NUM_WEEKS):
-            col = 2 + w
-            cell = ws_leave.cell(row, col, None)
-            cell.fill = FILL_INPUT
+    # Pre-format data rows (table needs at least one data row)
+    for row in range(5, 5 + LEAVE_ROWS):
+        for col in range(1, 4):
+            cell = ws_leave.cell(row, col)
             cell.border = THIN
+            cell.fill = FILL_INPUT
             cell.alignment = CENTER
-            cell.font = FONT_BOLD
+        ws_leave.cell(row, 2).number_format = "YYYY-MM-DD"
 
-    dv_leave = DataValidation(type="list", formula1='"AL,SL"', allow_blank=True)
-    ws_leave.add_data_validation(dv_leave)
-    dv_leave.add(f"B5:{get_column_letter(1+NUM_WEEKS)}10")
+    # Sample empty first row kept for table; optional demo left blank
+
+    table = Table(displayName="LeaveTable", ref=f"A4:C{4 + LEAVE_ROWS}")
+    table.tableStyleInfo = TableStyleInfo(
+        name="TableStyleMedium2",
+        showFirstColumn=False,
+        showLastColumn=False,
+        showRowStripes=True,
+        showColumnStripes=False,
+    )
+    ws_leave.add_table(table)
+
+    wb.defined_names.add(DefinedName(name="LeaveName", attr_text="'請假登記'!$A$5:$A$504"))
+    wb.defined_names.add(DefinedName(name="LeaveDate", attr_text="'請假登記'!$B$5:$B$504"))
+    wb.defined_names.add(DefinedName(name="LeaveType", attr_text="'請假登記'!$C$5:$C$504"))
+
+    dv_emp = DataValidation(
+        type="list",
+        formula1=f"=EmpNames",
+        allow_blank=True,
+        showDropDown=False,
+    )
+    dv_emp.error = "請選擇設定區中的員工姓名"
+    dv_emp.errorTitle = "姓名"
+    ws_leave.add_data_validation(dv_emp)
+    dv_emp.add(f"A5:A{4 + LEAVE_ROWS}")
+
+    dv_type = DataValidation(type="list", formula1='"AL,SL"', allow_blank=True)
+    ws_leave.add_data_validation(dv_type)
+    dv_type.add(f"C5:C{4 + LEAVE_ROWS}")
 
     ws_leave.column_dimensions["A"].width = 14
-    ws_leave.freeze_panes = "B5"
+    ws_leave.column_dimensions["B"].width = 14
+    ws_leave.column_dimensions["C"].width = 10
+    ws_leave.column_dimensions["D"].width = 40
+    ws_leave.freeze_panes = "A5"
+
+    ws_leave["E4"] = "提示"
+    ws_leave["E4"].font = FONT_BOLD
+    ws_leave["E5"] = "假別只能填 AL 或 SL；日期請填實際請假當天（非週一）。"
+    ws_leave["E5"].font = FONT_SMALL
 
     # =====================================================================
-    # Sheet: 排班表 (main)
+    # 假期上班登記
     # =====================================================================
-    ws = wb.create_sheet("排班表", 0)  # first sheet
+    ws_hw = wb.create_sheet("假期上班登記")
+    ws_hw["A1"] = "公眾假期上班登記"
+    ws_hw["A1"].font = FONT_TITLE
+    ws_hw.merge_cells("A1:H1")
+    ws_hw["A2"] = (
+        "日期／假期名稱自動由「公眾假期」帶入。請在「上班人員1～6」以手動（下拉）登記當日實際上班者。"
+        "補假次數由此表統計，排班表補假欄會自動引用。"
+    )
+    ws_hw["A2"].font = FONT_NOTE
+    ws_hw.merge_cells("A2:H2")
 
-    # --- Title & year echo ---
+    hw_headers = ["日期", "假期名稱", "上班人員1", "上班人員2", "上班人員3", "上班人員4", "上班人員5", "上班人員6"]
+    for i, h in enumerate(hw_headers, 1):
+        cell = ws_hw.cell(4, i, h)
+        cell.fill = FILL_HEADER
+        cell.font = FONT_HDR
+        cell.alignment = CENTER
+        cell.border = THIN
+
+    # Pull holidays with formulas (up to HOLIDAY_ROWS)
+    for i in range(HOLIDAY_ROWS):
+        row = 5 + i
+        src = 5 + i
+        ws_hw.cell(row, 1, f"=IF('公眾假期'!A{src}=\"\",\"\",'公眾假期'!A{src})")
+        ws_hw.cell(row, 1).number_format = "YYYY-MM-DD"
+        ws_hw.cell(row, 1).border = THIN
+        ws_hw.cell(row, 1).fill = FILL_READONLY
+        ws_hw.cell(row, 2, f"=IF('公眾假期'!B{src}=\"\",\"\",'公眾假期'!B{src})")
+        ws_hw.cell(row, 2).border = THIN
+        ws_hw.cell(row, 2).fill = FILL_READONLY
+        for col in range(3, 9):
+            cell = ws_hw.cell(row, col)
+            cell.border = THIN
+            cell.fill = FILL_INPUT
+            cell.alignment = CENTER
+
+    dv_hw = DataValidation(type="list", formula1="=EmpNames", allow_blank=True)
+    ws_hw.add_data_validation(dv_hw)
+    dv_hw.add(f"C5:H{4 + HOLIDAY_ROWS}")
+
+    # 補假統計區
+    stat_start = 5 + HOLIDAY_ROWS + 2  # row 87
+    ws_hw.cell(stat_start, 1, "補假統計區（自動計算）")
+    ws_hw.cell(stat_start, 1).font = FONT_BOLD
+    ws_hw.cell(stat_start, 1).fill = FILL_SUBHDR
+    ws_hw.cell(stat_start, 1).font = FONT_WHITE
+    ws_hw.merge_cells(start_row=stat_start, start_column=1, end_row=stat_start, end_column=4)
+
+    for i, h in enumerate(["員工姓名", "公眾假期上班次數（全部）", "本年上班次數", "說明"], 1):
+        cell = ws_hw.cell(stat_start + 1, i, h)
+        cell.fill = FILL_HEADER
+        cell.font = FONT_HDR
+        cell.border = THIN
+        cell.alignment = CENTER
+
+    # Work name range for counting
+    work_range = f"$C$5:$H${4 + HOLIDAY_ROWS}"
+    date_range = f"$A$5:$A${4 + HOLIDAY_ROWS}"
+
+    for i in range(6):
+        row = stat_start + 2 + i
+        set_row = EMP_FIRST_ROW + i
+        ws_hw.cell(row, 1, f"='設定'!B{set_row}")
+        ws_hw.cell(row, 1).border = THIN
+        ws_hw.cell(row, 1).font = FONT_BOLD
+        # Total count across all registered holiday work columns
+        ws_hw.cell(
+            row,
+            2,
+            f'=IF(A{row}="","",COUNTIF({work_range},A{row}))',
+        )
+        ws_hw.cell(row, 2).border = THIN
+        ws_hw.cell(row, 2).fill = FILL_STAT
+        ws_hw.cell(row, 2).alignment = CENTER
+        # This year only
+        ws_hw.cell(
+            row,
+            3,
+            f'=IF(A{row}="","",'
+            f'SUMPRODUCT(({date_range}<>"")*(YEAR({date_range})={YEAR_CELL})*'
+            f'(($C$5:$C${4 + HOLIDAY_ROWS}=A{row})+($D$5:$D${4 + HOLIDAY_ROWS}=A{row})+'
+            f'($E$5:$E${4 + HOLIDAY_ROWS}=A{row})+($F$5:$F${4 + HOLIDAY_ROWS}=A{row})+'
+            f'($G$5:$G${4 + HOLIDAY_ROWS}=A{row})+($H$5:$H${4 + HOLIDAY_ROWS}=A{row}))))',
+        )
+        ws_hw.cell(row, 3).border = THIN
+        ws_hw.cell(row, 3).fill = FILL_STAT
+        ws_hw.cell(row, 3).alignment = CENTER
+        ws_hw.cell(row, 4, "排班表「本年新增補假」引用本欄；累積＝期初＋本年").font = FONT_SMALL
+        ws_hw.cell(row, 4).border = THIN
+
+    # Named ranges for roster to pull year counts
+    # Emp1 year count at stat_start+2, col 3
+    for i in range(6):
+        wb.defined_names.add(
+            DefinedName(
+                name=f"CompYear{i + 1}",
+                attr_text=f"'假期上班登記'!$C${stat_start + 2 + i}",
+            )
+        )
+
+    for col, w in zip("ABCDEFGH", [12, 28, 12, 12, 12, 12, 12, 12]):
+        ws_hw.column_dimensions[col].width = w
+
+    ws_hw.freeze_panes = "A5"
+
+    # =====================================================================
+    # 排班表
+    # =====================================================================
+    ws = wb.create_sheet("排班表", 0)
+
     ws["A1"] = "部門輪班更表（跨年模版）"
     ws["A1"].font = FONT_TITLE
     ws.merge_cells("A1:E1")
@@ -368,10 +540,8 @@ def build_workbook():
     ws["G1"].fill = FILL_QUICK
     ws["G1"].border = THIN
     ws["G1"].alignment = CENTER
-    ws["H1"] = "（修改請到「設定」工作表）"
-    ws["H1"].font = FONT_SMALL
 
-    # --- Quick view section (rows 3–10) ---
+    # Quick view
     ws["A3"] = "本週／下週快覽"
     ws["A3"].font = FONT_BOLD
     ws["A3"].fill = FILL_QUICK_HDR
@@ -382,7 +552,6 @@ def build_workbook():
     ws["B4"].number_format = "YYYY-MM-DD"
     ws["B4"].font = FONT_BOLD
 
-    # This week's Monday (WEEKDAY type 2: Mon=1)
     ws["A5"] = "本週起始（一）"
     ws["B5"] = "=B4-WEEKDAY(B4,2)+1"
     ws["B5"].number_format = "YYYY-MM-DD"
@@ -395,12 +564,8 @@ def build_workbook():
     ws["B6"].fill = FILL_QUICK
     ws["B6"].border = THIN
 
-    # MATCH column index of this week / next week in header row
-    # Week headers will be in row 13, cols H onwards (col 8)
     header_row = 13
-    name_row0 = 14  # first employee display row
-    leave_sheet_row0 = 5
-
+    name_row0 = 14
     first_col_letter = get_column_letter(FIRST_WEEK_COL)
     last_col_letter = get_column_letter(FIRST_WEEK_COL + NUM_WEEKS - 1)
     week_header_range = f"${first_col_letter}${header_row}:${last_col_letter}${header_row}"
@@ -415,7 +580,6 @@ def build_workbook():
     ws["E6"].fill = FILL_QUICK
     ws["E6"].border = THIN
 
-    # Quick view table headers
     ws["A8"] = "人員"
     ws["B8"] = "本週班次"
     ws["C8"] = "下週班次"
@@ -428,15 +592,11 @@ def build_workbook():
 
     for i in range(6):
         row = 9 + i
-        # Name from settings
-        ws.cell(row, 1, f"='設定'!B{EMP_FIRST_ROW+i}")
+        ws.cell(row, 1, f"='設定'!B{EMP_FIRST_ROW + i}")
         ws.cell(row, 1).font = FONT_BOLD
         ws.cell(row, 1).border = THIN
         ws.cell(row, 1).fill = FILL_SETTINGS
-
-        # INDEX into main roster row for this/next week
         roster_row = name_row0 + i
-        # MATCH returns 1-based index within week range; INDEX from H{roster_row}
         ws.cell(
             row,
             2,
@@ -455,33 +615,32 @@ def build_workbook():
             ws.cell(row, col).font = FONT_BOLD
             ws.cell(row, col).fill = FILL_QUICK
 
+    # Legend matching main table colors
     ws["D8"] = "圖例"
     ws["D8"].font = FONT_BOLD
-    legend_quick = [("S", FILL_S), ("A", FILL_A), ("P", FILL_P), ("N", FILL_N), ("AL", FILL_AL), ("SL", FILL_SL)]
-    for i, (code, fill) in enumerate(legend_quick):
+    for i, (code, fill) in enumerate(
+        [("S", FILL_S), ("A", FILL_A), ("P", FILL_P), ("N", FILL_N), ("AL", FILL_AL), ("SL", FILL_SL)]
+    ):
         cell = ws.cell(8, 5 + i, code)
         cell.fill = fill
         cell.border = THIN
         cell.alignment = CENTER
         cell.font = FONT_BOLD
 
-    ws["A15"] = ""  # placeholder — actual roster starts row 13
-
-    # --- Stats + roster header row ---
-    # Row 12: section title
-    ws["A12"] = "全年排班主表（修改姓名／年份請到「設定」；請假請到「請假登錄」）"
+    ws["A12"] = (
+        "全年排班主表｜請假請到「請假登記」逐日登錄｜補假請到「假期上班登記」｜"
+        "月曆檢視見「本月排班日曆」"
+    )
     ws["A12"].font = FONT_BOLD
-    ws.merge_cells("A12:G12")
+    ws.merge_cells("A12:F12")
 
-    # Row 13: headers
     col_headers = [
         (1, "員工姓名"),
         (2, "已用年假\n(本年)"),
         (3, "剩餘年假\n(本年)"),
-        (4, "已用病假\n(本年)"),
-        (5, "累積補假\n結餘"),
-        (6, "期初補假\n(可調)"),
-        (7, "本年新增\n補假"),
+        (4, "累積補假\n結餘"),
+        (5, "期初補假\n(可調)"),
+        (6, "本年新增\n補假"),
     ]
     for col, text in col_headers:
         cell = ws.cell(header_row, col, text)
@@ -490,7 +649,6 @@ def build_workbook():
         cell.alignment = CENTER
         cell.border = THIN
 
-    # Week date headers
     for w in range(NUM_WEEKS):
         col = FIRST_WEEK_COL + w
         cell = ws.cell(header_row, col)
@@ -502,105 +660,90 @@ def build_workbook():
         cell.border = THIN
         ws.column_dimensions[get_column_letter(col)].width = 4.5
 
-    # Employee rows 14–19
-    for i, (name, role, offset) in enumerate(EMPLOYEES):
+    for i, (name, role, offset, quota) in enumerate(EMPLOYEES):
         row = name_row0 + i
         set_row = EMP_FIRST_ROW + i
-        leave_row = leave_sheet_row0 + i
 
-        # Name
         ws.cell(row, 1, f"='設定'!B{set_row}")
         ws.cell(row, 1).font = FONT_BOLD
         ws.cell(row, 1).border = THIN
         ws.cell(row, 1).alignment = CENTER
         ws.cell(row, 1).fill = FILL_SETTINGS
 
-        # Stats formulas — only if name not blank
-        # AL used: count AL in display row for weeks that have dates
-        al_range = f"{first_col_letter}{row}:{last_col_letter}{row}"
+        # AL used from 請假登記 by name + AL + year
         ws.cell(
             row,
             2,
-            f'=IF(A{row}="","",COUNTIF({al_range},"AL"))',
+            f'=IF(A{row}="","",'
+            f'COUNTIFS(LeaveName,A{row},LeaveType,"AL",LeaveDate,">="&DATE({YEAR_CELL},1,1),'
+            f'LeaveDate,"<="&DATE({YEAR_CELL},12,31)))',
         )
+        # Remaining = personal quota - used
         ws.cell(
             row,
             3,
-            f'=IF(A{row}="","",{QUOTA_CELL}-B{row})',
-        )
-        ws.cell(
-            row,
-            4,
-            f'=IF(A{row}="","",COUNTIF({al_range},"SL"))',
+            f'=IF(A{row}="","",IF(\'設定\'!E{set_row}="","",\'設定\'!E{set_row}-B{row}))',
         )
 
-        # Opening compensatory balance (manual, cumulative across years)
-        open_cell = ws.cell(row, 6, 0 if name else None)
+        # Opening compensatory (manual)
+        open_cell = ws.cell(row, 5, 0 if name else None)
         open_cell.fill = FILL_INPUT
         open_cell.border = THIN
         open_cell.alignment = CENTER
 
-        # 本年新增補假 — uses helper row (holiday count per week) via SUMPRODUCT
-        # Helper row number defined below as hol_count_row
-        hol_count_row = name_row0 + 7  # row 21
-        year_comp = (
-            f'=IF(A{row}="","",'
-            f'SUMPRODUCT('
-            f'(({first_col_letter}{row}:{last_col_letter}{row}="A")'
-            f'+({first_col_letter}{row}:{last_col_letter}{row}="P")'
-            f'+({first_col_letter}{row}:{last_col_letter}{row}="N")'
-            f'+({first_col_letter}{row}:{last_col_letter}{row}="S"))'
-            f'*({first_col_letter}${hol_count_row}:{last_col_letter}${hol_count_row})))'
-        )
+        # This year new comp from 假期上班登記
+        ws.cell(row, 6, f'=IF(A{row}="","",CompYear{i + 1})')
+        ws.cell(row, 6).border = THIN
+        ws.cell(row, 6).fill = FILL_STAT
+        ws.cell(row, 6).alignment = CENTER
 
-        ws.cell(row, 7, year_comp)
-        ws.cell(row, 7).border = THIN
-        ws.cell(row, 7).fill = FILL_STAT
-        ws.cell(row, 7).alignment = CENTER
+        # Cumulative
+        ws.cell(row, 4, f'=IF(A{row}="","",E{row}+F{row})')
+        ws.cell(row, 4).border = THIN
+        ws.cell(row, 4).fill = FILL_STAT
+        ws.cell(row, 4).font = FONT_BOLD
+        ws.cell(row, 4).alignment = CENTER
 
-        # Cumulative = opening + this year
-        ws.cell(row, 5, f'=IF(A{row}="","",F{row}+G{row})')
-        ws.cell(row, 5).border = THIN
-        ws.cell(row, 5).fill = FILL_STAT
-        ws.cell(row, 5).font = FONT_BOLD
-        ws.cell(row, 5).alignment = CENTER
-
-        for c in (2, 3, 4):
+        for c in (2, 3):
             ws.cell(row, c).border = THIN
             ws.cell(row, c).fill = FILL_STAT
             ws.cell(row, c).alignment = CENTER
 
-        # Shift cells
+        # Week cells: leave in week overrides shift
         for w in range(NUM_WEEKS):
             col = FIRST_WEEK_COL + w
             col_l = get_column_letter(col)
             week_ref = f"{col_l}${header_row}"
-            leave_ref = f"'請假登錄'!{get_column_letter(2+w)}{leave_row}"
             name_cell = f"'設定'!$B${set_row}"
             role_cell = f"'設定'!$C${set_row}"
             offset_cell = f"'設定'!$D${set_row}"
-
-            # Only show if week header not blank
+            # Any AL in week → AL; else any SL → SL; else planned
+            has_al = (
+                f'COUNTIFS(LeaveName,{name_cell},LeaveType,"AL",'
+                f'LeaveDate,">="&{week_ref},LeaveDate,"<"&{week_ref}+7)'
+            )
+            has_sl = (
+                f'COUNTIFS(LeaveName,{name_cell},LeaveType,"SL",'
+                f'LeaveDate,">="&{week_ref},LeaveDate,"<"&{week_ref}+7)'
+            )
+            rot = rotate_shift_expr(week_ref, offset_cell)
             formula = (
                 f'=IF({week_ref}="","",'
                 f'IF({name_cell}="","",'
-                f'IF({leave_ref}<>"",{leave_ref},'
+                f'IF({has_al}>0,"AL",'
+                f'IF({has_sl}>0,"SL",'
                 f'IF({role_cell}="S","S",'
-                f'IF({role_cell}="R",'
-                f'IF(MOD(INT(({week_ref}-{BASE_CELL})/7)+IF({offset_cell}="",0,{offset_cell}),16)<4,"A",'
-                f'IF(MOD(INT(({week_ref}-{BASE_CELL})/7)+IF({offset_cell}="",0,{offset_cell}),16)<8,"P",'
-                f'IF(MOD(INT(({week_ref}-{BASE_CELL})/7)+IF({offset_cell}="",0,{offset_cell}),16)<12,"N","P"))),'
-                f'"")))))'
+                f'IF({role_cell}="R",{rot},""))))))'
             )
             cell = ws.cell(row, col, formula)
             cell.alignment = CENTER
             cell.border = THIN
             cell.font = FONT_BOLD
 
-    # Holiday marker row under roster
-    marker_row = name_row0 + 6  # row 20
-    ws.cell(marker_row, 1, "公眾假期")
-    ws.cell(marker_row, 1).font = FONT_SMALL
+    # Holiday marker + helper count
+    marker_row = name_row0 + 6
+    hol_count_row = name_row0 + 7
+    ws.cell(marker_row, 1, "公眾假期").font = FONT_SMALL
     ws.cell(marker_row, 1).fill = FILL_HOLIDAY
     ws.cell(marker_row, 1).border = THIN
     for w in range(NUM_WEEKS):
@@ -619,198 +762,274 @@ def build_workbook():
         cell.alignment = CENTER
         cell.border = THIN
 
-    # Helper row: holiday count per week (used by 本年新增補假 SUMPRODUCT)
-    hol_count_row = name_row0 + 7  # row 21
-    ws.cell(hol_count_row, 1, "（系統）假期天數")
-    ws.cell(hol_count_row, 1).font = FONT_SMALL
-    ws.cell(hol_count_row, 1).fill = FILL_VACANT
-    for w in range(NUM_WEEKS):
-        col = FIRST_WEEK_COL + w
-        col_l = get_column_letter(col)
-        cell = ws.cell(
+        hcell = ws.cell(
             hol_count_row,
             col,
             f'=IF({col_l}${header_row}="","",'
             f'COUNTIFS(HolidayDates,">="&{col_l}${header_row},'
             f'HolidayDates,"<"&{col_l}${header_row}+7,HolidayDates,"<>"))',
         )
-        cell.font = FONT_SMALL
-        cell.alignment = CENTER
-        cell.border = THIN
-        cell.fill = FILL_VACANT
+        hcell.font = FONT_SMALL
+        hcell.fill = FILL_VACANT
+    ws.cell(hol_count_row, 1, "（系統）").font = FONT_SMALL
     ws.row_dimensions[hol_count_row].hidden = True
 
-    # Notes under table
     note_row = hol_count_row + 2
-    ws.cell(note_row, 1, "使用提示")
-    ws.cell(note_row, 1).font = FONT_BOLD
+    ws.cell(note_row, 1, "使用提示（詳見「使用提示」工作表）").font = FONT_BOLD
     tips = [
-        "1. 黃色輸入格可改：設定區姓名／Offset／年假額度；排班表「期初補假」；「請假登錄」表對應週份格填 AL/SL。",
-        "2. 換年：只改「設定」→顯示年份，並在「公眾假期」追加新假期。輪班基準日 2026-06-29 請勿改動。",
-        "3. 衝突警示：同一週 AL+SL 合計超過 2 人時，該週欄位自動標紅。",
-        "4. 補假：公眾假期當週若顯示 A/P/N/S（仍上班），計入本年新增補假；累積結餘＝期初＋本年（跨年請先把累積值寫入期初再換年）。",
-        "5. 新增第六人：在設定填姓名、類型改 R、設 Offset（與其他人錯開 0/4/8/12），即可自動排班並可在請假登錄填假。",
-        "6. 若公眾假期落在本年第一個週一之前（如 2026 元旦），該日不在主表週欄內，補假請手動調整「期初補假」。",
+        "1. 請假：只在「請假登記」新增列（姓名＋日期＋AL/SL）；主表與月曆會自動顯示。",
+        "2. 補假：在「假期上班登記」對應假期列用下拉選擇上班人員；主表補假欄自動更新。",
+        "3. 換年：改「設定」顯示年份，並在「公眾假期」追加假期；基準日 2026-06-29 勿改。",
+        "4. 年假額度：在「設定」每人「年假額度（天）」各自填寫；剩餘年假＝個人額度−已用（按請假登記天數）。",
+        "5. 同週若有超過 2 人出現 AL 或 SL（週欄顯示），整欄標紅警示。",
     ]
     for j, tip in enumerate(tips):
-        ws.cell(note_row + 1 + j, 1, tip)
+        ws.cell(note_row + 1 + j, 1, tip).font = FONT_SMALL
         ws.merge_cells(
             start_row=note_row + 1 + j,
             start_column=1,
             end_row=note_row + 1 + j,
-            end_column=7,
+            end_column=6,
         )
-        ws.cell(note_row + 1 + j, 1).font = FONT_SMALL
 
-    # Column widths
-    ws.column_dimensions["A"].width = 12
-    ws.column_dimensions["B"].width = 10
-    ws.column_dimensions["C"].width = 10
-    ws.column_dimensions["D"].width = 10
-    ws.column_dimensions["E"].width = 10
-    ws.column_dimensions["F"].width = 10
-    ws.column_dimensions["G"].width = 10
+    for col, w in zip("ABCDEF", [12, 10, 10, 10, 10, 10]):
+        ws.column_dimensions[col].width = w
 
-    # Row heights
     ws.row_dimensions[header_row].height = 32
     for r in range(name_row0, name_row0 + 6):
         ws.row_dimensions[r].height = 22
 
-    # Freeze panes: freeze quick view + headers + name/stat cols
-    # Freeze so row 13 (headers) and cols A-G stay visible when scrolling weeks
-    ws.freeze_panes = "H14"
+    ws.freeze_panes = "G14"
 
-    # ----- Conditional formatting -----
-    shift_range = f"{first_col_letter}{name_row0}:{last_col_letter}{name_row0+5}"
-    quick_range = "B9:C14"
+    # Conditional formatting — shifts + leave colors
+    shift_range = f"{first_col_letter}{name_row0}:{last_col_letter}{name_row0 + 5}"
+    add_shift_cf(ws, shift_range)
+    add_shift_cf(ws, "B9:C14")
 
-    def add_shift_cf(range_str):
-        rules = [
-            ("S", FILL_S),
-            ("A", FILL_A),
-            ("P", FILL_P),
-            ("N", FILL_N),
-            ("AL", FILL_AL),
-            ("SL", FILL_SL),
-        ]
-        for code, fill in rules:
-            ws.conditional_formatting.add(
-                range_str,
-                CellIsRule(operator="equal", formula=[f'"{code}"'], fill=fill),
-            )
-
-    add_shift_cf(shift_range)
-    add_shift_cf("B9:C14")
-
-    # Holiday week header highlighting
     for w in range(NUM_WEEKS):
         col_l = get_column_letter(FIRST_WEEK_COL + w)
         header_cell = f"{col_l}${header_row}"
-        formula = (
-            f'AND({header_cell}<>"",'
-            f'COUNTIFS(HolidayDates,">="&{header_cell},'
-            f'HolidayDates,"<"&{header_cell}+7,HolidayDates,"<>")>0)'
-        )
         ws.conditional_formatting.add(
             f"{col_l}{header_row}",
-            FormulaRule(formula=[formula], fill=FILL_HOLIDAY),
+            FormulaRule(
+                formula=[
+                    f'AND({header_cell}<>"",COUNTIFS(HolidayDates,">="&{header_cell},'
+                    f'HolidayDates,"<"&{header_cell}+7,HolidayDates,"<>")>0)'
+                ],
+                fill=FILL_HOLIDAY,
+            ),
         )
-
-    # Conflict: AL+SL count > 2 in same week column → red entire column (header + 6 people + marker)
-    for w in range(NUM_WEEKS):
-        col_l = get_column_letter(FIRST_WEEK_COL + w)
         col_range = f"{col_l}{header_row}:{col_l}{marker_row}"
-        # Count AL and SL in employee rows
-        formula = (
-            f'(COUNTIF({col_l}${name_row0}:{col_l}${name_row0+5},"AL")+'
-            f'COUNTIF({col_l}${name_row0}:{col_l}${name_row0+5},"SL"))>2'
-        )
         ws.conditional_formatting.add(
             col_range,
-            FormulaRule(formula=[formula], fill=FILL_WARN),
+            FormulaRule(
+                formula=[
+                    f'(COUNTIF({col_l}${name_row0}:{col_l}${name_row0 + 5},"AL")+'
+                    f'COUNTIF({col_l}${name_row0}:{col_l}${name_row0 + 5},"SL"))>2'
+                ],
+                fill=FILL_WARN,
+            ),
         )
 
     # =====================================================================
-    # Sheet: 使用說明
+    # 本月排班日曆（純檢視）
     # =====================================================================
-    ws_help = wb.create_sheet("使用說明")
-    ws_help["A1"] = "部門更表模版 — 使用說明"
+    ws_cal = wb.create_sheet("本月排班日曆")
+    ws_cal["A1"] = "本月排班日曆（純檢視｜請勿在此輸入）"
+    ws_cal["A1"].font = FONT_TITLE
+    ws_cal.merge_cells("A1:G1")
+
+    ws_cal["A2"] = "目前月份"
+    ws_cal["B2"] = '=TEXT(TODAY(),"YYYY年M月")'
+    ws_cal["B2"].font = Font(name="Microsoft JhengHei", bold=True, size=14, color="1F4E79")
+    ws_cal["C2"] = "← 隨 TODAY() 自動切換；請假異動請到「請假登記」"
+    ws_cal["C2"].font = FONT_NOTE
+
+    # Anchor: first day of current month, and Monday of that week
+    ws_cal["A3"] = "本月1日"
+    ws_cal["B3"] = '=DATE(YEAR(TODAY()),MONTH(TODAY()),1)'
+    ws_cal["B3"].number_format = "YYYY-MM-DD"
+    ws_cal["C3"] = "月曆起始週一"
+    ws_cal["D3"] = "=B3-WEEKDAY(B3,2)+1"
+    ws_cal["D3"].number_format = "YYYY-MM-DD"
+
+    # Weekday headers
+    cal_start_row = 5
+    weekdays = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
+    for i, wd in enumerate(weekdays):
+        cell = ws_cal.cell(cal_start_row, 1 + i, wd)
+        cell.fill = FILL_HEADER
+        cell.font = FONT_HDR
+        cell.alignment = CENTER
+        cell.border = THIN
+        ws_cal.column_dimensions[get_column_letter(1 + i)].width = 16
+
+    # Each day block: 8 rows (date, holiday name, 6 employees)
+    # 6 week rows max
+    BLOCK = 8
+    for week in range(6):
+        base_r = cal_start_row + 1 + week * BLOCK
+        for dow in range(7):
+            col = 1 + dow
+            col_l = get_column_letter(col)
+            # Date expression (no leading =) for embedding in other formulas
+            d_expr = f"$D$3+{week}*7+{dow}"
+
+            date_cell = ws_cal.cell(
+                base_r,
+                col,
+                f'=IF(OR(MONTH({d_expr})<>MONTH($B$3),YEAR({d_expr})<>YEAR($B$3)),"",{d_expr})',
+            )
+            date_cell.number_format = "M/D"
+            date_cell.font = FONT_WHITE
+            date_cell.alignment = CENTER
+            date_cell.border = THIN
+            date_cell.fill = FILL_SUBHDR
+
+            # Holiday name
+            hol_cell = ws_cal.cell(
+                base_r + 1,
+                col,
+                f'=IF({col_l}{base_r}="","",'
+                f'IFERROR(INDEX(HolidayNames,MATCH({d_expr},HolidayDates,0)),""))',
+            )
+            hol_cell.font = FONT_TINY
+            hol_cell.alignment = CENTER
+            hol_cell.border = THIN
+            hol_cell.fill = FILL_HOLIDAY
+
+            # 6 employees — leave overrides planned shift
+            for ei in range(6):
+                er = base_r + 2 + ei
+                set_row = EMP_FIRST_ROW + ei
+                name_ref = f"'設定'!$B${set_row}"
+                leave_al = (
+                    f'COUNTIFS(LeaveName,{name_ref},LeaveDate,"="&({d_expr}),LeaveType,"AL")'
+                )
+                leave_sl = (
+                    f'COUNTIFS(LeaveName,{name_ref},LeaveDate,"="&({d_expr}),LeaveType,"SL")'
+                )
+                cell = ws_cal.cell(
+                    er,
+                    col,
+                    f'=IF(OR({col_l}{base_r}="",{name_ref}=""),"",'
+                    f'IF({leave_al}>0,"AL",'
+                    f'IF({leave_sl}>0,"SL",'
+                    f'{planned_shift_formula(d_expr, set_row)})))',
+                )
+                cell.alignment = CENTER
+                cell.border = THIN
+                cell.font = FONT_SMALL
+                cell.fill = FILL_READONLY
+
+            # Holiday purple fill on date + holiday-name rows only (keep shift colors on emp rows)
+            date_hol_range = f"{col_l}{base_r}:{col_l}{base_r + 1}"
+            ws_cal.conditional_formatting.add(
+                date_hol_range,
+                FormulaRule(
+                    formula=[f'AND({col_l}${base_r}<>"",{col_l}${base_r + 1}<>"")'],
+                    fill=FILL_HOLIDAY,
+                ),
+            )
+            emp_range = f"{col_l}{base_r + 2}:{col_l}{base_r + 7}"
+            add_shift_cf(ws_cal, emp_range)
+
+        # Employee name labels (right side) for this week block
+        ws_cal.cell(base_r, 9, "日期").font = FONT_TINY
+        ws_cal.cell(base_r + 1, 9, "公眾假期").font = FONT_TINY
+        for ei in range(6):
+            label = ws_cal.cell(
+                base_r + 2 + ei,
+                9,
+                f"='設定'!B{EMP_FIRST_ROW + ei}",
+            )
+            label.font = FONT_TINY
+            label.fill = FILL_SETTINGS
+            label.border = THIN
+
+    # Legend
+    leg_r = cal_start_row + 1 + 6 * BLOCK + 1
+    ws_cal.cell(leg_r, 1, "圖例（與排班表一致）").font = FONT_BOLD
+    for i, (code, fill) in enumerate(
+        [("S", FILL_S), ("A", FILL_A), ("P", FILL_P), ("N", FILL_N), ("AL", FILL_AL), ("SL", FILL_SL)]
+    ):
+        cell = ws_cal.cell(leg_r + 1, 1 + i, code)
+        cell.fill = fill
+        cell.border = THIN
+        cell.alignment = CENTER
+        cell.font = FONT_BOLD
+
+    ws_cal.cell(leg_r + 3, 1, "注意：此表全部為公式自動生成，請勿直接輸入。請假請到「請假登記」。").font = FONT_NOTE
+    ws_cal.merge_cells(start_row=leg_r + 3, start_column=1, end_row=leg_r + 3, end_column=7)
+    ws_cal.column_dimensions["I"].width = 12
+    ws_cal.freeze_panes = "A6"
+
+    # =====================================================================
+    # 使用提示
+    # =====================================================================
+    ws_help = wb.create_sheet("使用提示")
+    ws_help["A1"] = "部門更表模版 — 使用提示"
     ws_help["A1"].font = FONT_TITLE
     ws_help.merge_cells("A1:B1")
 
     sections = [
         (
-            "一、每年年頭要做的兩件事",
+            "一、如何在「請假登記」新增請假紀錄",
             [
-                "1. 打開「設定」工作表，把【顯示年份】改成新的年份（例如 2027）。",
-                "   → 排班表所有週份日期（約 52/53 個星期一）會用 DATE／WEEKDAY 自動重算，無需複製新表。",
-                "2. 打開「公眾假期」工作表，在清單下方空白列追加新一年的假期「日期」與「假期名稱」。",
-                "   → 主表淺紫標示、補假計算會自動讀取新資料。",
-                "3. 【輪班基準日】必須保持 2026-06-29 不變，否則全員輪班相位會錯位。",
-                "4. 換年前建議：把各人「累積補假結餘」數字抄到「期初補假」，再改年份（本年新增會依新表重算）。",
-                "5. 檢查「請假登錄」：換年後欄位對應新日期，請清除過期 AL/SL 或改填新一年請假。",
+                "1. 打開「請假登記」工作表。",
+                "2. 在表格空白列選擇【員工姓名】（下拉選單來自設定區）、填寫【請假日期】（實際請假當天）、選擇【假別】AL 或 SL。",
+                "3. 連續多日請假：每一天各新增一列（例如 3/1～3/3 年假＝三列）。",
+                "4. 排班表週欄、本月排班日曆、已用／剩餘年假都會自動用公式從本表計算，請勿在其他表輸入請假。",
+                "5. 修改或刪除請假：直接改／清「請假登記」該列即可。",
             ],
         ),
         (
-            "二、人員流動（改姓名）",
+            "二、「本月排班日曆」為純檢視表（不可直接輸入）",
             [
-                "1. 只在「設定」工作表的六個姓名格修改；排班表、快覽區、請假登錄的姓名皆以公式連結，會自動更新。",
-                "2. 班次類型：S＝固定正常班；R＝參與輪班；V＝空缺。",
-                "3. 目前配置：ARTHUR＝S；PATRICK／CARREY／CESC／LUCAS＝R（Offset 0/4/8/12）；第六格＝空缺。",
+                "1. 月曆隨 TODAY() 自動顯示當前月份（EOMONTH／DATE 推算）。",
+                "2. 每日顯示六位員工當日班次（A/P/N/S）；若「請假登記」有該日紀錄則改顯示 AL／SL 並變色。",
+                "3. 公眾假期會顯示假期名稱並以淺紫標示。",
+                "4. 請勿在此表輸入任何資料；所有請假異動必須回到「請假登記」。",
+                "5. 換月不會遺失紀錄——歷史請假永久保存在「請假登記」。",
             ],
         ),
         (
-            "三、如何請年假／病假（AL／SL）",
+            "三、如何在「假期上班登記」手動登記上班人員",
             [
-                "1. 到「請假登錄」工作表，在對應【人員 × 週份】格選擇或輸入 AL（年假）或 SL（病假）。",
-                "2. 排班表同一位置會自動以 AL/SL 覆蓋原本的 S/A/P/N。",
-                "3. 統計區「已用年假／已用病假」按顯示年份（本表週份）自動 COUNTIF；剩餘年假＝額度−已用。",
-                "4. 同一週若 AL+SL 合計超過 2 人，該週整欄會自動標紅警示。",
+                "1. 打開「假期上班登記」：日期與假期名稱已由「公眾假期」自動帶入。",
+                "2. 在該列「上班人員1～6」用下拉選單選擇當日實際仍上班的員工（可留空）。",
+                "3. 下方「補假統計區」會自動 COUNTIF／SUMPRODUCT 計算每人公眾假期上班次數。",
+                "4. 「排班表」的本年新增補假／累積補假結餘會引用此統計（累積＝期初補假＋本年）。",
+                "5. 換年前建議把累積結餘抄入「期初補假」，再改顯示年份。",
             ],
         ),
         (
-            "四、16 週輪班循環與 Offset（永久有效）",
+            "四、年頭更新與人員",
             [
-                "1. 錨點：輪班基準日 = 2026/6/29（星期一）。此日期永久固定，跨年也不改。",
-                "2. 計算：週差 = INT((該週起始日 − 基準日)/7)；位置 = MOD(週差 + Offset, 16)。",
-                "3. 循環段落：0–3 週→A；4–7 週→P；8–11 週→N；12–15 週→P；然後回到 A。",
-                "4. Offset 0/4/8/12 錯開四人，保證任意一週 A、P、N 三班都有人當值（其中一段 P 會有兩人）。",
-                "5. 因用「與基準日相差週數」計算，換年不會重置循環，班次連續銜接。",
+                "1. 「設定」→ 只改【顯示年份】；【輪班基準日】保持 2026-06-29。",
+                "2. 「公眾假期」追加新一年日期與名稱。",
+                "3. 每人【年假額度（天）】在設定表各自填寫（已取消統一額度）。",
+                "4. 改姓名只改設定區；全表公式自動更新。第六人：填姓名、類型改 R/S、設 Offset 與額度。",
             ],
         ),
         (
-            "五、新增第六人",
+            "五、16 週輪班（不變）",
             [
-                "1. 在「設定」第 6 列填入姓名。",
-                "2. 將「班次類型」由 V 改為 R（若要固定正常班則改 S）。",
-                "3. 設定 Offset：建議選尚未使用、且能維持 A/P/N 覆蓋的值；若維持四人輪班結構，可與其中一人錯開討論後再定。",
-                "4. 排班表該列公式已就緒，一有姓名即會顯示班次；並可在「請假登錄」為其登記 AL/SL。",
-                "5. 「期初補假」可按實際結餘填入；統計欄會自動啟用。",
+                "錨點 2026-06-29；MOD(週差+Offset,16)：0–3 A、4–7 P、8–11 N、12–15 P。",
+                "Offset 0/4/8/12 錯開，保證每週 A/P/N 皆有人。ARTHUR 固定 S。",
             ],
         ),
         (
             "六、顏色圖例",
             [
-                "S＝白（正常班）｜A＝灰（早班）｜P＝綠（中班）｜N＝藍（晚班）",
-                "AL＝黃（年假）｜SL＝橙（病假）｜公眾假期週＝表頭淺紫｜衝突週＝整欄紅底",
-            ],
-        ),
-        (
-            "七、工作表一覽",
-            [
-                "排班表 — 快覽＋全年主表＋統計（凍結首列區與姓名／統計欄）",
-                "設定 — 年份、基準日、年假額度、六人姓名／類型／Offset",
-                "請假登錄 — 輸入 AL/SL",
-                "公眾假期 — 每年追加假期清單",
-                "使用說明 — 本頁",
+                "S＝白｜A＝灰｜P＝綠｜N＝藍｜AL＝黃｜SL＝橙｜公眾假期＝淺紫｜衝突週＝紅",
             ],
         ),
     ]
 
     r = 3
     for title, lines in sections:
-        ws_help.cell(r, 1, title).font = FONT_BOLD
-        ws_help.cell(r, 1).fill = FILL_SUBHDR
+        ws_help.cell(r, 1, title).fill = FILL_SUBHDR
         ws_help.cell(r, 1).font = FONT_WHITE
         ws_help.merge_cells(start_row=r, start_column=1, end_row=r, end_column=2)
         r += 1
@@ -821,10 +1040,17 @@ def build_workbook():
         r += 1
 
     ws_help.column_dimensions["A"].width = 100
-    ws_help.column_dimensions["B"].width = 20
 
-    # Reorder sheets
-    order = ["排班表", "設定", "請假登錄", "公眾假期", "使用說明"]
+    # Sheet order
+    order = [
+        "排班表",
+        "設定",
+        "請假登記",
+        "本月排班日曆",
+        "假期上班登記",
+        "公眾假期",
+        "使用提示",
+    ]
     for idx, name in enumerate(order):
         wb.move_sheet(name, offset=idx - wb.sheetnames.index(name))
 
