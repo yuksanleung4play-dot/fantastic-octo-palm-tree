@@ -1,23 +1,24 @@
 Attribute VB_Name = "MapOTCClientFunds"
 ' ==================================================
-' MapOTCClientFunds - 完整版 v5
-' 功能：
-'   1. 動態識別 OTC客戶資金 表頭
-'   2. 按賬號映射 Other Base 當日權益/初始保證金 至 OTC Sheet
-'   3. 101758000 賬號計算匯率寫入 B1
-'   4. 有 CNH 行的賬號，Excess 旁顯示 CNH/USD 可用明細
-'   5. Excess 寫入公式 =Equity-Margin
-'   6. 同天多次運行：Margin 低於上次則標紅
-'   7. C14/H14/M14/R14 顯示上次導入 Margin 值
-'   8. D14/I14/N14/S14 顯示上次導入時間
+' MapOTCClientFunds - full version v6
+' Features:
+'   1. Dynamically detect OTC client funds headers
+'   2. Map Other Base equity/init margin to OTC sheet by account
+'   3. Account 101758000: write FX rate to B1
+'   4. Accounts with CNH: show CNH/USD available note beside Excess
+'   5. Excess formula = Equity - Margin
+'   6. Same-day rerun: highlight Margin red if lower than previous
+'   7. C14/H14/M14/R14 show previous Margin
+'   8. D14/I14/N14/S14 show previous import time
 '
-' 編碼說明（v5）：
-'   繁體 VBA 編輯器為 Big5，無法正確保存簡體字串（GBK 表頭）。
-'   所有簡體表頭比對字串一律用 ChrW() Unicode 碼位組出，繞開編碼問題。
-'   繁體字串（編輯器原生支援）維持字面量寫法。
+' Encoding (v6):
+'   Big5 VBA editors corrupt Chinese string literals (SC GBK headers
+'   and even TC text depending on paste/codepage). ALL Chinese strings
+'   are built with ChrW() Unicode codepoints via U() / SC_* / TC_* / Msg_*.
+'   Runtime code has ZERO Chinese string literals.
 ' ==================================================
 
-' 以 Unicode 碼位組出字串（避免 Big5 編輯器破壞簡體字面量）
+' Build a string from Unicode codepoints (bypass editor codepage)
 Private Function U(ParamArray cps() As Variant) As String
     Dim i As Long
     Dim s As String
@@ -28,90 +29,339 @@ Private Function U(ParamArray cps() As Variant) As String
     U = s
 End Function
 
-' 簡體表頭字串（全部經 ChrW，對應 GBK Sheet 欄位名）
+Private Function SheetOTCClientFunds() As String
+    ' OTC ke-hu zi-jin (TC sheet name)
+    SheetOTCClientFunds = U(&H004F, &H0054, &H0043, &H5BA2, &H6236, &H8CC7, &H91D1)
+End Function
+
 Private Function SC_KeHuZhangHao() As String
-    ' 客户账号
+    ' SC: kehu zhanghao
     SC_KeHuZhangHao = U(&H5BA2, &H6237, &H8D26, &H53F7)
 End Function
 
 Private Function SC_ZiJinZhangHao() As String
-    ' 资金账号
+    ' SC: zijin zhanghao
     SC_ZiJinZhangHao = U(&H8D44, &H91D1, &H8D26, &H53F7)
 End Function
 
 Private Function SC_KeHuZiJinZhangHao() As String
-    ' 客户资金账号
+    ' SC: kehu zijin zhanghao
     SC_KeHuZiJinZhangHao = U(&H5BA2, &H6237, &H8D44, &H91D1, &H8D26, &H53F7)
 End Function
 
 Private Function SC_BiZhongZuBie() As String
-    ' 币种组别
+    ' SC: bizhong zubie
     SC_BiZhongZuBie = U(&H5E01, &H79CD, &H7EC4, &H522B)
 End Function
 
 Private Function SC_BiZhongZu() As String
-    ' 币种组
+    ' SC: bizhong zu
     SC_BiZhongZu = U(&H5E01, &H79CD, &H7EC4)
 End Function
 
 Private Function SC_BiZhongZuHao() As String
-    ' 币种组号
+    ' SC: bizhong zuhao
     SC_BiZhongZuHao = U(&H5E01, &H79CD, &H7EC4, &H53F7)
 End Function
 
 Private Function SC_BiZhongHao() As String
-    ' 币种号
+    ' SC: bizhong hao
     SC_BiZhongHao = U(&H5E01, &H79CD, &H53F7)
 End Function
 
 Private Function SC_BiZhong() As String
-    ' 币种
+    ' SC: bizhong
     SC_BiZhong = U(&H5E01, &H79CD)
 End Function
 
 Private Function SC_DangRiQuanYi() As String
-    ' 当日权益
+    ' SC: dangri quanyi
     SC_DangRiQuanYi = U(&H5F53, &H65E5, &H6743, &H76CA)
 End Function
 
 Private Function SC_JinRiQuanYi() As String
-    ' 今日权益
+    ' SC: jinri quanyi
     SC_JinRiQuanYi = U(&H4ECA, &H65E5, &H6743, &H76CA)
 End Function
 
 Private Function SC_JinQuanYi() As String
-    ' 今权益
+    ' SC: jin quanyi
     SC_JinQuanYi = U(&H4ECA, &H6743, &H76CA)
 End Function
 
 Private Function SC_KeHuChuShiBaoZhengJin() As String
-    ' 客户初始保证金
+    ' SC: kehu chushi baozhengjin
     SC_KeHuChuShiBaoZhengJin = U(&H5BA2, &H6237, &H521D, &H59CB, &H4FDD, &H8BC1, &H91D1)
 End Function
 
 Private Function SC_ChuShiBaoZhengJin() As String
-    ' 初始保证金
+    ' SC: chushi baozhengjin
     SC_ChuShiBaoZhengJin = U(&H521D, &H59CB, &H4FDD, &H8BC1, &H91D1)
 End Function
 
 Private Function SC_BaoZhengJin() As String
-    ' 保证金
+    ' SC: baozhengjin
     SC_BaoZhengJin = U(&H4FDD, &H8BC1, &H91D1)
 End Function
 
 Private Function SC_KeHuBaoZhengJin() As String
-    ' 客户保证金
+    ' SC: kehu baozhengjin
     SC_KeHuBaoZhengJin = U(&H5BA2, &H6237, &H4FDD, &H8BC1, &H91D1)
 End Function
 
 Private Function SC_KeYong1() As String
-    ' 可用1
-    SC_KeYong1 = U(&H53EF, &H7528) & "1"
+    ' SC: keyong1
+    SC_KeYong1 = U(&H53EF, &H7528, &H0031)
 End Function
 
 Private Function SC_KeYong() As String
-    ' 可用
+    ' SC: keyong
     SC_KeYong = U(&H53EF, &H7528)
+End Function
+
+Private Function TC_KeHuZhangHao() As String
+    ' TC: kehu zhanghao
+    TC_KeHuZhangHao = U(&H5BA2, &H6236, &H8CEC, &H865F)
+End Function
+
+Private Function TC_ZiJinZhangHao() As String
+    ' TC: zijin zhanghao
+    TC_ZiJinZhangHao = U(&H8CC7, &H91D1, &H8CEC, &H865F)
+End Function
+
+Private Function TC_KeHuZiJinZhangHao() As String
+    ' TC: kehu zijin zhanghao
+    TC_KeHuZiJinZhangHao = U(&H5BA2, &H6236, &H8CC7, &H91D1, &H8CEC, &H865F)
+End Function
+
+Private Function TC_BiZhongZuBie() As String
+    ' TC: bizhong zubie
+    TC_BiZhongZuBie = U(&H5E63, &H7A2E, &H7D44, &H5225)
+End Function
+
+Private Function TC_BiZhongZu() As String
+    ' TC: bizhong zu
+    TC_BiZhongZu = U(&H5E63, &H7A2E, &H7D44)
+End Function
+
+Private Function TC_BiZhongZuHao() As String
+    ' TC: bizhong zuhao
+    TC_BiZhongZuHao = U(&H5E63, &H7A2E, &H7D44, &H865F)
+End Function
+
+Private Function TC_BiZhongHao() As String
+    ' TC: bizhong hao
+    TC_BiZhongHao = U(&H5E63, &H7A2E, &H865F)
+End Function
+
+Private Function TC_BiZhong() As String
+    ' TC: bizhong
+    TC_BiZhong = U(&H5E63, &H7A2E)
+End Function
+
+Private Function TC_DangRiQuanYi() As String
+    ' TC: dangri quanyi
+    TC_DangRiQuanYi = U(&H7576, &H65E5, &H6B0A, &H76CA)
+End Function
+
+Private Function TC_JinRiQuanYi() As String
+    ' TC: jinri quanyi
+    TC_JinRiQuanYi = U(&H4ECA, &H65E5, &H6B0A, &H76CA)
+End Function
+
+Private Function TC_JinQuanYi() As String
+    ' TC: jin quanyi
+    TC_JinQuanYi = U(&H4ECA, &H6B0A, &H76CA)
+End Function
+
+Private Function TC_KeHuChuShiBaoZhengJin() As String
+    ' TC: kehu chushi baozhengjin
+    TC_KeHuChuShiBaoZhengJin = U(&H5BA2, &H6236, &H521D, &H59CB, &H4FDD, &H8B49, &H91D1)
+End Function
+
+Private Function TC_ChuShiBaoZhengJin() As String
+    ' TC: chushi baozhengjin
+    TC_ChuShiBaoZhengJin = U(&H521D, &H59CB, &H4FDD, &H8B49, &H91D1)
+End Function
+
+Private Function TC_BaoZhengJin() As String
+    ' TC: baozhengjin
+    TC_BaoZhengJin = U(&H4FDD, &H8B49, &H91D1)
+End Function
+
+Private Function TC_KeHuBaoZhengJin() As String
+    ' TC: kehu baozhengjin
+    TC_KeHuBaoZhengJin = U(&H5BA2, &H6236, &H4FDD, &H8B49, &H91D1)
+End Function
+
+Private Function MsgMissingAcct() As String
+    ' UI message: MsgMissingAcct
+    MsgMissingAcct = U(&H0020, &H0020, &H002D, &H0020, &H5BA2, &H6236, &H8CEC, &H865F, &HFF0F, &H8CC7, &H91D1, &H8CEC, &H865F)
+End Function
+
+Private Function MsgMissingCurrGroup() As String
+    ' UI message: MsgMissingCurrGroup
+    MsgMissingCurrGroup = U(&H0020, &H0020, &H002D, &H0020, &H5E63, &H7A2E, &H7D44, &H5225, &HFF0F, &H5E63, &H7A2E, &H7D44)
+End Function
+
+Private Function MsgMissingCurrCode() As String
+    ' UI message: MsgMissingCurrCode
+    MsgMissingCurrCode = U(&H0020, &H0020, &H002D, &H0020, &H5E63, &H7A2E, &H865F, &HFF0F, &H5E63, &H7A2E)
+End Function
+
+Private Function MsgMissingDailyEq() As String
+    ' UI message: MsgMissingDailyEq
+    MsgMissingDailyEq = U(&H0020, &H0020, &H002D, &H0020, &H7576, &H65E5, &H6B0A, &H76CA, &HFF0F, &H4ECA, &H65E5, &H6B0A, &H76CA)
+End Function
+
+Private Function MsgMissingMargin() As String
+    ' UI message: MsgMissingMargin
+    MsgMissingMargin = U(&H0020, &H0020, &H002D, &H0020, &H5BA2, &H6236, &H521D, &H59CB, &H4FDD, &H8B49, &H91D1, &HFF0F, &H4FDD, &H8B49, &H91D1)
+End Function
+
+Private Function MsgMissingColsBody() As String
+    ' UI message: MsgMissingColsBody
+    MsgMissingColsBody = U(&H004F, &H0054, &H0043, &H5BA2, &H6236, &H8CC7, &H91D1, &H0020, &H8868, &H4E2D, &H627E, &H4E0D, &H5230, &H4EE5, &H4E0B, &H6B04, &H4F4D, &HFF1A)
+End Function
+
+Private Function MsgConfirmRetry() As String
+    ' UI message: MsgConfirmRetry
+    MsgConfirmRetry = U(&H8ACB, &H78BA, &H8A8D, &H8868, &H982D, &H540D, &H7A31, &H5F8C, &H91CD, &H8A66, &H3002)
+End Function
+
+Private Function MsgTitleColFail() As String
+    ' UI message: MsgTitleColFail
+    MsgTitleColFail = U(&H6B04, &H4F4D, &H8B58, &H5225, &H5931, &H6557)
+End Function
+
+Private Function MsgDone() As String
+    ' UI message: MsgDone
+    MsgDone = U(&H5B8C, &H6210, &HFF01, &H6578, &H64DA, &H5DF2, &H6210, &H529F, &H5C0D, &H61C9, &H81F3, &H0020, &H004F, &H0054, &H0043, &H0020, &H0053, &H0068, &H0065, &H0065, &H0074, &H3002)
+End Function
+
+Private Function MsgLogCleared() As String
+    ' UI message: MsgLogCleared
+    MsgLogCleared = U(&H005F, &H004D, &H0061, &H0072, &H0067, &H0069, &H006E, &H004C, &H006F, &H0067, &H0020, &H5DF2, &H6E05, &H7A7A, &H4E26, &H4FEE, &H6B63, &H683C, &H5F0F, &H3002)
+End Function
+
+Private Function MsgRerun() As String
+    ' UI message: MsgRerun
+    MsgRerun = U(&H8ACB, &H91CD, &H65B0, &H904B, &H884C, &H0020, &H004D, &H0061, &H0070, &H004F, &H0054, &H0043, &H0043, &H006C, &H0069, &H0065, &H006E, &H0074, &H0046, &H0075, &H006E, &H0064, &H0073, &H3002)
+End Function
+
+Private Function MsgLogMissing() As String
+    ' UI message: MsgLogMissing
+    MsgLogMissing = U(&H005F, &H004D, &H0061, &H0072, &H0067, &H0069, &H006E, &H004C, &H006F, &H0067, &H0020, &H4E0D, &H5B58, &H5728, &HFF0C, &H904B, &H884C, &H0020, &H004D, &H0061, &H0070, &H004F, &H0054, &H0043, &H0043, &H006C, &H0069, &H0065, &H006E, &H0074, &H0046, &H0075, &H006E, &H0064, &H0073, &H0020, &H6703, &H81EA, &H52D5, &H5EFA, &H7ACB, &H3002)
+End Function
+
+Private Function MsgAllHeaders() As String
+    ' UI message: MsgAllHeaders
+    MsgAllHeaders = U(&H003D, &H003D, &H003D, &H0020, &H6240, &H6709, &H8868, &H982D, &H0020, &H003D, &H003D, &H003D)
+End Function
+
+Private Function MsgTitleHeaderCheck() As String
+    ' UI message: MsgTitleHeaderCheck
+    MsgTitleHeaderCheck = U(&H8868, &H982D, &H6AA2, &H67E5)
+End Function
+
+Private Function MsgAcctColNotFound() As String
+    ' UI message: MsgAcctColNotFound
+    MsgAcctColNotFound = U(&H003F, &H0020, &H627E, &H4E0D, &H5230, &H8CEC, &H865F, &H6B04, &H4F4D, &HFF01, &H8ACB, &H67E5, &H770B, &H8868, &H982D, &H5217, &H8868, &H78BA, &H8A8D, &H540D, &H7A31, &H3002)
+End Function
+
+Private Function MsgAcctColEq() As String
+    ' UI message: MsgAcctColEq
+    MsgAcctColEq = U(&H8CEC, &H865F, &H5217, &H003D)
+End Function
+
+Private Function MsgGroupColEq() As String
+    ' UI message: MsgGroupColEq
+    MsgGroupColEq = U(&H0020, &H0020, &H7D44, &H5225, &H5217, &H003D)
+End Function
+
+Private Function MsgCurrColEq() As String
+    ' UI message: MsgCurrColEq
+    MsgCurrColEq = U(&H0020, &H0020, &H5E63, &H7A2E, &H5217, &H003D)
+End Function
+
+Private Function MsgRowAcct() As String
+    ' UI message: MsgRowAcct
+    MsgRowAcct = U(&H003A, &H0020, &H8CEC, &H865F, &H003D, &H005B)
+End Function
+
+Private Function MsgRowGroup() As String
+    ' UI message: MsgRowGroup
+    MsgRowGroup = U(&H0020, &H0020, &H0020, &H0020, &H0020, &H0020, &H0020, &H7D44, &H5225, &H003D, &H005B)
+End Function
+
+Private Function MsgRowCurr() As String
+    ' UI message: MsgRowCurr
+    MsgRowCurr = U(&H005D, &H0020, &H0020, &H5E63, &H7A2E, &H003D, &H005B)
+End Function
+
+Private Function MsgSampleTitle() As String
+    ' UI message: MsgSampleTitle
+    MsgSampleTitle = U(&H003D, &H003D, &H003D, &H0020, &H524D, &H0035, &H7B46, &H6578, &H64DA, &H6A23, &H672C, &H0020, &H003D, &H003D, &H003D)
+End Function
+
+Private Function MsgTitleDataCheck() As String
+    ' UI message: MsgTitleDataCheck
+    MsgTitleDataCheck = U(&H6578, &H64DA, &H6AA2, &H67E5)
+End Function
+
+Private Function MsgOtcAcctRows() As String
+    ' UI message: MsgOtcAcctRows
+    MsgOtcAcctRows = U(&H003D, &H003D, &H003D, &H0020, &H004F, &H0054, &H0043, &H0020, &H0053, &H0068, &H0065, &H0065, &H0074, &H0020, &H8CEC, &H865F, &H884C, &H0020, &H003D, &H003D, &H003D)
+End Function
+
+Private Function MsgTitleTargetAcct() As String
+    ' UI message: MsgTitleTargetAcct
+    MsgTitleTargetAcct = U(&H76EE, &H6A19, &H8CEC, &H865F)
+End Function
+
+Private Function MsgLogSheetMissing() As String
+    ' UI message: MsgLogSheetMissing
+    MsgLogSheetMissing = U(&H003F, &H0020, &H005F, &H004D, &H0061, &H0072, &H0067, &H0069, &H006E, &H004C, &H006F, &H0067, &H0020, &H0053, &H0068, &H0065, &H0065, &H0074, &H0020, &H4E0D, &H5B58, &H5728, &HFF01)
+End Function
+
+Private Function MsgLogEmpty() As String
+    ' UI message: MsgLogEmpty
+    MsgLogEmpty = U(&H003F, &H0020, &H005F, &H004D, &H0061, &H0072, &H0067, &H0069, &H006E, &H004C, &H006F, &H0067, &H0020, &H662F, &H7A7A, &H7684, &H3002)
+End Function
+
+Private Function MsgLogContent() As String
+    ' UI message: MsgLogContent
+    MsgLogContent = U(&H003D, &H003D, &H003D, &H0020, &H005F, &H004D, &H0061, &H0072, &H0067, &H0069, &H006E, &H004C, &H006F, &H0067, &H0020, &H5167, &H5BB9, &H0020, &H003D, &H003D, &H003D)
+End Function
+
+Private Function MsgTitleLogRecord() As String
+    ' UI message: MsgTitleLogRecord
+    MsgTitleLogRecord = U(&H004C, &H006F, &H0067, &H0020, &H8A18, &H9304)
+End Function
+
+Private Function MsgTodayDate() As String
+    ' UI message: MsgTodayDate
+    MsgTodayDate = U(&H4ECA, &H5929, &H65E5, &H671F, &HFF1A, &H005B)
+End Function
+
+Private Function MsgLogDate() As String
+    ' UI message: MsgLogDate
+    MsgLogDate = U(&H004C, &H006F, &H0067, &H0020, &H65E5, &H671F, &HFF1A, &H005B)
+End Function
+
+Private Function MsgDateSame() As String
+    ' UI message: MsgDateSame
+    MsgDateSame = U(&H003F, &H0020, &H65E5, &H671F, &H76F8, &H540C, &HFF0C, &H6BD4, &H8F03, &H908F, &H8F2F, &H53EF, &H6B63, &H5E38, &H89F8, &H767C)
+End Function
+
+Private Function MsgDateDiff() As String
+    ' UI message: MsgDateDiff
+    MsgDateDiff = U(&H003F, &H0020, &H65E5, &H671F, &H4E0D, &H540C, &HFF01, &H8ACB, &H904B, &H884C, &H0020, &H0046, &H0069, &H0078, &H0041, &H006E, &H0064, &H0043, &H006C, &H0065, &H0061, &H0072, &H004D, &H0061, &H0072, &H0067, &H0069, &H006E, &H004C, &H006F, &H0067)
+End Function
+
+Private Function MsgTitleDateCompare() As String
+    ' UI message: MsgTitleDateCompare
+    MsgTitleDateCompare = U(&H65E5, &H671F, &H6BD4, &H5C0D)
 End Function
 
 
@@ -119,11 +369,11 @@ Sub MapOTCClientFunds()
 
     Dim wsSrc As Worksheet
     Dim wsDst As Worksheet
-    Set wsSrc = ThisWorkbook.Sheets("OTC客戶資金")
+    Set wsSrc = ThisWorkbook.Sheets(SheetOTCClientFunds())
     Set wsDst = ThisWorkbook.Sheets("OTC")
 
     ' ==================================================
-    ' 第一步：動態查找 OTC客戶資金 表頭列號
+    ' Step 1: find header column indexes
     ' ==================================================
     Dim headerRow As Long
     headerRow = 1
@@ -135,13 +385,19 @@ Sub MapOTCClientFunds()
     Dim colInitMargin As Long
     Dim colAvail      As Long
 
-    ' 預先組出簡體表頭（ChrW），繁體維持字面量
+    ' Pre-build SC + TC header strings via ChrW
     Dim hKeHuZhangHao As String, hZiJinZhangHao As String, hKeHuZiJinZhangHao As String
     Dim hBiZhongZuBie As String, hBiZhongZu As String, hBiZhongZuHao As String
     Dim hBiZhongHao As String, hBiZhong As String
     Dim hDangRiQuanYi As String, hJinRiQuanYi As String, hJinQuanYi As String
     Dim hKeHuChuShiBZJ As String, hChuShiBZJ As String, hBZJ As String, hKeHuBZJ As String
     Dim hKeYong1 As String, hKeYong As String
+
+    Dim tKeHuZhangHao As String, tZiJinZhangHao As String, tKeHuZiJinZhangHao As String
+    Dim tBiZhongZuBie As String, tBiZhongZu As String, tBiZhongZuHao As String
+    Dim tBiZhongHao As String, tBiZhong As String
+    Dim tDangRiQuanYi As String, tJinRiQuanYi As String, tJinQuanYi As String
+    Dim tKeHuChuShiBZJ As String, tChuShiBZJ As String, tBZJ As String, tKeHuBZJ As String
 
     hKeHuZhangHao = SC_KeHuZhangHao()
     hZiJinZhangHao = SC_ZiJinZhangHao()
@@ -161,6 +417,22 @@ Sub MapOTCClientFunds()
     hKeYong1 = SC_KeYong1()
     hKeYong = SC_KeYong()
 
+    tKeHuZhangHao = TC_KeHuZhangHao()
+    tZiJinZhangHao = TC_ZiJinZhangHao()
+    tKeHuZiJinZhangHao = TC_KeHuZiJinZhangHao()
+    tBiZhongZuBie = TC_BiZhongZuBie()
+    tBiZhongZu = TC_BiZhongZu()
+    tBiZhongZuHao = TC_BiZhongZuHao()
+    tBiZhongHao = TC_BiZhongHao()
+    tBiZhong = TC_BiZhong()
+    tDangRiQuanYi = TC_DangRiQuanYi()
+    tJinRiQuanYi = TC_JinRiQuanYi()
+    tJinQuanYi = TC_JinQuanYi()
+    tKeHuChuShiBZJ = TC_KeHuChuShiBaoZhengJin()
+    tChuShiBZJ = TC_ChuShiBaoZhengJin()
+    tBZJ = TC_BaoZhengJin()
+    tKeHuBZJ = TC_KeHuBaoZhengJin()
+
     Dim srcTotalCols As Long
     srcTotalCols = wsSrc.Cells(headerRow, wsSrc.Columns.Count).End(xlToLeft).Column
 
@@ -170,29 +442,29 @@ Sub MapOTCClientFunds()
         hVal = Trim(wsSrc.Cells(headerRow, h).Value)
 
         Select Case hVal
-            Case hKeHuZhangHao, "客戶賬號", _
-                 hZiJinZhangHao, "資金賬號", _
-                 hKeHuZiJinZhangHao, "客戶資金賬號"
+            Case hKeHuZhangHao, tKeHuZhangHao, _
+                 hZiJinZhangHao, tZiJinZhangHao, _
+                 hKeHuZiJinZhangHao, tKeHuZiJinZhangHao
                 colAcct = h
 
-            Case hBiZhongZuBie, "幣種組別", _
-                 hBiZhongZu, "幣種組", _
-                 hBiZhongZuHao, "幣種組號"
+            Case hBiZhongZuBie, tBiZhongZuBie, _
+                 hBiZhongZu, tBiZhongZu, _
+                 hBiZhongZuHao, tBiZhongZuHao
                 colCurrGroup = h
 
-            Case hBiZhongHao, "幣種號", _
-                 hBiZhong, "幣種"
+            Case hBiZhongHao, tBiZhongHao, _
+                 hBiZhong, tBiZhong
                 colCurrCode = h
 
-            Case hDangRiQuanYi, "當日權益", _
-                 hJinRiQuanYi, "今日權益", _
-                 hJinQuanYi, "今權益"
+            Case hDangRiQuanYi, tDangRiQuanYi, _
+                 hJinRiQuanYi, tJinRiQuanYi, _
+                 hJinQuanYi, tJinQuanYi
                 colDailyEq = h
 
-            Case hKeHuChuShiBZJ, "客戶初始保證金", _
-                 hChuShiBZJ, "初始保證金", _
-                 hBZJ, "保證金", _
-                 hKeHuBZJ, "客戶保證金"
+            Case hKeHuChuShiBZJ, tKeHuChuShiBZJ, _
+                 hChuShiBZJ, tChuShiBZJ, _
+                 hBZJ, tBZJ, _
+                 hKeHuBZJ, tKeHuBZJ
                 colInitMargin = h
 
             Case hKeYong1, hKeYong
@@ -200,24 +472,24 @@ Sub MapOTCClientFunds()
         End Select
     Next h
 
-    ' 找不到必要欄位則報錯退出
+    ' Exit if required columns missing
     If colAcct = 0 Or colCurrGroup = 0 Or colCurrCode = 0 _
        Or colDailyEq = 0 Or colInitMargin = 0 Then
 
         Dim missingCols As String
-        If colAcct = 0 Then missingCols = missingCols & "  - 客戶賬號／資金賬號" & vbCrLf
-        If colCurrGroup = 0 Then missingCols = missingCols & "  - 幣種組別／幣種組" & vbCrLf
-        If colCurrCode = 0 Then missingCols = missingCols & "  - 幣種號／幣種" & vbCrLf
-        If colDailyEq = 0 Then missingCols = missingCols & "  - 當日權益／今日權益" & vbCrLf
-        If colInitMargin = 0 Then missingCols = missingCols & "  - 客戶初始保證金／保證金" & vbCrLf
+        If colAcct = 0 Then missingCols = missingCols & MsgMissingAcct() & vbCrLf
+        If colCurrGroup = 0 Then missingCols = missingCols & MsgMissingCurrGroup() & vbCrLf
+        If colCurrCode = 0 Then missingCols = missingCols & MsgMissingCurrCode() & vbCrLf
+        If colDailyEq = 0 Then missingCols = missingCols & MsgMissingDailyEq() & vbCrLf
+        If colInitMargin = 0 Then missingCols = missingCols & MsgMissingMargin() & vbCrLf
 
-        MsgBox "OTC客戶資金 表中找不到以下欄位：" & vbCrLf & vbCrLf & _
-               missingCols & vbCrLf & "請確認表頭名稱後重試。", vbCritical, "欄位識別失敗"
+        MsgBox MsgMissingColsBody() & vbCrLf & vbCrLf & _
+               missingCols & vbCrLf & MsgConfirmRetry(), vbCritical, MsgTitleColFail()
         Exit Sub
     End If
 
     ' ==================================================
-    ' 第二步：確保 _MarginLog 暫存 Sheet 存在
+    ' Step 2: ensure _MarginLog sheet exists
     ' ==================================================
     Dim wsLog As Worksheet
     On Error Resume Next
@@ -239,14 +511,13 @@ Sub MapOTCClientFunds()
         wsLog.Columns(4).NumberFormat = "@"
     End If
 
-    ' 統一日期與時間格式
     Dim today   As String
     Dim nowTime As String
     today = Format(Date, "yyyy-mm-dd")
     nowTime = Format(Now, "hh:mm:ss")
 
     ' ==================================================
-    ' 第三步：寫入 Previous Margin 標題（B13）
+    ' Step 3: Previous Margin label (B13)
     ' ==================================================
     If wsDst.Cells(13, 2).Value = "" Then
         wsDst.Cells(13, 2).Value = "Previous Margin"
@@ -254,13 +525,13 @@ Sub MapOTCClientFunds()
     End If
 
     ' ==================================================
-    ' 第四步：主循環，遍歷 OTC Sheet 各賬號 Block
+    ' Step 4: main loop over OTC account blocks
     ' ==================================================
     Dim srcLR As Long
     srcLR = wsSrc.Cells(wsSrc.Rows.Count, colAcct).End(xlUp).Row
 
     Dim blockCols As Variant
-    blockCols = Array(1, 6, 11, 16, 21)   ' A/F/K/P/U 列（賬號列）
+    blockCols = Array(1, 6, 11, 16, 21)   ' A/F/K/P/U
 
     Dim b As Integer
     For b = 0 To UBound(blockCols)
@@ -268,13 +539,12 @@ Sub MapOTCClientFunds()
         Dim acctCol As Long
         Dim valCol  As Long
         acctCol = blockCols(b)
-        valCol = acctCol + 2    ' C/H/M/R（值列）
+        valCol = acctCol + 2    ' C/H/M/R
 
         Dim dstAcct As String
         dstAcct = Trim(wsDst.Cells(3, acctCol).Value)
         If dstAcct = "" Then GoTo NextBlock
 
-        ' 提取純數字賬號
         Dim acctNum As String
         Dim spPos As Long
         spPos = InStr(dstAcct, " ")
@@ -284,7 +554,6 @@ Sub MapOTCClientFunds()
             acctNum = dstAcct
         End If
 
-        ' 初始化數據變量
         Dim valEquityBase As Double
         Dim valMarginBase As Double
         Dim valMarginUSD  As Double
@@ -298,9 +567,6 @@ Sub MapOTCClientFunds()
         valAvailUSD = 0
         hasCNH = False
 
-        ' --------------------------------------------------
-        ' 在 OTC客戶資金 中查找對應賬號數據
-        ' --------------------------------------------------
         Dim j As Long
         For j = headerRow + 1 To srcLR
 
@@ -358,21 +624,11 @@ Sub MapOTCClientFunds()
             End If
         Next j
 
-        ' --------------------------------------------------
-        ' 回填 OTC Sheet
-        ' --------------------------------------------------
-
-        ' 1. Equity（行4）
+        ' 1. Equity (row 4)
         wsDst.Cells(4, valCol).Value = valEquityBase
         wsDst.Cells(4, valCol).NumberFormat = "#,##0.00"
 
-        ' --------------------------------------------------
-        ' 2. Margin（行5）+ Previous Margin（行14）+ 標色邏輯
-        '    順序：① 查舊值 → ② 寫 Previous Margin & 時間
-        '          → ③ 寫新 Margin → ④ 比較標色 → ⑤ 更新 Log
-        ' --------------------------------------------------
-
-        ' ① 查找 _MarginLog 舊記錄
+        ' 2. Margin (row 5) + Previous Margin (row 14) + color
         Dim logLR      As Long
         Dim prevMargin As Double
         Dim prevDate   As String
@@ -403,48 +659,38 @@ Sub MapOTCClientFunds()
             End If
         Next lj
 
-        ' ② 寫入 Previous Margin（C/H/M/R 14行）& 時間（D/I/N/S 14行）
         Dim timeCol As Long
-        timeCol = valCol + 1   ' D/I/N/S 列
+        timeCol = valCol + 1   ' D/I/N/S
 
         If foundLog And prevDate = today Then
-            ' 同天有記錄：顯示上次值及時間
             wsDst.Cells(14, valCol).Value = prevMargin
             wsDst.Cells(14, valCol).NumberFormat = "#,##0.00"
             wsDst.Cells(14, timeCol).Value = prevTime
         ElseIf foundLog And prevDate <> today Then
-            ' 跨天：顯示上次值，時間加上日期備注
             wsDst.Cells(14, valCol).Value = prevMargin
             wsDst.Cells(14, valCol).NumberFormat = "#,##0.00"
             wsDst.Cells(14, timeCol).Value = prevTime & " (" & prevDate & ")"
         Else
-            ' 首次運行：無歷史記錄
             wsDst.Cells(14, valCol).Value = "N/A"
             wsDst.Cells(14, timeCol).Value = ""
         End If
 
-        ' ③ 寫入新 Margin 值
         wsDst.Cells(5, valCol).Value = valMarginBase
         wsDst.Cells(5, valCol).NumberFormat = "#,##0.00"
 
-        ' ④ 比較標色（同天才比較）
         If foundLog And prevDate = today Then
             If valMarginBase < prevMargin Then
-                ' 本次 < 上次 → 標紅
                 wsDst.Cells(5, valCol).Interior.Color = RGB(255, 199, 199)
                 wsDst.Cells(5, valCol).Font.Color = RGB(180, 0, 0)
             Else
-                ' 本次 >= 上次 → 清除標色
                 wsDst.Cells(5, valCol).Interior.ColorIndex = xlNone
                 wsDst.Cells(5, valCol).Font.ColorIndex = xlAutomatic
             End If
         Else
-            ' 首次或跨天 → 清除標色
             wsDst.Cells(5, valCol).Interior.ColorIndex = xlNone
             wsDst.Cells(5, valCol).Font.ColorIndex = xlAutomatic
         End If
 
-        ' ⑤ 更新 _MarginLog（最後才寫，避免跟自己比）
         If foundLog Then
             wsLog.Cells(logRow, 1).NumberFormat = "@"
             wsLog.Cells(logRow, 1).Value = today
@@ -462,15 +708,13 @@ Sub MapOTCClientFunds()
             wsLog.Cells(newRow, 4).Value = nowTime
         End If
 
-        ' --------------------------------------------------
-        ' 3. Excess（行6）= 公式 + CNH/USD 備注
-        ' --------------------------------------------------
+        ' 3. Excess (row 6)
         Dim equityAddr As String
         Dim marginAddr As String
         Dim noteCol    As Long
         equityAddr = wsDst.Cells(4, valCol).Address(False, False)
         marginAddr = wsDst.Cells(5, valCol).Address(False, False)
-        noteCol = valCol + 2      ' E/J/O/T（跳過 D 的 deposite 欄）
+        noteCol = valCol + 2
 
         If hasCNH And colAvail > 0 Then
             Dim cnh_m As String
@@ -487,9 +731,7 @@ Sub MapOTCClientFunds()
             wsDst.Cells(6, noteCol).Value = ""
         End If
 
-        ' --------------------------------------------------
-        ' 4. 僅 101758000：計算匯率寫入 B1
-        ' --------------------------------------------------
+        ' 4. FX for 101758000 -> B1
         If acctNum = "101758000" Then
             If valMarginBase <> 0 And valMarginUSD <> 0 Then
                 wsDst.Cells(1, 2).Value = valMarginBase / valMarginUSD
@@ -500,13 +742,13 @@ Sub MapOTCClientFunds()
 NextBlock:
     Next b
 
-    MsgBox "完成！數據已成功對應至 OTC Sheet。", vbInformation, "MapOTCClientFunds"
+    MsgBox MsgDone(), vbInformation, "MapOTCClientFunds"
 
 End Sub
 
 
 ' ==================================================
-' 修復工具：清空並修正 _MarginLog 格式
+' Utility: clear and fix _MarginLog format
 ' ==================================================
 Sub FixAndClearMarginLog()
     Dim wsLog As Worksheet
@@ -522,21 +764,20 @@ Sub FixAndClearMarginLog()
         wsLog.Cells(1, 2).Value = "AcctNum"
         wsLog.Cells(1, 3).Value = "MarginBase"
         wsLog.Cells(1, 4).Value = "Time"
-        MsgBox "_MarginLog 已清空並修正格式。" & vbCrLf & _
-               "請重新運行 MapOTCClientFunds。", vbInformation
+        MsgBox MsgLogCleared() & vbCrLf & MsgRerun(), vbInformation
     Else
-        MsgBox "_MarginLog 不存在，運行 MapOTCClientFunds 會自動建立。", vbInformation
+        MsgBox MsgLogMissing(), vbInformation
     End If
 End Sub
 
 
 ' ==================================================
-' 診斷工具：確認表頭及數據樣本
+' Debug: headers and sample rows
 ' ==================================================
 Sub DebugOTCHeaders()
 
     Dim wsSrc As Worksheet
-    Set wsSrc = ThisWorkbook.Sheets("OTC客戶資金")
+    Set wsSrc = ThisWorkbook.Sheets(SheetOTCClientFunds())
 
     Dim srcTotalCols As Long
     srcTotalCols = wsSrc.Cells(1, wsSrc.Columns.Count).End(xlToLeft).Column
@@ -550,16 +791,18 @@ Sub DebugOTCHeaders()
             headerList = headerList & "Col " & h & ": [" & hVal & "]" & vbCrLf
         End If
     Next h
-    MsgBox "=== 所有表頭 ===" & vbCrLf & headerList, , "表頭檢查"
+    MsgBox MsgAllHeaders() & vbCrLf & headerList, , MsgTitleHeaderCheck()
 
     Dim colAcct      As Long
     Dim colCurrGroup As Long
     Dim colCurrCode  As Long
 
-    ' 簡體表頭經 ChrW 組出
     Dim hKeHuZhangHao As String, hZiJinZhangHao As String, hKeHuZiJinZhangHao As String
     Dim hBiZhongZuBie As String, hBiZhongZu As String, hBiZhongZuHao As String
     Dim hBiZhongHao As String, hBiZhong As String
+    Dim tKeHuZhangHao As String, tZiJinZhangHao As String, tKeHuZiJinZhangHao As String
+    Dim tBiZhongZuBie As String, tBiZhongZu As String, tBiZhongZuHao As String
+    Dim tBiZhongHao As String, tBiZhong As String
 
     hKeHuZhangHao = SC_KeHuZhangHao()
     hZiJinZhangHao = SC_ZiJinZhangHao()
@@ -570,27 +813,36 @@ Sub DebugOTCHeaders()
     hBiZhongHao = SC_BiZhongHao()
     hBiZhong = SC_BiZhong()
 
+    tKeHuZhangHao = TC_KeHuZhangHao()
+    tZiJinZhangHao = TC_ZiJinZhangHao()
+    tKeHuZiJinZhangHao = TC_KeHuZiJinZhangHao()
+    tBiZhongZuBie = TC_BiZhongZuBie()
+    tBiZhongZu = TC_BiZhongZu()
+    tBiZhongZuHao = TC_BiZhongZuHao()
+    tBiZhongHao = TC_BiZhongHao()
+    tBiZhong = TC_BiZhong()
+
     For h = 1 To srcTotalCols
         Select Case Trim(wsSrc.Cells(1, h).Value)
-            Case hKeHuZhangHao, "客戶賬號", hZiJinZhangHao, "資金賬號", _
-                 hKeHuZiJinZhangHao, "客戶資金賬號"
+            Case hKeHuZhangHao, tKeHuZhangHao, hZiJinZhangHao, tZiJinZhangHao, _
+                 hKeHuZiJinZhangHao, tKeHuZiJinZhangHao
                 colAcct = h
-            Case hBiZhongZuBie, "幣種組別", hBiZhongZuHao, "幣種組號", _
-                 hBiZhongZu, "幣種組"
+            Case hBiZhongZuBie, tBiZhongZuBie, hBiZhongZuHao, tBiZhongZuHao, _
+                 hBiZhongZu, tBiZhongZu
                 colCurrGroup = h
-            Case hBiZhongHao, "幣種號", hBiZhong, "幣種"
+            Case hBiZhongHao, tBiZhongHao, hBiZhong, tBiZhong
                 colCurrCode = h
         End Select
     Next h
 
     If colAcct = 0 Then
-        MsgBox "? 找不到賬號欄位！請查看表頭列表確認名稱。", vbCritical
+        MsgBox MsgAcctColNotFound(), vbCritical
         Exit Sub
     End If
 
     Dim sampleData As String
-    sampleData = "賬號列=" & colAcct & "  組別列=" & colCurrGroup & _
-                 "  幣種列=" & colCurrCode & vbCrLf & vbCrLf
+    sampleData = MsgAcctColEq() & colAcct & MsgGroupColEq() & colCurrGroup & _
+                 MsgCurrColEq() & colCurrCode & vbCrLf & vbCrLf
 
     Dim r As Long
     For r = 2 To Application.Min(6, wsSrc.Cells(wsSrc.Rows.Count, colAcct).End(xlUp).Row)
@@ -601,10 +853,10 @@ Sub DebugOTCHeaders()
         grpVal = IIf(colCurrGroup > 0, wsSrc.Cells(r, colCurrGroup).Value, "N/A")
         codeVal = IIf(colCurrCode > 0, wsSrc.Cells(r, colCurrCode).Value, "N/A")
         sampleData = sampleData _
-            & "Row" & r & ": 賬號=[" & acctVal & "](len=" & Len(acctVal) & ")" & vbCrLf _
-            & "       組別=[" & grpVal & "]  幣種=[" & codeVal & "]" & vbCrLf
+            & "Row" & r & MsgRowAcct() & acctVal & "](len=" & Len(acctVal) & ")" & vbCrLf _
+            & MsgRowGroup() & grpVal & MsgRowCurr() & codeVal & "]" & vbCrLf
     Next r
-    MsgBox "=== 前5筆數據樣本 ===" & vbCrLf & sampleData, , "數據檢查"
+    MsgBox MsgSampleTitle() & vbCrLf & sampleData, , MsgTitleDataCheck()
 
     Dim wsDst As Worksheet
     Set wsDst = ThisWorkbook.Sheets("OTC")
@@ -617,13 +869,13 @@ Sub DebugOTCHeaders()
         ac = blockCols(bi)
         dstInfo = dstInfo & "Col " & ac & " (Row3): [" & wsDst.Cells(3, ac).Value & "]" & vbCrLf
     Next bi
-    MsgBox "=== OTC Sheet 賬號行 ===" & vbCrLf & dstInfo, , "目標賬號"
+    MsgBox MsgOtcAcctRows() & vbCrLf & dstInfo, , MsgTitleTargetAcct()
 
 End Sub
 
 
 ' ==================================================
-' 診斷工具：確認 _MarginLog 內容及日期比對
+' Debug: _MarginLog contents and date compare
 ' ==================================================
 Sub DebugMarginLog()
 
@@ -633,7 +885,7 @@ Sub DebugMarginLog()
     On Error GoTo 0
 
     If wsLog Is Nothing Then
-        MsgBox "? _MarginLog Sheet 不存在！", vbCritical
+        MsgBox MsgLogSheetMissing(), vbCritical
         Exit Sub
     End If
 
@@ -641,7 +893,7 @@ Sub DebugMarginLog()
     logLR = wsLog.Cells(wsLog.Rows.Count, 2).End(xlUp).Row
 
     If logLR < 2 Then
-        MsgBox "? _MarginLog 是空的。", vbCritical
+        MsgBox MsgLogEmpty(), vbCritical
         Exit Sub
     End If
 
@@ -655,7 +907,7 @@ Sub DebugMarginLog()
             & "[Margin=" & wsLog.Cells(lj, 3).Value & "] " _
             & "[Time=" & wsLog.Cells(lj, 4).Value & "]" & vbCrLf
     Next lj
-    MsgBox "=== _MarginLog 內容 ===" & vbCrLf & logContent, , "Log 記錄"
+    MsgBox MsgLogContent() & vbCrLf & logContent, , MsgTitleLogRecord()
 
     Dim today As String
     today = Format(Date, "yyyy-mm-dd")
@@ -665,9 +917,8 @@ Sub DebugMarginLog()
     logDate = Format(CDate(logDate), "yyyy-mm-dd")
     On Error GoTo 0
 
-    MsgBox "今天日期：[" & today & "]" & vbCrLf & _
-           "Log 日期：[" & logDate & "]" & vbCrLf & vbCrLf & _
-           IIf(today = logDate, "? 日期相同，比較邏輯可正常觸發", _
-           "? 日期不同！請運行 FixAndClearMarginLog"), , "日期比對"
+    MsgBox MsgTodayDate() & today & "]" & vbCrLf & _
+           MsgLogDate() & logDate & "]" & vbCrLf & vbCrLf & _
+           IIf(today = logDate, MsgDateSame(), MsgDateDiff()), , MsgTitleDateCompare()
 
 End Sub
