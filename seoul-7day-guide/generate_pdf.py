@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""首爾七天遊圖文攻略 PDF（2026.8.8–8.14 定稿版）"""
+"""首爾七天遊 — 旅行社行程單格式 PDF"""
 
 from pathlib import Path
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
-from reportlab.lib.colors import HexColor, white
+from reportlab.lib.colors import HexColor, white, black
 from reportlab.lib.styles import ParagraphStyle
-from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle,
-    PageBreak, HRFlowable,
+    PageBreak, KeepTogether, HRFlowable, Flowable,
 )
 
 ROOT = Path(__file__).resolve().parent
@@ -21,7 +21,7 @@ IMG = ROOT / "images_opt"
 OUT = ROOT / "artifacts" / "首爾七天遊圖文攻略_2026.pdf"
 OUT.parent.mkdir(parents=True, exist_ok=True)
 
-FONT_REG = "GuideFont"
+FONT = "GuideFont"
 for path in (
     "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
     "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
@@ -35,69 +35,44 @@ for path in (
             continue
 else:
     pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
-    FONT_REG = "STSong-Light"
+    FONT = "STSong-Light"
 
-C_INK = HexColor("#1C2421")
-C_MUTED = HexColor("#5A655F")
-C_ACCENT = HexColor("#0E6B5C")
-C_ACCENT2 = HexColor("#C45C26")
-C_SOFT = HexColor("#E6EFEA")
-C_LINE = HexColor("#D5D0C8")
-C_TIP = HexColor("#FFF6E8")
+# Travel-agency document palette
+NAVY = HexColor("#0B3D5C")
+NAVY2 = HexColor("#145A7A")
+GOLD = HexColor("#B8860B")
+INK = HexColor("#222222")
+MUTED = HexColor("#555555")
+LINE = HexColor("#B8C0C8")
+ROW_ALT = HexColor("#F3F6F8")
+HEAD_BG = HexColor("#0B3D5C")
+NOTE_BG = HexColor("#FFF8E7")
+MEAL_BG = HexColor("#E8F1F5")
+WHITE = white
 
 PAGE_W, PAGE_H = A4
-MARGIN = 15 * mm
+ML = MR = 12 * mm
+MT = 14 * mm
+MB = 14 * mm
+CONTENT_W = PAGE_W - ML - MR  # ~186mm on A4 with 12mm margins
 
 
-def styles():
-    s = {}
-    s["h1"] = ParagraphStyle(
-        "h1", fontName=FONT_REG, fontSize=16, leading=22,
-        textColor=C_ACCENT, spaceBefore=2, spaceAfter=6,
+def P(text, size=9, leading=None, color=INK, align=TA_LEFT, name=None, **kw):
+    return Paragraph(
+        text,
+        ParagraphStyle(
+            name or f"p{size}{id(text)%9999}",
+            fontName=FONT,
+            fontSize=size,
+            leading=leading or (size + 3.5),
+            textColor=color,
+            alignment=align,
+            **kw,
+        ),
     )
-    s["h2"] = ParagraphStyle(
-        "h2", fontName=FONT_REG, fontSize=12, leading=16,
-        textColor=C_INK, spaceBefore=8, spaceAfter=3,
-    )
-    s["h3"] = ParagraphStyle(
-        "h3", fontName=FONT_REG, fontSize=10.5, leading=14,
-        textColor=C_ACCENT2, spaceBefore=5, spaceAfter=2,
-    )
-    s["body"] = ParagraphStyle(
-        "body", fontName=FONT_REG, fontSize=9.2, leading=13.8,
-        textColor=C_INK, alignment=TA_JUSTIFY, spaceAfter=3,
-    )
-    s["meta"] = ParagraphStyle(
-        "meta", fontName=FONT_REG, fontSize=8.8, leading=12.5,
-        textColor=C_MUTED, spaceAfter=2,
-    )
-    s["caption"] = ParagraphStyle(
-        "caption", fontName=FONT_REG, fontSize=7.8, leading=10.5,
-        textColor=C_MUTED, alignment=TA_CENTER, spaceBefore=1, spaceAfter=6,
-    )
-    s["bullet"] = ParagraphStyle(
-        "bullet", fontName=FONT_REG, fontSize=9.2, leading=13.2,
-        textColor=C_INK, leftIndent=6, spaceAfter=1.5,
-    )
-    s["tip"] = ParagraphStyle(
-        "tip", fontName=FONT_REG, fontSize=8.6, leading=12.2,
-        textColor=C_INK, spaceAfter=1,
-    )
-    s["table"] = ParagraphStyle(
-        "table", fontName=FONT_REG, fontSize=7.8, leading=10.5,
-        textColor=C_INK, alignment=TA_LEFT,
-    )
-    s["table_h"] = ParagraphStyle(
-        "table_h", fontName=FONT_REG, fontSize=7.8, leading=10.5,
-        textColor=white, alignment=TA_CENTER,
-    )
-    return s
 
 
-S = styles()
-
-
-def img(name, w=172 * mm, h=68 * mm):
+def img(name, w=CONTENT_W, h=42 * mm):
     stem = Path(name).stem
     path = IMG / f"{stem}.jpg"
     if not path.exists():
@@ -107,535 +82,483 @@ def img(name, w=172 * mm, h=68 * mm):
     return Image(str(path), width=w, height=h, kind="proportional")
 
 
-def hr():
-    return HRFlowable(width="100%", thickness=0.5, color=C_LINE, spaceBefore=3, spaceAfter=6)
+def hline():
+    return HRFlowable(width="100%", thickness=0.8, color=NAVY, spaceBefore=2, spaceAfter=4)
 
 
-def banner(title, subtitle):
-    data = [[
-        Paragraph(f"<b>{title}</b>", ParagraphStyle(
-            "b1", fontName=FONT_REG, fontSize=12.5, leading=16, textColor=white)),
-        Paragraph(subtitle, ParagraphStyle(
-            "b2", fontName=FONT_REG, fontSize=8.5, leading=11.5, textColor=HexColor("#D7EEE8"))),
-    ]]
-    t = Table(data, colWidths=[48 * mm, 124 * mm])
+def thinline():
+    return HRFlowable(width="100%", thickness=0.4, color=LINE, spaceBefore=2, spaceAfter=4)
+
+
+def section_title(text):
+    t = Table([[P(f"<b>{text}</b>", 10, 13, WHITE)]], colWidths=[CONTENT_W])
     t.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), C_ACCENT),
-        ("LEFTPADDING", (0, 0), (-1, -1), 8),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-        ("TOPPADDING", (0, 0), (-1, -1), 7),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("BACKGROUND", (0, 0), (-1, -1), NAVY),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
     ]))
     return t
 
 
-def tip_box(title, text):
-    data = [
-        [Paragraph(f"<b>備選／提醒｜{title}</b>", S["tip"])],
-        [Paragraph(text, S["tip"])],
+def kv_table(rows, col1=42 * mm, col2=None):
+    col2 = col2 or (CONTENT_W - col1)
+    data = []
+    for k, v in rows:
+        data.append([P(f"<b>{k}</b>", 8.5, 11.5, NAVY), P(v, 8.5, 11.5, INK)])
+    t = Table(data, colWidths=[col1, col2])
+    style = [
+        ("GRID", (0, 0), (-1, -1), 0.4, LINE),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 3.5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3.5),
+        ("BACKGROUND", (0, 0), (0, -1), ROW_ALT),
     ]
-    t = Table(data, colWidths=[172 * mm])
+    t.setStyle(TableStyle(style))
+    return t
+
+
+def schedule_table(rows):
+    """rows: list of (time, content, meal, note)"""
+    header = [
+        P("<b>時間</b>", 8, 10, WHITE, TA_CENTER),
+        P("<b>行程內容</b>", 8, 10, WHITE, TA_CENTER),
+        P("<b>餐食</b>", 8, 10, WHITE, TA_CENTER),
+        P("<b>交通／備註</b>", 8, 10, WHITE, TA_CENTER),
+    ]
+    data = [header]
+    for time, content, meal, note in rows:
+        data.append([
+            P(time, 8, 11, INK, TA_CENTER),
+            P(content, 8, 11, INK),
+            P(meal, 8, 11, INK, TA_CENTER),
+            P(note, 7.5, 10.5, MUTED),
+        ])
+    # time | content | meal | note
+    t = Table(data, colWidths=[28 * mm, 88 * mm, 18 * mm, CONTENT_W - 134 * mm])
+    cmds = [
+        ("BACKGROUND", (0, 0), (-1, 0), HEAD_BG),
+        ("GRID", (0, 0), (-1, -1), 0.4, LINE),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3.5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 3.5),
+        ("TOPPADDING", (0, 0), (-1, -1), 3.5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3.5),
+        ("BACKGROUND", (2, 1), (2, -1), MEAL_BG),
+    ]
+    for i in range(1, len(data)):
+        if i % 2 == 0:
+            cmds.append(("BACKGROUND", (0, i), (1, i), ROW_ALT))
+            cmds.append(("BACKGROUND", (3, i), (3, i), ROW_ALT))
+    t.setStyle(TableStyle(cmds))
+    return t
+
+
+def note_box(title, text):
+    data = [
+        [P(f"<b>■ {title}</b>", 8.5, 11, NAVY)],
+        [P(text, 8, 11, INK)],
+    ]
+    t = Table(data, colWidths=[CONTENT_W])
     t.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), C_TIP),
-        ("BOX", (0, 0), (-1, -1), 0.5, HexColor("#E0A060")),
-        ("LEFTPADDING", (0, 0), (-1, -1), 7),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 7),
-        ("TOPPADDING", (0, 0), (0, 0), 6),
-        ("BOTTOMPADDING", (0, -1), (0, -1), 6),
+        ("BACKGROUND", (0, 0), (-1, -1), NOTE_BG),
+        ("BOX", (0, 0), (-1, -1), 0.6, GOLD),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (0, 0), 5),
+        ("BOTTOMPADDING", (0, -1), (0, -1), 5),
         ("TOPPADDING", (0, 1), (0, 1), 1),
     ]))
     return t
 
 
-def budget(text):
-    return Paragraph(f"<b>當日預算（兩人）</b>：{text}", S["meta"])
+def day_header(day_no, date, weekday, theme):
+    left = P(f"<b>DAY {day_no}</b>", 14, 18, WHITE, TA_CENTER)
+    right = P(f"<b>{date}（{weekday}）</b>　{theme}", 10, 14, WHITE)
+    t = Table([[left, right]], colWidths=[28 * mm, CONTENT_W - 28 * mm])
+    t.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (0, 0), GOLD),
+        ("BACKGROUND", (1, 0), (1, 0), NAVY),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+    return t
 
 
 def footer(canvas, doc):
     canvas.saveState()
-    canvas.setFillColor(C_SOFT)
-    canvas.rect(0, 0, PAGE_W, PAGE_H, fill=1, stroke=0)
-    canvas.setFillColor(C_ACCENT)
-    canvas.rect(0, PAGE_H - 7.5 * mm, PAGE_W, 7.5 * mm, fill=1, stroke=0)
-    canvas.setFillColor(white)
-    canvas.setFont(FONT_REG, 7)
-    canvas.drawString(MARGIN, PAGE_H - 5 * mm, "首爾七天休閒度假攻略｜2026.8.8–8.14｜Hotel POCO Seongsu")
-    canvas.setFillColor(C_MUTED)
-    canvas.setFont(FONT_REG, 7)
-    canvas.drawCentredString(PAGE_W / 2, 7.5 * mm, f"— {doc.page} —")
-    canvas.setStrokeColor(C_LINE)
-    canvas.setLineWidth(0.4)
-    canvas.line(MARGIN, 11 * mm, PAGE_W - MARGIN, 11 * mm)
+    canvas.setStrokeColor(NAVY)
+    canvas.setLineWidth(1.2)
+    canvas.line(ML, PAGE_H - 8 * mm, PAGE_W - MR, PAGE_H - 8 * mm)
+    canvas.setFillColor(NAVY)
+    canvas.setFont(FONT, 7)
+    canvas.drawString(ML, PAGE_H - 6.5 * mm, "首爾七天休閒度假行程單｜ITINERARY")
+    canvas.drawRightString(PAGE_W - MR, PAGE_H - 6.5 * mm, "CONFIDENTIAL / FOR TRAVELER USE")
+    canvas.setStrokeColor(LINE)
+    canvas.setLineWidth(0.5)
+    canvas.line(ML, 10 * mm, PAGE_W - MR, 10 * mm)
+    canvas.setFillColor(MUTED)
+    canvas.setFont(FONT, 7)
+    canvas.drawString(ML, 6.5 * mm, "Hotel POCO Seongsu｜2026.08.08–08.14")
+    canvas.drawRightString(PAGE_W - MR, 6.5 * mm, f"第 {doc.page} 頁")
     canvas.restoreState()
 
 
-def cover(story):
-    story.append(Spacer(1, 4 * mm))
-    story.append(img("cover-seoul-summer.jpg", 178 * mm, 88 * mm))
-    story.append(Spacer(1, 4 * mm))
-    ban = Table(
-        [[Paragraph("SEOUL · 聖水慢活七天", ParagraphStyle(
-            "c1", fontName=FONT_REG, fontSize=20, leading=26, textColor=white, alignment=TA_CENTER))],
-         [Paragraph("2026年8月8日（六）— 8月14日（五）｜兩位成人｜休閒度假節奏", ParagraphStyle(
-             "c2", fontName=FONT_REG, fontSize=9.5, leading=13, textColor=HexColor("#D7EEE8"), alignment=TA_CENTER))],
-         [Paragraph("住宿：Hotel POCO Seongsu｜地鐵2號線聖水站3號出口步行約1分鐘", ParagraphStyle(
-             "c3", fontName=FONT_REG, fontSize=8.5, leading=12, textColor=HexColor("#BFE3DA"), alignment=TA_CENTER))]],
-        colWidths=[178 * mm],
+# ─── Pages ───────────────────────────────────────────────
+
+def page_cover(story):
+    # Agency-style masthead
+    mast = Table(
+        [[P("<b>TRAVEL ITINERARY</b>", 9, 12, GOLD, TA_CENTER)],
+         [P("<b>首爾七天六夜　休閒度假行程單</b>", 18, 24, WHITE, TA_CENTER)],
+         [P("SEOUL 7 DAYS / 6 NIGHTS　｜　LEISURE PACE", 9, 12, HexColor("#C8D9E4"), TA_CENTER)]],
+        colWidths=[CONTENT_W],
     )
-    ban.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), C_ACCENT),
-        ("TOPPADDING", (0, 0), (-1, -1), 5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+    mast.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), NAVY),
+        ("TOPPADDING", (0, 0), (0, 0), 8),
+        ("BOTTOMPADDING", (0, -1), (0, -1), 8),
+        ("TOPPADDING", (0, 1), (0, 1), 2),
+        ("BOTTOMPADDING", (0, 1), (0, 1), 2),
     ]))
-    story.append(ban)
-    story.append(Spacer(1, 5 * mm))
-    story.append(Paragraph("怎麼用這份攻略", S["h2"]))
-    story.append(Paragraph(
-        "每天只排 2–3 個重點，其餘留給散步與咖啡。交通以地鐵＋1 公里內步行為主。"
-        "8 月首爾盛夏：戶外防曬補水；室內冷氣強，薄外套放包包。中午偏室內，傍晚再戶外。",
-        S["body"],
-    ))
-    story.append(Paragraph("固定不可更動", S["h2"]))
-    story.append(Paragraph("• <b>8/9（日）18:00</b>　Alla Prima 生日晚餐（已訂位，套餐約 19–31 萬韓元／人）", S["bullet"]))
-    story.append(Paragraph("• <b>8/12（三）</b>　MORE ON HAIR 江南店美髮＋유후네일 신논현美甲", S["bullet"]))
-    story.append(Paragraph(
-        "航班（以電子機票為準）：去程 <b>UO630</b> HKG→ICN 約 09:45–14:25；"
-        "回程 <b>UO631</b> ICN→HKG 約 15:25–16:10。",
-        S["body"],
-    ))
-    story.append(PageBreak())
+    story.append(mast)
+    story.append(Spacer(1, 3 * mm))
+    story.append(img("cover-seoul-summer.jpg", CONTENT_W, 48 * mm))
+    story.append(Spacer(1, 3 * mm))
 
+    story.append(section_title("一、旅客與行程基本資料"))
+    story.append(Spacer(1, 2 * mm))
+    story.append(kv_table([
+        ("行程名稱", "首爾聖水慢活七天遊（圖文執行版）"),
+        ("旅遊日期", "2026年8月8日（六）至 2026年8月14日（五）｜共7天6夜"),
+        ("旅客人數", "兩位成人"),
+        ("行程風格", "休閒度假為主；每日2–3個重點，保留咖啡／漫步時間"),
+        ("交通偏好", "地鐵為主＋1公里內步行；盡量減少打車"),
+        ("季節提醒", "8月首爾盛夏：防曬、補水；室內冷氣強請備薄外套"),
+    ]))
+    story.append(Spacer(1, 3 * mm))
 
-def overview(story):
-    story.append(Paragraph("七天總覽", S["h1"]))
-    story.append(hr())
-    headers = [Paragraph(f"<b>{x}</b>", S["table_h"]) for x in ("日期", "主題", "重點地點")]
-    rows = [
-        ["8/8 六 Day1", "抵達聖水・落地慢活", "ICN→Hotel POCO／大林倉庫／성수연방"],
-        ["8/9 日 Day2", "麵包午餐・慶生之夜", "首爾林／Cafe Onion／Alla Prima 18:00"],
-        ["8/10 一 Day3", "韓牛＋DDP＋一隻雞", "인생한우／DDP／진옥화晚餐"],
-        ["8/11 二 Day4", "設計家具＋咖啡日", "안목／Grey Penguin／29CM／LCDC／Object"],
-        ["8/12 三 Day5", "美髮＋美甲日", "유후네일／MORE ON HAIR 江南店"],
-        ["8/13 四 Day6", "弘大慢逛日", "弘大商圈／延南森林路／炸雞"],
-        ["8/14 五 Day7", "退房返港", "周邊早餐／12:00前出發／UO631"],
+    story.append(section_title("二、住宿資料"))
+    story.append(Spacer(1, 2 * mm))
+    story.append(kv_table([
+        ("飯店名稱", "Hotel POCO Seongsu（호텔 포코 성수）"),
+        ("地址", "서울 성동구 성수이로 96（Seongsu-ro 96, Seongdong-gu）"),
+        ("交通", "地鐵2號線　聖水站（성수）3號出口　右轉步行約50m（約1分鐘）"),
+        ("電話", "預約 02-3677-6676　／　前台 02-462-9610"),
+        ("入住／退房", "Day1 下午入住　｜　Day7 建議 12:00–12:30 前退房出發"),
+    ]))
+    story.append(Spacer(1, 3 * mm))
+
+    story.append(section_title("三、航班資料（請以電子機票為準）"))
+    story.append(Spacer(1, 2 * mm))
+    flight_h = [
+        P("<b>航段</b>", 8, 10, WHITE, TA_CENTER),
+        P("<b>航班</b>", 8, 10, WHITE, TA_CENTER),
+        P("<b>日期</b>", 8, 10, WHITE, TA_CENTER),
+        P("<b>起飛</b>", 8, 10, WHITE, TA_CENTER),
+        P("<b>抵達</b>", 8, 10, WHITE, TA_CENTER),
+        P("<b>備註</b>", 8, 10, WHITE, TA_CENTER),
     ]
-    data = [headers] + [[Paragraph(c, S["table"]) for c in r] for r in rows]
-    t = Table(data, colWidths=[36 * mm, 46 * mm, 90 * mm])
-    style_cmds = [
-        ("BACKGROUND", (0, 0), (-1, 0), C_ACCENT),
-        ("GRID", (0, 0), (-1, -1), 0.35, C_LINE),
+    flight_rows = [flight_h,
+        [P("去程 HKG→ICN", 8, 10), P("<b>UO630</b>", 8, 10, INK, TA_CENTER),
+         P("8/8（六）", 8, 10, INK, TA_CENTER), P("約 09:45", 8, 10, INK, TA_CENTER),
+         P("約 14:25", 8, 10, INK, TA_CENTER), P("預估16:00–17:00抵飯店", 7.5, 10)],
+        [P("回程 ICN→HKG", 8, 10), P("<b>UO631</b>", 8, 10, INK, TA_CENTER),
+         P("8/14（五）", 8, 10, INK, TA_CENTER), P("約15:25–16:10", 8, 10, INK, TA_CENTER),
+         P("約18:15–19:00", 8, 10, INK, TA_CENTER), P("建議12:00前出發", 7.5, 10)],
+    ]
+    ft = Table(flight_rows, colWidths=[36*mm, 22*mm, 24*mm, 28*mm, 28*mm, CONTENT_W-138*mm])
+    ft.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), HEAD_BG),
+        ("GRID", (0, 0), (-1, -1), 0.4, LINE),
+        ("BACKGROUND", (0, 2), (-1, 2), ROW_ALT),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
         ("TOPPADDING", (0, 0), (-1, -1), 4),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story.append(ft)
+    story.append(Spacer(1, 3 * mm))
+
+    story.append(section_title("四、固定行程（不可更改）"))
+    story.append(Spacer(1, 2 * mm))
+    story.append(kv_table([
+        ("8/9（日）18:00", "Alla Prima 生日晚餐（已訂位）｜학동로17길 13｜套餐約19–31萬韓元／人｜下午留白化妝穿搭"),
+        ("8/12（三）", "MORE ON HAIR 江南店美髮（강남대로475, 3F，非江南總店）＋유후네일 신논현美甲銜接"),
+    ]))
+    story.append(PageBreak())
+
+
+def page_overview(story):
+    story.append(section_title("五、七日行程總覽表"))
+    story.append(Spacer(1, 2 * mm))
+    h = [P(f"<b>{x}</b>", 7.5, 10, WHITE, TA_CENTER) for x in
+         ("日序", "日期", "主題", "上午／午間", "下午／晚上", "住宿")]
+    rows = [h,
+        [P("Day1", 7.5, 10, INK, TA_CENTER), P("8/8 六", 7.5, 10, INK, TA_CENTER),
+         P("抵達慢活", 7.5, 10), P("UO630抵韓／入住", 7.5, 10),
+         P("大林倉庫・성수연방・輕晚餐", 7.5, 10), P("POCO", 7.5, 10, INK, TA_CENTER)],
+        [P("Day2", 7.5, 10, INK, TA_CENTER), P("8/9 日", 7.5, 10, INK, TA_CENTER),
+         P("麵包＋慶生", 7.5, 10), P("首爾林・Cafe Onion", 7.5, 10),
+         P("飯店梳化・Alla Prima 18:00", 7.5, 10), P("POCO", 7.5, 10, INK, TA_CENTER)],
+        [P("Day3", 7.5, 10, INK, TA_CENTER), P("8/10 一", 7.5, 10, INK, TA_CENTER),
+         P("韓牛＋DDP＋雞", 7.5, 10), P("인생한우（馬場）", 7.5, 10),
+         P("DDP・진옥화晚餐", 7.5, 10), P("POCO", 7.5, 10, INK, TA_CENTER)],
+        [P("Day4", 7.5, 10, INK, TA_CENTER), P("8/11 二", 7.5, 10, INK, TA_CENTER),
+         P("設計＋咖啡", 7.5, 10), P("안목湯飯・Grey Penguin", 7.5, 10),
+         P("29CM／LCDC／Object・咖啡", 7.5, 10), P("POCO", 7.5, 10, INK, TA_CENTER)],
+        [P("Day5", 7.5, 10, INK, TA_CENTER), P("8/12 三", 7.5, 10, INK, TA_CENTER),
+         P("美髮美甲", 7.5, 10), P("유후네일美甲", 7.5, 10),
+         P("MORE ON HAIR 江南店", 7.5, 10), P("POCO", 7.5, 10, INK, TA_CENTER)],
+        [P("Day6", 7.5, 10, INK, TA_CENTER), P("8/13 四", 7.5, 10, INK, TA_CENTER),
+         P("弘大慢逛", 7.5, 10), P("弘大早午餐・逛街", 7.5, 10),
+         P("延南森林路・炸雞夜", 7.5, 10), P("POCO", 7.5, 10, INK, TA_CENTER)],
+        [P("Day7", 7.5, 10, INK, TA_CENTER), P("8/14 五", 7.5, 10, INK, TA_CENTER),
+         P("退房返港", 7.5, 10), P("早餐・最後採購", 7.5, 10),
+         P("12:00前出發・UO631", 7.5, 10), P("—", 7.5, 10, INK, TA_CENTER)],
     ]
-    for i in (1, 3, 5, 7):
-        style_cmds.append(("BACKGROUND", (0, i), (-1, i), HexColor("#EEF6F3")))
-    t.setStyle(TableStyle(style_cmds))
+    t = Table(rows, colWidths=[14*mm, 18*mm, 24*mm, 42*mm, 50*mm, 16*mm])
+    cmds = [
+        ("BACKGROUND", (0, 0), (-1, 0), HEAD_BG),
+        ("GRID", (0, 0), (-1, -1), 0.35, LINE),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 2.5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 2.5),
+        ("TOPPADDING", (0, 0), (-1, -1), 3.5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3.5),
+    ]
+    for i in range(2, len(rows), 2):
+        cmds.append(("BACKGROUND", (0, i), (-1, i), ROW_ALT))
+    t.setStyle(TableStyle(cmds))
     story.append(t)
     story.append(Spacer(1, 4 * mm))
-    story.append(Paragraph("盛夏實用提醒", S["h2"]))
-    story.append(Paragraph("• 白天高溫潮濕，SPF50+、帽子、摺疊傘、隨時補水；戶外避開 12:00–15:00 暴晒。", S["bullet"]))
-    story.append(Paragraph("• 咖啡廳／地鐵／商場冷氣強，薄外套必備。", S["bullet"]))
-    story.append(Paragraph("• 交通卡 T-money；必備 App：Naver Map、Papago、CatchTable、Kakao T。", S["bullet"]))
-    story.append(Paragraph("住宿基地", S["h2"]))
-    story.append(Paragraph(
-        "<b>Hotel POCO Seongsu</b>｜서울 성동구 성수이로 96｜"
-        "地鐵2號線 <b>聖水站3號出口</b>右轉約50m｜電話 02-3677-6676／前台 02-462-9610",
-        S["body"],
-    ))
-    story.append(PageBreak())
 
-
-def day1(story):
-    story.append(banner("Day 1｜8月8日（六）", "主題：抵達聖水，落地慢活——只做 check-in、周邊散步、輕鬆晚餐"))
-    story.append(Spacer(1, 3 * mm))
-    story.append(img("day1-daelim-cafe.jpg"))
-    story.append(Paragraph("畫面重點：紅磚倉庫高挑天花＋麵包櫃——飯店同路「성수이로」第一站必拍。", S["caption"]))
-
-    story.append(Paragraph("時間軸", S["h2"]))
-    story.append(Paragraph(
-        "<b>09:45–14:25｜UO630</b>　香港 HKG → 仁川 ICN（以電子機票為準）。入境＋領行李約 45–75 分。",
-        S["body"],
-    ))
-    story.append(Paragraph(
-        "<b>約 15:30–17:00｜機場→飯店</b>　AREX 普通車 → <b>弘大入口</b> 轉 2號線 → <b>聖水站</b>3號出口步行約1分。"
-        "全程約 70–90 分。預估下午 4–5 點前後抵達。",
-        S["body"],
-    ))
-    story.append(Paragraph(
-        "<b>17:00–18:00｜Check-in</b>　Hotel POCO Seongsu。沖澡、調冷氣、下載離線地圖。",
-        S["body"],
-    ))
-    story.append(Paragraph(
-        "<b>18:00–19:30｜飯店周邊散步（同路성수이로）</b><br/>"
-        "① <b>대림창고（大林倉庫）</b> 성수이로 78｜紅磚倉庫咖啡／展覽感，聖水站3號出口步行約4–5分，距飯店極近<br/>"
-        "② <b>Musinsa Store 성수@대림창고</b> 성수이로 74｜室內冷氣、球鞋牆、服飾（約 11:00–22:00）<br/>"
-        "③ <b>성수연방</b> 성수이로14길 14｜複合生活空間；可上3樓 <b>천상가옥</b> 喝一杯（約 11:00–22:00）",
-        S["body"],
-    ))
-    story.append(Paragraph(
-        "<b>19:30–21:00｜輕鬆晚餐二選一</b><br/>"
-        "A. <b>꿉당 성수</b> 성수이로20길 10｜炭火豬頸肉（約 16:30 起，週末可能排隊）<br/>"
-        "B. 飯店步行5分內韓式家常／義大利簡餐｜人均約 1.5–2.5 萬",
-        S["body"],
-    ))
-    story.append(Paragraph("<b>晚上</b>　早點睡，為明天慶生養精神。", S["body"]))
-    story.append(budget("餐飲 4–8萬 ＋ 機場交通約 1–1.6萬 ≈ <b>6–10萬韓元</b>"))
+    story.append(section_title("六、費用說明（自行消費估算・兩人）"))
     story.append(Spacer(1, 2 * mm))
-    story.append(tip_box("延誤／太累", "晚於18:00抵達就外帶回房。大林倉庫人多改坐성수연방吹冷氣。"))
-    story.append(PageBreak())
-
-
-def day2(story):
-    story.append(banner("Day 2｜8月9日（日）", "主題：午前樹蔭・Onion麵包午餐・Alla Prima 慶生晚餐"))
-    story.append(Spacer(1, 3 * mm))
-    story.append(img("day2-seoul-forest.jpg", 178 * mm, 58 * mm))
-    story.append(Paragraph("畫面重點：首爾林樹蔭木棧——午前涼爽短走，避開正午暴晒。", S["caption"]))
-
-    story.append(Paragraph("時間軸", S["h2"]))
-    story.append(Paragraph(
-        "<b>09:30–11:00｜首爾林（서울숲）</b>　只走樹蔭步道 45–60 分。聖水站步行或盆唐線首爾林站。",
-        S["body"],
+    story.append(P(
+        "本行程為「自助執行行程單」，以下為餐飲／交通／體驗粗估，不含機票與飯店房費。"
+        "Alla Prima、美髮美甲為旅客既定消費，金額以現場／預約單為準。",
+        8.5, 12, MUTED,
     ))
-    story.append(img("day2-onion-bakery.jpg", 178 * mm, 58 * mm))
-    story.append(Paragraph("畫面重點：工廠感空間＋麵包山——先拍整櫃再動手；中庭／二樓光線最好。", S["caption"]))
-
-    story.append(Paragraph("<b>11:30–13:30｜午餐：Cafe Onion 성수（網紅麵包店）</b>", S["body"]))
-    story.append(Paragraph(
-        "• 地址：서울 성동구 아차산로9길 8｜聖水站 <b>2號出口</b> 步行約 2–3 分<br/>"
-        "• 營業：平日約 08:00–22:00、週末約 09:00–22:00（L.O. 21:30）<br/>"
-        "• 必點：<b>설산 팡도르、앙버터</b>＋冰美式／簽名奶茶｜人均約 1.5–2.5 萬<br/>"
-        "• 技巧：兩人分散<b>先佔座再排隊買麵包</b>（週日 13:30 後更擠）<br/>"
-        "• 備援：大排長龍就外帶回飯店吃；或改 <b>밀도 성수</b>（왕십리로 96，吐司名店，偏外帶）",
-        S["body"],
-    ))
-    story.append(Paragraph(
-        "<b>13:30–16:00｜回飯店</b>　午睡、保濕、化妝穿搭。Alla Prima 建議 smart casual，勿短褲拖鞋。",
-        S["body"],
-    ))
-    story.append(Paragraph(
-        "<b>16:30 出發｜赴論峴／鶴洞</b>　聖水→建大入口轉7號線→<b>鶴洞站6號出口</b>（約30–40分）。"
-        "17:15–17:50 附近慢逛補妝；可選 <b>더스퀘어</b>（鶴洞站步行約4分）坐一下。",
-        S["body"],
-    ))
-    story.append(img("day2-alla-prima-dinner.jpg", 178 * mm, 55 * mm))
-    story.append(Paragraph("畫面重點：燭光雙人桌＋精緻擺盤——慶生夜拍菜與碰杯即可，注意店家拍攝禮儀。", S["caption"]))
-
-    story.append(Paragraph("重點：Alla Prima（알라프리마）18:00", S["h2"]))
-    story.append(Paragraph(
-        "• 地址：서울 강남구 학동로17길 13｜電話 02-511-2555<br/>"
-        "• 套餐約 <b>19–31萬韓元／人</b>；兩人含飲品預留 <b>45–75萬</b><br/>"
-        "• 晚餐約 2.5–3 小時；遲到約15分可能 no-show<br/>"
-        "• 可事先確認生日備註／甜點加字",
-        S["body"],
-    ))
-    story.append(Paragraph("<b>回程</b>　7號線→建大入口→2號線聖水。", S["body"]))
-    story.append(budget("Onion 4–6萬 ＋ Alla Prima 45–75萬 ＋ 地鐵 ≈ <b>50–82萬韓元</b>"))
     story.append(Spacer(1, 2 * mm))
-    story.append(tip_box("雨天", "取消首爾林，Onion 長坐或성수연방。下午務必留白——今天唯一任務是慶生晚餐。"))
-    story.append(PageBreak())
-
-
-def day3(story):
-    story.append(banner("Day 3｜8月10日（一）", "主題：馬場韓牛 → DDP 避暑 → 一隻雞晚餐"))
+    bh = [P(f"<b>{x}</b>", 7.5, 10, WHITE, TA_CENTER) for x in ("日序", "餐飲粗估", "交通", "其他", "合計約")]
+    brows = [bh,
+        [P("Day1", 7.5, 10, INK, TA_CENTER), P("4–8萬", 7.5, 10, INK, TA_CENTER), P("機場1–1.6萬", 7.5, 10, INK, TA_CENTER), P("雜費1萬", 7.5, 10, INK, TA_CENTER), P("6–10萬", 7.5, 10, INK, TA_CENTER)],
+        [P("Day2", 7.5, 10, INK, TA_CENTER), P("Onion4–6萬＋晚餐45–75萬", 7.5, 10, INK, TA_CENTER), P("地鐵0.5萬", 7.5, 10, INK, TA_CENTER), P("—", 7.5, 10, INK, TA_CENTER), P("50–82萬", 7.5, 10, INK, TA_CENTER)],
+        [P("Day3", 7.5, 10, INK, TA_CENTER), P("韓牛12–25萬＋雞4–6萬", 7.5, 10, INK, TA_CENTER), P("地鐵0.6萬", 7.5, 10, INK, TA_CENTER), P("DDP1–3萬", 7.5, 10, INK, TA_CENTER), P("17–35萬", 7.5, 10, INK, TA_CENTER)],
+        [P("Day4", 7.5, 10, INK, TA_CENTER), P("안목6–8萬＋咖啡4–7萬", 7.5, 10, INK, TA_CENTER), P("少", 7.5, 10, INK, TA_CENTER), P("小物0–15萬", 7.5, 10, INK, TA_CENTER), P("10–30萬", 7.5, 10, INK, TA_CENTER)],
+        [P("Day5", 7.5, 10, INK, TA_CENTER), P("餐3–5萬", 7.5, 10, INK, TA_CENTER), P("地鐵0.5萬", 7.5, 10, INK, TA_CENTER), P("美甲4–10萬＋美髮另計", 7.5, 10, INK, TA_CENTER), P("視服務項目", 7.5, 10, INK, TA_CENTER)],
+        [P("Day6", 7.5, 10, INK, TA_CENTER), P("餐＋炸雞9–15萬", 7.5, 10, INK, TA_CENTER), P("地鐵0.5萬", 7.5, 10, INK, TA_CENTER), P("小物2–8萬", 7.5, 10, INK, TA_CENTER), P("11–23萬", 7.5, 10, INK, TA_CENTER)],
+        [P("Day7", 7.5, 10, INK, TA_CENTER), P("早餐2–4萬", 7.5, 10, INK, TA_CENTER), P("機場1–1.6萬", 7.5, 10, INK, TA_CENTER), P("—", 7.5, 10, INK, TA_CENTER), P("3–9萬", 7.5, 10, INK, TA_CENTER)],
+    ]
+    bt = Table(brows, colWidths=[16*mm, 55*mm, 32*mm, 40*mm, 21*mm])
+    bcmds = [
+        ("BACKGROUND", (0, 0), (-1, 0), HEAD_BG),
+        ("GRID", (0, 0), (-1, -1), 0.35, LINE),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 2),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+    ]
+    for i in range(2, len(brows), 2):
+        bcmds.append(("BACKGROUND", (0, i), (-1, i), ROW_ALT))
+    bt.setStyle(TableStyle(bcmds))
+    story.append(bt)
     story.append(Spacer(1, 3 * mm))
-    story.append(img("day3-majang-hanwoo.jpg", 178 * mm, 58 * mm))
-    story.append(Paragraph("畫面重點：炭火上的霜降韓牛——拍特寫油脂反光最有「馬場感」。", S["caption"]))
-
-    story.append(Paragraph("時間軸", S["h2"]))
-    story.append(Paragraph(
-        "<b>11:00 出發｜馬場洞</b>　聖水→往十里轉5號線→<b>馬場站</b>（約20–25分）。",
-        S["body"],
-    ))
-    story.append(Paragraph(
-        "<b>11:30–14:00｜午餐：인생한우</b><br/>"
-        "• 地址：서울 성동구 마장로31길 43 2層｜近馬場畜產市場<br/>"
-        "• 怎麼吃：看肉櫃 <b>1++</b>，現場選肉＋上桌費（홀約4,000）再烤<br/>"
-        "• 必點：꽃등심、살치살、채끝；收尾물냉면或된장찌개<br/>"
-        "• 兩人先點約 600–800g 再加｜預算約 <b>12–25萬</b>｜週末可能候位",
-        S["body"],
-    ))
-    story.append(img("day3-ddp.jpg", 178 * mm, 58 * mm))
-    story.append(Paragraph("畫面重點：DDP 銀色曲線外牆——廣角拍建築轉角；室內吹冷氣看當期展。", S["caption"]))
-
-    story.append(Paragraph(
-        "<b>14:30–17:30｜東大門設計廣場 DDP</b><br/>"
-        "• 交通：馬場／往十里轉乘 → <b>東大門歷史文化公園站</b>（約15–20分）<br/>"
-        "• 內容：札哈・哈蒂曲線建築＋當期展覽（付費展查 ddp.or.kr）；公共空間可免費逛<br/>"
-        "• 盛夏定位：韓牛後的「室內避暑＋設計感」，不爬山不暴晒<br/>"
-        "• 旁邊可顺看 Doota／現代 City Outlet，不強制逛街",
-        S["body"],
-    ))
-    story.append(img("day6-dakhanmari.jpg", 178 * mm, 55 * mm))
-    story.append(Paragraph("畫面重點：大鍋滾湯整雞——蒸汽升起瞬間最有儀式感（晚餐檔）。", S["caption"]))
-
-    story.append(Paragraph(
-        "<b>18:00–20:00｜晚餐：진옥화할매원조닭한마리（一隻雞）</b><br/>"
-        "• 地址：서울 종로구 종로40가길 18｜東大門站 <b>9號出口</b> 步行約6–8分<br/>"
-        "• <b>不預約</b>，現場排隊；雙人一隻雞約3萬上下＋年糕／粉條<br/>"
-        "• 營業約 10:30–01:00｜DDP 出來走路／短程地鐵即到，動線順",
-        S["body"],
-    ))
-    story.append(Paragraph("<b>回程</b>　地鐵回聖水休息（明天設計家具日）。", S["body"]))
-    story.append(budget("韓牛 12–25萬 ＋ DDP／咖啡 1–4萬 ＋ 一隻雞 4–6萬 ≈ <b>17–35萬韓元</b>"))
-    story.append(Spacer(1, 2 * mm))
-    story.append(tip_box(
-        "排隊／雨天",
-        "DDP 人多可改隔壁 Doota／現代 City Mall 吹冷氣。"
-        "一隻雞排隊過長：同巷其他雞湯店，或回聖水 남다른본가닭한마리（연무장7길 12 2層）。",
+    story.append(note_box(
+        "匯率與付款",
+        "匯率請以出行前銀行／Google為準（常見約1 HKD≈170–185 KRW，會波動）。"
+        "信用卡普及；建議備5–10萬韓元現金。單位：韓元。",
     ))
     story.append(PageBreak())
 
 
-def day4(story):
-    story.append(banner("Day 4｜8月11日（二）", "主題：安木湯飯＋聖水設計家具深度遊＋咖啡串連"))
+def add_day(story, day_no, date, weekday, theme, photo, rows, budget_text, alt_title, alt_text, stay="Hotel POCO Seongsu"):
+    blocks = [
+        day_header(day_no, date, weekday, theme),
+        Spacer(1, 2 * mm),
+    ]
+    if photo:
+        blocks += [img(photo, CONTENT_W, 40 * mm), Spacer(1, 2 * mm)]
+    blocks += [
+        P(f"<b>住宿</b>：{stay}", 8, 11, MUTED),
+        Spacer(1, 1.5 * mm),
+        schedule_table(rows),
+        Spacer(1, 2.5 * mm),
+        P(f"<b>當日預算（兩人・約）</b>：{budget_text}", 8.5, 12, NAVY),
+        Spacer(1, 2 * mm),
+        note_box(alt_title, alt_text),
+    ]
+    story.append(KeepTogether(blocks))
+    story.append(PageBreak())
+
+
+def pages_days(story):
+    add_day(
+        story, 1, "2026/08/08", "六", "抵達聖水・落地慢活",
+        "day1-daelim-cafe.jpg",
+        [
+            ("09:45–14:25", "<b>航班 UO630</b>　香港 HKG → 仁川 ICN（實際時刻以電子機票為準）", "機上", "入境＋領行李約45–75分"),
+            ("15:30–17:00", "<b>機場→飯店</b>　AREX→弘大入口轉2號線→聖水站3號出口步行約1分", "—", "全程約70–90分；預估16–17時抵店"),
+            ("17:00–18:00", "<b>Check-in</b>　Hotel POCO Seongsu　沖澡、調冷氣、確認地圖App", "—", "성수이로 96"),
+            ("18:00–19:30", "<b>周邊散步</b>　①대림창고（성수이로78）②Musinsa＠대림창고（성수이로74）③성수연방／천상가옥（성수이로14길14）", "咖啡可", "飯店同路，步行為主"),
+            ("19:30–21:00", "<b>輕鬆晚餐</b>　A.꿉당성수（성수이로20길10）炭火豬頸肉　B.飯店5分內簡餐", "晚餐", "週末꿉당可能排隊"),
+            ("21:00後", "返回飯店休息，早睡養精神", "—", "不排景點"),
+        ],
+        "6–10萬韓元（含機場交通）",
+        "備選方案",
+        "抵達過晚改外帶回房。大林倉庫人多改坐성수연방吹冷氣。AREX人潮可改機場巴士後轉地鐵。",
+    )
+
+    add_day(
+        story, 2, "2026/08/09", "日", "Cafe Onion 麵包午餐・Alla Prima 慶生晚餐",
+        "day2-onion-bakery.jpg",
+        [
+            ("09:30–11:00", "<b>首爾林（서울숲）</b>　樹蔭步道45–60分（趁涼，不排滿園）", "—", "聖水步行或盆唐線首爾林站"),
+            ("11:30–13:30", "<b>午餐：Cafe Onion 성수</b>　아차산로9길8｜必點설산팡도르、앙버터＋冰美式｜先佔座再買麵包", "午餐", "聖水2號出口步行2–3分｜人均1.5–2.5萬"),
+            ("13:30–16:00", "<b>回飯店休息</b>　午睡、保濕、化妝穿搭（smart casual；勿短褲拖鞋）", "—", "為18:00慶生留白"),
+            ("16:30–17:50", "<b>前往鶴洞</b>　聖水→建大入口轉7號線→鶴洞站6號出口｜可選더스퀘어咖啡補妝", "—", "車程約30–40分｜提前抵達"),
+            ("18:00–21:00", "<b>【固定】Alla Prima 生日晚餐</b>　학동로17길13｜套餐約19–31萬／人｜約2.5–3小時", "晚餐", "遲到約15分可能no-show｜電話02-511-2555"),
+            ("21:00後", "7號線→建大入口→2號線返回聖水飯店", "—", "可購氣泡水慶祝收工"),
+        ],
+        "50–82萬韓元（含Alla Prima）",
+        "備選方案",
+        "下雨取消首爾林，改Onion長坐或성수연방。Onion大排長龍可外帶，或改밀도성수（왕십리로96）吐司外帶。",
+    )
+
+    add_day(
+        story, 3, "2026/08/10", "一", "馬場韓牛 → DDP → 一隻雞晚餐",
+        "day3-ddp.jpg",
+        [
+            ("11:00–11:30", "<b>前往馬場洞</b>　聖水→往十里轉5號線→馬場站", "—", "約20–25分"),
+            ("11:30–14:00", "<b>午餐：인생한우</b>　마장로31길43 2層｜選1++꽃등심／살치살／채끝｜先點600–800g", "午餐", "上桌費홀約4,000｜兩人約12–25萬"),
+            ("14:30–17:30", "<b>東大門設計廣場 DDP</b>　室內曲線建築＋當期展覽（查ddp.or.kr）｜盛夏避暑", "咖啡可", "馬場／往十里轉東大門歷史文化公園站約15–20分"),
+            ("18:00–20:00", "<b>晚餐：진옥화할매원조닭한마리</b>　종로40가길18｜不預約現場排隊｜雙人一隻雞＋年糕／粉條", "晚餐", "東大門站9號出口步行6–8分｜約4–6萬"),
+            ("20:30後", "地鐵返回聖水飯店休息", "—", "明天設計家具日"),
+        ],
+        "17–35萬韓元",
+        "備選方案",
+        "DDP人多可改Doota／現代City Mall吹冷氣。一隻雞排隊過長：同巷其他店，或回聖水남다른본가닭한마리（연무장7길12 2層）。",
+    )
+
+    add_day(
+        story, 4, "2026/08/11", "二", "安木湯飯＋聖水設計家具＋咖啡串連",
+        "day4-design-shop.jpg",
+        [
+            ("11:30–13:00", "<b>午餐：안목 성수</b>　뚝섬로13길34｜豬國飯＋冰冷모듬수육｜可用CatchTable候位", "午餐", "聖水3號出口步行7–10分｜人均約3–4萬"),
+            ("13:30–14:30", "<b>Cafe① Grey Penguin</b>　서울숲4길26-14｜塔派＋冰飲，飯後休息", "甜點", "近首爾林"),
+            ("14:30–17:30", "<b>設計店動線</b>　①29CM HOME（연무장길57）②29CM HOME2（110）③LCDC（연무장17길10）④Object（서울숲길36 2層）", "—", "Object約12:30–20:30｜週一休故排週二"),
+            ("彈性插入", "<b>Cafe②</b>　대림창고（성수이로78）或성수연방・천상가옥（성수이로14길14 3層）", "咖啡", "一天認真坐2間即可"),
+            ("可選", "<b>아모레성수</b>　아차산로11길7｜10:30–20:30（週一休→今日可）試香吹冷氣", "—", "聖水2號出口步行約5分"),
+            ("晚上", "輕食回飯店；明天美容日少油炸", "輕食", "—"),
+        ],
+        "10–30萬韓元（含小物則上限上調）",
+        "備選方案",
+        "店休／下雨縮成兩間設計店＋Grey Penguin與천상가옥長坐，不硬走연무장全線。",
+    )
+
+    add_day(
+        story, 5, "2026/08/12", "三", "美髮＋美甲日（新論峴一站搞定）",
+        "day5-beauty-salon.jpg",
+        [
+            ("10:00–10:40", "<b>移動</b>　聖水2號線直達新論峴站，2號出口出站", "—", "約20–25分"),
+            ("11:00–13:00", "<b>【固定】美甲：유후네일 신논현</b>　봉은사로1길37｜Naver搜「유후네일 신논현」預約", "—", "步行約5–8分｜凝膠約4–7萬起"),
+            ("13:00–14:00", "<b>輕午餐</b>　江南大路商圈簡餐（少沾手食物）", "午餐", "人均1.2–2萬"),
+            ("14:00–18:00", "<b>【固定】美髮：MORE ON HAIR 江南店</b>　강남대로475, 3F（非江南總店）｜新論峴2號出口步行", "—", "以Naver預約單為準｜週一週二公休"),
+            ("晚上", "返回聖水輕食／蛋糕慶祝新造型", "輕食", "早休息"),
+        ],
+        "餐3–5萬＋美甲4–10萬＋美髮（剪染燙常見10–40萬＋，依項目）",
+        "備選方案",
+        "美甲約滿：Naver「신논현역 네일샵」篩預約可；或미쥬네일（봉은사로4길23一帶）。優先保住美髮時段。",
+    )
+
+    add_day(
+        story, 6, "2026/08/13", "四", "弘大慢逛日（延南森林路＋炸雞夜）",
+        "day6-hongdae.jpg",
+        [
+            ("10:30–11:30", "<b>前往弘大</b>　聖水2號線直達弘大入口站", "—", "約30分"),
+            ("11:30–13:00", "<b>早午餐＋咖啡</b>　弘大商圈側街選店（避開最擠巷口）", "午餐", "人均1.5–2.5萬"),
+            ("13:00–17:30", "<b>弘大→延南洞</b>　①商圈服飾彩妝選品（多進店躲暑）②延南洞③京義線森林路延南段散步＋咖啡45–60分", "咖啡", "盛夏主街曬，傍晚走森林路較舒適"),
+            ("18:30–20:30", "<b>炸雞夜（留弘大）</b>　Naver搜「홍대 치킨」依評分距離選店＋生啤", "晚餐", "兩人約4–7萬｜減少折返"),
+            ("晚上", "返回聖水收拾明日托運行李，確認UO631航廈", "—", "備援炸雞：레츠잇치킨／교촌성수역점"),
+        ],
+        "11–23萬韓元",
+        "備選方案",
+        "暴晒／雷雨：縮短逛街，改延南咖啡長坐；大雨改室內選品，炸雞可外帶回飯店。",
+    )
+
+    add_day(
+        story, 7, "2026/08/14", "五", "退房返港（UO631）",
+        "day7-icn-airport.jpg",
+        [
+            ("08:30–10:00", "<b>收拾行李＋早餐</b>　Onion外帶／便利店／천상가옥輕食", "早餐", "不排景點"),
+            ("10:00–11:30", "<b>最後採購（可選）</b>　僅限步行10分內藥妝或大林倉庫／Musinsa", "—", "液體刀剪注意托運規定"),
+            ("12:00–12:30前", "<b>退房出發</b>　聖水→弘大入口轉AREX→仁川機場（約70–90分）＋提前2小時候機", "—", "務必預留緩衝"),
+            ("13:30–起飛前", "<b>機場程序</b>　報到、托運、安檢、退稅；航廈內可當最後一餐", "可", "確認航廈（T1/T2）"),
+            ("約15:25–16:10", "<b>航班 UO631</b>　ICN → HKG｜抵達香港約18:15–19:00（以機票為準）", "機上", "起飛前再確認航班狀態"),
+        ],
+        "3–9萬韓元（含機場交通）",
+        "備選方案",
+        "AREX異常改機場巴士或計程車。建議起飛前3小時再確認航廈與航班。",
+        stay="当日退房",
+    )
+
+
+def page_prep(story):
+    story.append(section_title("七、行前準備與注意事項"))
+    story.append(Spacer(1, 2 * mm))
+    story.append(kv_table([
+        ("證件", "護照效期、韓國入境規定、電子機票、飯店與餐廳訂位截圖"),
+        ("上網", "機場eSIM／旅遊SIM（5–7天）；可Hotspot共用"),
+        ("必備App", "Naver Map（找路／預約）、Papago（翻譯）、CatchTable（候位）、Kakao T（叫車）、航空App"),
+        ("盛夏裝備", "SPF50+、帽子、摺疊傘、補水壺、薄外套（室內冷氣）、舒適走路鞋"),
+        ("付款", "信用卡為主＋現金5–10萬韓元；部分美甲店可能偏好轉帳／現金"),
+        ("預約再確認", "出發前48小時：Alla Prima 18:00、MORE ON HAIR、유후네일、UO630/631航廈"),
+    ]))
     story.append(Spacer(1, 3 * mm))
-    story.append(img("day4-anmok-gukbap.jpg", 178 * mm, 55 * mm))
-    story.append(Paragraph("畫面重點：熱湯飯蒸汽＋冷白切肉拼盤——先拍整桌再動筷。", S["caption"]))
-
-    story.append(Paragraph(
-        "為什麼週二？Object、아모레성수 週一公休；週二可一次串完。一天認真坐 <b>2 間咖啡</b>即可。",
-        S["meta"],
-    ))
-
-    story.append(Paragraph("時間軸", S["h2"]))
-    story.append(Paragraph(
-        "<b>11:30–13:00｜안목 성수</b><br/>"
-        "• 주소：뚝섬로13길 34｜聖水3號出口步行約7–10分<br/>"
-        "• 雙人：豬國飯×2（各約13,000）＋冰冷모듬수육（약35,000）≈人均3–4萬<br/>"
-        "• CatchTable／現場候位；約10:00–22:00（21:00 L.O.）",
-        S["body"],
-    ))
-    story.append(Paragraph(
-        "<b>13:30–14:30｜Cafe ① Grey Penguin Company</b><br/>"
-        "• 주소：서울숲4길 26-14｜近首爾林｜塔派名店（香草／季節水果塔）＋冰飲<br/>"
-        "• 飯後甜點休息、吹冷氣再出發逛家具",
-        S["body"],
-    ))
-    story.append(img("day4-design-shop.jpg", 178 * mm, 55 * mm))
-    story.append(Paragraph("畫面重點：大窗採光＋原木家具層次——拍商品陳列比拍人臉更有選品質感。", S["caption"]))
-
-    story.append(Paragraph("<b>14:30–17:30｜設計家具動線</b>", S["body"]))
-    story.append(Paragraph(
-        "① <b>29CM HOME</b> 연무장길 57｜家具、燈具、生活器物（聖水站步行約5分）<br/>"
-        "② <b>29CM HOME 2</b> 연무장길 110｜食品雜貨／廚房浴室情境展區<br/>"
-        "③ <b>LCDC SEOUL</b> 연무장17길 10｜複合文化＋選品／快閃<br/>"
-        "④ <b>Object</b> 서울숲길 36 2層｜約12:30–20:30，獨立設計文具小物",
-        S["bullet"],
-    ))
-    story.append(Paragraph(
-        "<b>中段 Cafe ②（彈性插入）</b>　逛累就進 <b>대림창고</b> 성수이로 78 咖啡，"
-        "或 <b>성수연방・천상가옥</b> 성수이로14길 14 3層（空間大好坐）。",
-        S["body"],
-    ))
-    story.append(Paragraph(
-        "<b>可選</b>　<b>아모레성수</b> 아차산로11길 7｜10:30–20:30（週一休→今天可）試香、看窗邊綠意。",
-        S["body"],
-    ))
-    story.append(Paragraph("<b>晚上</b>　輕食回飯店；明天美容日，少油炸。", S["body"]))
-    story.append(budget("안목 6–8萬 ＋ 咖啡甜點 4–7萬 ＋ 小物 0–15萬 ≈ <b>10–30萬韓元</b>"))
+    story.append(section_title("八、美甲預約指引（可截圖）"))
     story.append(Spacer(1, 2 * mm))
-    story.append(tip_box("店休／下雨", "縮成兩間設計店＋長坐咖啡（Grey Penguin＋천상가옥）。大雨不硬走연무장全線。"))
-    story.append(PageBreak())
-
-
-def day5(story):
-    story.append(banner("Day 5｜8月12日（三）", "主題：美髮＋美甲——新論峴一站搞定"))
-    story.append(Spacer(1, 3 * mm))
-    story.append(img("day5-beauty-salon.jpg"))
-    story.append(Paragraph("畫面重點：完成後拍雙手凝膠＋新髮型側臉最實用。", S["caption"]))
-
-    story.append(Paragraph(
-        "MORE ON HAIR <b>江南店（강남대로 475）</b>≠江南總店，預約請認準地址。"
-        "週一、週二公休——今天（週三）可服務。服務時段以 Naver 預約確認單為準。",
-        S["body"],
-    ))
-
-    story.append(Paragraph("時間軸（先美甲→再美髮）", S["h2"]))
-    story.append(Paragraph(
-        "<b>10:00–10:40｜移動</b>　聖水2號線直達 <b>新論峴</b>（約20–25分），2號出口出站。",
-        S["body"],
-    ))
-    story.append(Paragraph(
-        "<b>11:00–13:00｜美甲：유후네일 신논현</b><br/>"
-        "• 주소：서울 강남구 봉은사로1길 37｜新論峴步行約5–8分<br/>"
-        "• Naver Map 搜尋：<b>유후네일 신논현</b> → 開啟「預約／N예약」<br/>"
-        "• 與美髮店同商圈，步行銜接｜凝膠約4–7萬起",
-        S["body"],
-    ))
-    story.append(Paragraph(
-        "<b>13:00–14:00｜輕午餐</b>　江南大路商圈簡餐，避免重口味沾手。人均1.2–2萬。",
-        S["body"],
-    ))
-    story.append(Paragraph(
-        "<b>14:00–18:00｜美髮：MORE ON HAIR 江南店</b><br/>"
-        "• 주소：서울 서초구 강남대로 475, 3F<br/>"
-        "• 新論峴站 <b>2號出口</b> 步行可達｜出示預約、確認剪染燙與價位",
-        S["body"],
-    ))
-    story.append(Paragraph("<b>晚上</b>　回聖水輕食／蛋糕慶祝新造型。", S["body"]))
-    story.append(budget("美甲4–10萬 ＋ 美髮（剪染燙常見10–40萬＋）＋ 餐3–5萬"))
-    story.append(Spacer(1, 2 * mm))
-    story.append(tip_box(
-        "美甲約滿",
-        "Naver「신논현역 네일샵」篩預約可；或미쥬네일（봉은사로4길 23一帶）。"
-        "優先保住 MORE ON HAIR 時段。",
-    ))
-    story.append(PageBreak())
-
-
-def day6(story):
-    story.append(banner("Day 6｜8月13日（四）", "主題：弘大慢逛日——商圈＋延南森林路＋炸雞夜"))
-    story.append(Spacer(1, 3 * mm))
-    story.append(img("day6-hongdae.jpg", 178 * mm, 60 * mm))
-    story.append(Paragraph("畫面重點：弘大街景樹蔭與店面——午後多進店躲暑，傍晚再走森林路。", S["caption"]))
-
-    story.append(Paragraph(
-        "一隻雞已安排在 Day 3 晚餐。今天專心拍弘大／延南，節奏放慢。",
-        S["meta"],
-    ))
-
-    story.append(Paragraph("時間軸", S["h2"]))
-    story.append(Paragraph(
-        "<b>10:30–11:30｜出發</b>　聖水站 <b>2號線直達弘大入口</b>（약30분）。",
-        S["body"],
-    ))
-    story.append(Paragraph(
-        "<b>11:30–13:00｜早午餐＋咖啡</b>　弘大入口站出站後選一間商圈咖啡／早午餐，"
-        "避開最擠巷口正中央，往側街較好坐。人均1.5–2.5萬。",
-        S["body"],
-    ))
-    story.append(Paragraph(
-        "<b>13:00–17:30｜弘大→延南洞慢逛</b><br/>"
-        "① <b>弘大商圈</b>：服飾、彩妝、選品店——盛夏策略是「多進店、少站街」<br/>"
-        "② 往北步行至 <b>延南洞（연남동）</b><br/>"
-        "③ <b>京義線森林路延南段（경의선숲길）</b>：樹蔭步道散步＋找咖啡坐45–60分（比主街舒適好拍）",
-        S["body"],
-    ))
-    story.append(img("day6-fried-chicken.jpg", 178 * mm, 55 * mm))
-    story.append(Paragraph("畫面重點：脆皮炸雞＋冰啤酒——弘大夜食收尾；暖光金屬盤最好拍。", S["caption"]))
-
-    story.append(Paragraph(
-        "<b>18:30–20:30｜炸雞夜（留弘大，少折返）</b><br/>"
-        "• 建議：Naver Map 搜「<b>홍대 치킨</b>」依當日評分／距離選店，配生啤<br/>"
-        "• 預算：兩人約4–7萬<br/>"
-        "• 若執意回聖水：레츠잇치킨（왕십리로4길 12）或 교촌치킨 성수역점",
-        S["body"],
-    ))
-    story.append(Paragraph("<b>晚上</b>　回聖水收拾明日托運行李，確認 UO631 航廈。", S["body"]))
-    story.append(budget("餐飲咖啡 5–8萬 ＋ 炸雞啤酒 4–7萬 ＋ 地鐵／小物 2–8萬 ≈ <b>11–23萬韓元</b>"))
-    story.append(Spacer(1, 2 * mm))
-    story.append(tip_box(
-        "暴晒／雷雨",
-        "主街太曬就縮短逛街，改延南洞咖啡長坐＋森林路傍晚再走。"
-        "大雨改室內選品店／生活商場，炸雞外帶回飯店亦可。",
-    ))
-    story.append(PageBreak())
-
-
-def day7(story):
-    story.append(banner("Day 7｜8月14日（五）", "主題：退房返港——中午前出發，不排完整景點"))
-    story.append(Spacer(1, 3 * mm))
-    story.append(img("day7-icn-airport.jpg"))
-    story.append(Paragraph("畫面重點：仁川機場明亮大廳——留足時間比再塞景點重要。", S["caption"]))
-
-    story.append(Paragraph("時間軸", S["h2"]))
-    story.append(Paragraph(
-        "<b>08:30–10:00｜收拾＋早餐</b>　飯店周邊：Onion 外帶／편의店／천상가옥輕食。",
-        S["body"],
-    ))
-    story.append(Paragraph(
-        "<b>10:00–11:30｜最後採購（可選）</b>　僅限步行10分內藥妝或大林倉庫／Musinsa；不排完整景點。"
-        "液體與刀剪注意托運規定。",
-        S["body"],
-    ))
-    story.append(Paragraph(
-        "<b>建議 12:00–12:30前退房出發</b><br/>"
-        "回程 <b>UO631</b>：ICN→HKG，起飛約 <b>15:25–16:10</b>（以機票為準）。<br/>"
-        "路線：聖水→弘大入口轉 AREX→仁川（約70–90分）＋提前2小時候機。",
-        S["body"],
-    ))
-    story.append(Paragraph("<b>機場</b>　報到、托運、退稅；航廈內可當最後一餐。", S["body"]))
-    story.append(budget("早餐2–4萬 ＋ 機場交通約1–1.6萬 ≈ <b>3–9萬韓元</b>"))
-    story.append(Spacer(1, 2 * mm))
-    story.append(tip_box("突發", "AREX異常改機場巴士或計程車。起飛前3小時再確認航廈與航班狀態。"))
-    story.append(PageBreak())
-
-
-def prep(story):
-    story.append(Paragraph("行前準備清單", S["h1"]))
-    story.append(hr())
-    story.append(Paragraph("天氣與穿著（8月首爾盛夏）", S["h2"]))
-    story.append(Paragraph(
-        "白天常見高溫約30–35°C、濕度高，偶有雷陣雨。透氣衣物、涼鞋、帽、防晒；包包放薄外套。"
-        "中午偏室內（DDP、商場、選品店），傍晚再戶外。",
-        S["body"],
-    ))
-    story.append(Paragraph("金錢與匯率", S["h2"]))
-    story.append(Paragraph(
-        "以行前銀行／Google匯率為準（常見約1 HKD≈170–185 KRW，會波動）。"
-        "信用卡普及；備5–10萬韓元現金。本攻略預算為兩人當日粗估。",
-        S["body"],
-    ))
-    story.append(Paragraph("上網", S["h2"]))
-    story.append(Paragraph("機場領 eSIM／旅遊卡（5–7天）。Hotspot 可只開一張給兩人用。", S["body"]))
-    story.append(Paragraph("必備 App", S["h2"]))
-    story.append(Paragraph("• <b>Naver Map</b>：找路、營業時間、美甲美髮預約", S["bullet"]))
-    story.append(Paragraph("• <b>Papago</b>：韓中翻譯／菜單拍照", S["bullet"]))
-    story.append(Paragraph("• <b>CatchTable</b>：안목等餐廳候位", S["bullet"]))
-    story.append(Paragraph("• <b>Kakao T</b>：偶發叫車｜航空公司 App 查航班", S["bullet"]))
-    story.append(Paragraph("出發前48小時再確認", S["h2"]))
-    story.append(Paragraph("• Alla Prima 18:00 訂位姓名、服裝、過敏原", S["bullet"]))
-    story.append(Paragraph("• MORE ON HAIR 江南店（강남대로475）預約單", S["bullet"]))
-    story.append(Paragraph("• 유후네일 Naver 預約", S["bullet"]))
-    story.append(Paragraph("• UO630／UO631 航廈與起飛時間", S["bullet"]))
-    story.append(Paragraph("• 飯店 check-in／out 與行李寄放", S["bullet"]))
-    story.append(Spacer(1, 5 * mm))
+    story.append(kv_table([
+        ("店名", "유후네일 신논현점（YouWho Nail Sinnonhyeon）"),
+        ("地址", "서울 강남구 봉은사로1길 37"),
+        ("搜尋", "Naver Map →「유후네일 신논현」→ N예약"),
+        ("銜接", "新論峴2號出口商圈　↔　MORE ON HAIR（강남대로475, 3F）步行可達"),
+        ("建議時序", "11:00美甲 → 午餐 → 14:00美髮（可依預約單微調）"),
+    ]))
+    story.append(Spacer(1, 4 * mm))
     end = Table(
-        [[Paragraph(
-            "祝兩位在聖水過一個不趕路的夏天——把最好的精神留給 8/9 慶生晚餐，其餘日子慢慢走就好。",
-            ParagraphStyle("end", fontName=FONT_REG, fontSize=9.5, leading=14,
-                           textColor=white, alignment=TA_CENTER)
-        )]],
-        colWidths=[172 * mm],
+        [[P("<b>祝旅途愉快　Have a wonderful trip in Seoul</b>", 11, 15, WHITE, TA_CENTER)],
+         [P("本行程單為自助執行參考；店家營業、價格、公休日與航班時刻請以當日官方資訊為準。", 8, 11, HexColor("#C8D9E4"), TA_CENTER)]],
+        colWidths=[CONTENT_W],
     )
     end.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), C_ACCENT),
-        ("TOPPADDING", (0, 0), (-1, -1), 10),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+        ("BACKGROUND", (0, 0), (-1, -1), NAVY),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
     ]))
     story.append(end)
-    story.append(Spacer(1, 3 * mm))
-    story.append(Paragraph(
-        "免責：店家營業時間、價格、公休日與航班時刻可能變動；請以 Naver Map／官方預約／電子機票為準。",
-        S["caption"],
-    ))
 
 
 def main():
     doc = SimpleDocTemplate(
         str(OUT), pagesize=A4,
-        leftMargin=MARGIN, rightMargin=MARGIN,
-        topMargin=12 * mm, bottomMargin=14 * mm,
-        title="首爾七天遊圖文攻略 2026.8.8–8.14",
-        author="Seoul Leisure Guide",
+        leftMargin=ML, rightMargin=MR, topMargin=MT, bottomMargin=MB,
+        title="首爾七天休閒度假行程單 2026.08.08–08.14",
+        author="Seoul Travel Itinerary",
     )
     story = []
-    cover(story)
-    overview(story)
-    day1(story)
-    day2(story)
-    day3(story)
-    day4(story)
-    day5(story)
-    day6(story)
-    day7(story)
-    prep(story)
+    page_cover(story)
+    page_overview(story)
+    pages_days(story)
+    page_prep(story)
     doc.build(story, onFirstPage=footer, onLaterPages=footer)
     print(f"Wrote {OUT}")
 
