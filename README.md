@@ -4,6 +4,23 @@ Windows 本機流程：開啟「早班 LME reference」執行 VBA → 刷新 Blo
 
 > 完整流程需要 **Windows + Excel + Bloomberg Terminal**。日期計算與報告產生可在任何平台跑單元測試。
 
+## 一鍵產生 `LME每日報價yyyymmdd.xlsx`
+
+在 Windows 檔案總管**雙擊**專案目錄裡的：
+
+- `一鍵生成LME每日報價.bat`（或 `Generate_LME_Daily.bat`）
+
+腳本會讀同目錄 `config.yaml`，跑完整流程，並在成功後用 Excel 打開 `working_dir\LME每日報價yyyymmdd.xlsx`（例如 `LME每日報價20260819.xlsx`）。視窗結束前會 `pause`，方便看錯誤。
+
+也可在命令列：
+
+```text
+python generate_lme_daily.py
+python generate_lme_daily.py --no-open
+```
+
+把 bat **建立捷徑**放到桌面即可每天點一次；不要只把 bat 複製走（它要找同目錄的 `config.yaml` 與 Python 套件）。
+
 ## 快速開始
 
 ```text
@@ -40,6 +57,10 @@ python -m lme_daily --config config.yaml
 ```text
 config.yaml
 holidays.yaml
+一鍵生成LME每日報價.bat   # Windows 雙擊
+Generate_LME_Daily.bat     # 同上（英文檔名）
+generate_lme_daily.py      # 一鍵腳本本體（成功後開啟 Excel）
+run_daily.py
 lme_daily/
   main.py              # 流程串接
   config.py            # 讀 YAML、路徑檢查

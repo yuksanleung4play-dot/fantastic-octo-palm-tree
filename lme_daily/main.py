@@ -179,7 +179,8 @@ def run(config: AppConfig, *, as_of: date, dry_run: bool, skip_vba: bool, skip_b
     return output_path
 
 
-def main(argv: list[str] | None = None) -> int:
+def run_cli(argv: list[str] | None = None) -> tuple[int, Path | None]:
+    """執行 CLI 流程，回傳 ``(exit_code, 報告路徑)``。dry-run 時路徑為 None。"""
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -190,7 +191,7 @@ def main(argv: list[str] | None = None) -> int:
         config = load_config(args.config)
         setup_logging(config)
         logger.info("LME 每日報價自動化啟動（as_of=%s）", as_of.isoformat())
-        run(
+        output = run(
             config,
             as_of=as_of,
             dry_run=args.dry_run,
@@ -200,15 +201,20 @@ def main(argv: list[str] | None = None) -> int:
     except LMEAutomationError as exc:
         logging.getLogger("lme_daily").error("%s", exc)
         print(f"錯誤：{exc}", file=sys.stderr)
-        return 1
+        return 1, None
     except KeyboardInterrupt:
         print("已中斷", file=sys.stderr)
-        return 130
+        return 130, None
     except Exception as exc:  # 未預期例外也要明確印出，不可沉默
         logging.getLogger("lme_daily").exception("未預期錯誤：%s", exc)
         print(f"未預期錯誤：{exc}", file=sys.stderr)
-        return 1
-    return 0
+        return 1, None
+    return 0, output
+
+
+def main(argv: list[str] | None = None) -> int:
+    code, _output = run_cli(argv)
+    return code
 
 
 if __name__ == "__main__":
