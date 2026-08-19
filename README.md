@@ -6,20 +6,18 @@ Windows 本機流程：開啟「早班 LME reference」執行 VBA → 刷新 Blo
 
 ## 一鍵產生 `LME每日報價yyyymmdd.xlsx`
 
-在 Windows 檔案總管**雙擊**專案目錄裡的：
+在檔案總管**雙擊**（不要在 cmd 裡手動打一堆殘缺指令）：
 
-- `一鍵生成LME每日報價.bat`（或 `Generate_LME_Daily.bat`）
+1. 第一次：雙擊 `install_deps.bat`（安裝套件，需連網）
+2. 之後每天：雙擊 **`RUN_LME.bat`**（或 `RUN_LME.vbs`）
 
-腳本會讀同目錄 `config.yaml`，跑完整流程，並在成功後用 Excel 打開 `working_dir\LME每日報價yyyymmdd.xlsx`（例如 `LME每日報價20260819.xlsx`）。視窗結束前會 `pause`，方便看錯誤。
+成功後會印出 `OUTPUT=` 下一行就是 `LME每日報價yyyymmdd.xlsx` 的完整路徑，並用 Excel 打開。
 
-也可在命令列：
+請先改好 `config.yaml` 的 `paths.working_dir`，並登入 Bloomberg、開得了 Excel。
 
-```text
-python generate_lme_daily.py
-python generate_lme_daily.py --no-open
-```
+**不要**把 `pywinauto`、`requirements.txt` 當成指令執行。完整說明見 `HOW_TO_RUN.txt`。
 
-把 bat **建立捷徑**放到桌面即可每天點一次；不要只把 bat 複製走（它要找同目錄的 `config.yaml` 與 Python 套件）。
+舊版 bat 若出現 `嘿濃 echo`：那是 UTF-8 BOM 被繁中 cmd 誤讀，請改用現在這個無 BOM 的 `RUN_LME.bat`。資料夾路徑若含 `&`（例如 `LME --Form & Sheet`），務必雙擊 bat，不要手動 `cd` 未加引號的路徑。
 
 ## 快速開始
 
@@ -57,9 +55,12 @@ python -m lme_daily --config config.yaml
 ```text
 config.yaml
 holidays.yaml
-一鍵生成LME每日報價.bat   # Windows 雙擊
-Generate_LME_Daily.bat     # 同上（英文檔名）
-generate_lme_daily.py      # 一鍵腳本本體（成功後開啟 Excel）
+HOW_TO_RUN.txt
+RUN_LME.bat                # 請雙擊這個（無 BOM，純英文）
+RUN_LME.vbs
+install_deps.bat           # 第一次安裝套件
+Generate_LME_Daily.bat     # 與 RUN_LME.bat 相同
+generate_lme_daily.py
 run_daily.py
 lme_daily/
   main.py              # 流程串接

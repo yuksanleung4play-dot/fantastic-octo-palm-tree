@@ -1,4 +1,5 @@
-﻿@echo off
-cd /d "%~dp0"
-call "%~dp0Generate_LME_Daily.bat" %*
+@echo off
+setlocal EnableExtensions
+pushd "%~dp0"
+call RUN_LME.bat %*
 exit /b %ERRORLEVEL%

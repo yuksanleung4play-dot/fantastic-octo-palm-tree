@@ -1,0 +1,25 @@
+LME daily report - how to run (Windows)
+======================================
+
+Do NOT type library names (pywinauto) or requirements.txt as commands.
+
+Double-click ONE of these in this folder:
+  RUN_LME.bat
+  RUN_LME.vbs
+  Generate_LME_Daily.bat
+
+First time only, if packages are missing:
+  double-click install_deps.bat
+  (needs internet)
+
+Before running:
+  1. Edit config.yaml  ->  paths.working_dir
+  2. Excel installed
+  3. Bloomberg Terminal logged in
+  4. Source workbooks in working_dir
+
+Command Prompt (optional):
+  py -3 generate_lme_daily.py
+
+If you see garbage before 'echo off':
+  that was the old UTF-8 BOM batch file. Use the new RUN_LME.bat

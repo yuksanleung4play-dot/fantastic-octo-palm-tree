@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""一鍵產生 ``LME每日報價{yyyymmdd}.xlsx``。
+"""One-click generator for LME daily report xlsx.
 
-建議用同目錄的 ``一鍵生成LME每日報價.bat`` 雙擊執行（Windows）。
-也可在命令列：
+Windows: double-click RUN_LME.bat  (ASCII, no UTF-8 BOM)
 
     python generate_lme_daily.py
     python generate_lme_daily.py --no-open
@@ -34,10 +33,9 @@ def _split_open_flag(argv: list[str]) -> tuple[list[str], bool]:
 
 
 def open_report_file(path: Path) -> None:
-    """用系統預設程式（通常是 Excel）開啟產出檔。"""
     resolved = path.resolve()
     if not resolved.is_file():
-        print(f"找不到報告檔，無法開啟：{resolved}", file=sys.stderr)
+        print(f"ERROR: report not found: {resolved}", file=sys.stderr)
         return
     try:
         if sys.platform == "win32":
@@ -47,23 +45,36 @@ def open_report_file(path: Path) -> None:
 
             opener = "open" if sys.platform == "darwin" else "xdg-open"
             subprocess.Popen([opener, str(resolved)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        print(f"已開啟：{resolved}")
+        print(f"Opened: {resolved}")
     except OSError as exc:
-        print(f"已產生檔案，但自動開啟失敗：{exc}\n請自行開啟：{resolved}", file=sys.stderr)
+        print(f"Created file but could not open it: {exc}", file=sys.stderr)
+        print(f"Open manually: {resolved}", file=sys.stderr)
 
 
 def main(argv: list[str] | None = None) -> int:
+    from lme_daily.bootstrap import configure_windows_console, ensure_dependencies
     from lme_daily.main import run_cli
+
+    configure_windows_console()
 
     raw = list(sys.argv[1:] if argv is None else argv)
     rest, open_report = _split_open_flag(raw)
     if "--config" not in rest and "-h" not in rest and "--help" not in rest:
         default_config = ROOT / "config.yaml"
         rest = ["--config", str(default_config), *rest]
+        if not default_config.is_file() and "--help" not in rest:
+            print("ERROR: config.yaml not found next to generate_lme_daily.py")
+            print("Expected: " + str(default_config))
+            return 1
+
+    auto_install = os.environ.get("LME_SKIP_PIP") != "1"
+    if "-h" not in rest and "--help" not in rest:
+        ensure_dependencies(rest, auto_install=auto_install)
 
     print("=" * 60)
-    print("  一鍵生成 LME每日報價yyyymmdd.xlsx")
+    print("  Generate LME daily report  LME每日報價yyyymmdd.xlsx")
     print("=" * 60)
+    print("Script folder: " + str(ROOT))
 
     prev_cwd = Path.cwd()
     os.chdir(ROOT)
@@ -73,17 +84,21 @@ def main(argv: list[str] | None = None) -> int:
         os.chdir(prev_cwd)
     if code != 0:
         print()
-        print("產生失敗，視窗可保留對照上方錯誤。")
+        print("FAILED. Read the error above.")
+        print("Checklist:")
+        print("  1) Edit config.yaml paths.working_dir")
+        print("  2) Excel installed, Bloomberg Terminal logged in")
+        print("  3) Source workbooks exist in working_dir")
         return code
 
     if output is None:
         print()
-        print("dry-run 完成（未寫出 Excel）。")
+        print("dry-run finished (no xlsx written).")
         return 0
 
     print()
-    print("已產生最終報告：")
-    print(f"  {output.resolve()}")
+    print("OUTPUT=")
+    print(str(output.resolve()))
     if open_report:
         open_report_file(output)
     return 0

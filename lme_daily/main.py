@@ -181,6 +181,9 @@ def run(config: AppConfig, *, as_of: date, dry_run: bool, skip_vba: bool, skip_b
 
 def run_cli(argv: list[str] | None = None) -> tuple[int, Path | None]:
     """執行 CLI 流程，回傳 ``(exit_code, 報告路徑)``。dry-run 時路徑為 None。"""
+    from lme_daily.bootstrap import configure_windows_console
+
+    configure_windows_console()
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
