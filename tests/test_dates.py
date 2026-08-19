@@ -83,6 +83,12 @@ def test_calc_lme_dates_returns_formatted_strings():
     assert three_m == "2026/11/19"
 
 
+def test_calc_lme_dates_yyyymmdd_for_inputbox():
+    prev, three_m = calc_lme_dates(date(2026, 8, 19), date_format="%Y%m%d")
+    assert prev == "20260818"
+    assert three_m == "20261119"
+
+
 def test_calc_lme_dates_custom_format():
     prev, three_m = calc_lme_dates(date(2026, 8, 19), date_format="%d-%b-%Y")
     assert prev == "18-Aug-2026"

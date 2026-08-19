@@ -32,6 +32,7 @@ class VbaConfig:
     macro_name: str
     use_param_injection: bool
     date_format: str
+    inputbox_date_format: str
     output_timeout_seconds: float
     poll_interval_seconds: float
     inputbox_timeout_seconds: float
@@ -318,6 +319,9 @@ def load_config(path: str | Path | None = None) -> AppConfig:
                 "vba.use_param_injection",
             ),
             date_format=str(_get(vba_raw, "date_format", context="vba", default="%Y/%m/%d")),
+            inputbox_date_format=str(
+                _get(vba_raw, "inputbox_date_format", context="vba", default="%Y%m%d")
+            ),
             output_timeout_seconds=float(
                 _get(vba_raw, "output_timeout_seconds", context="vba", default=180)
             ),

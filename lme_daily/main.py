@@ -129,6 +129,12 @@ def run(config: AppConfig, *, as_of: date, dry_run: bool, skip_vba: bool, skip_b
             date_format=config.vba.date_format,
         )
         logger.info("as_of=%s  上日日期=%s  3M date=%s", as_of.isoformat(), prev_date, three_m_date)
+        ibox_prev, ibox_three = calc_lme_dates(
+            as_of,
+            holiday_list=config.holidays,
+            date_format=config.vba.inputbox_date_format,
+        )
+        logger.info("InputBox 將填入 上日=%s  3M=%s（格式 %s）", ibox_prev, ibox_three, config.vba.inputbox_date_format)
         logger.info("公休日筆數=%d（未列入者僅排除週末）", len(config.holidays))
 
     if dry_run:

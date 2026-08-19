@@ -18,6 +18,7 @@ from datetime import date
 from pathlib import Path
 
 from lme_daily.config import AppConfig
+from lme_daily.dates import calc_lme_dates
 from lme_daily.excel_com import (
     close_workbook,
     excel_app,
@@ -85,14 +86,21 @@ def run_reference_macro(
     if expected.exists():
         logger.warning("輸出檔已存在，將覆寫：%s", expected)
 
+    ibox_prev, ibox_three = calc_lme_dates(
+        as_of,
+        holiday_list=config.holidays,
+        date_format=config.vba.inputbox_date_format,
+    )
     logger.info(
-        "VBA 模式：%s；巨集=%s；上日=%s；3M=%s",
+        "VBA 模式：%s；巨集=%s；參數注入上日/3M=%s / %s；InputBox 上日/3M=%s / %s",
         "先嘗試參數注入，失敗則改填 InputBox"
         if config.vba.use_param_injection
         else "InputBox 自動填入",
         config.vba.macro_name,
         prev_date,
         three_m_date,
+        ibox_prev,
+        ibox_three,
     )
 
     ready = expected
@@ -109,6 +117,8 @@ def run_reference_macro(
                 config,
                 prev_date=prev_date,
                 three_m_date=three_m_date,
+                inputbox_prev=ibox_prev,
+                inputbox_three=ibox_three,
             )
             try:
                 ready = wait_for_file(
@@ -141,14 +151,16 @@ def _execute_macro(
     *,
     prev_date: str,
     three_m_date: str,
+    inputbox_prev: str,
+    inputbox_three: str,
 ) -> None:
     names = _macro_candidates(workbook, config.vba.macro_name)
     if not config.vba.use_param_injection:
         _run_macro_with_inputboxes(
             app,
             names,
-            prev_date,
-            three_m_date,
+            inputbox_prev,
+            inputbox_three,
             inputbox_timeout=config.vba.inputbox_timeout_seconds,
         )
         return
@@ -165,14 +177,14 @@ def _execute_macro(
                 logger.warning(
                     "巨集 %s 不接受參數（DISP_E_BADPARAMCOUNT / 0x8002000E）。"
                     "這是正常情況（Sub 沒有參數、只用 InputBox）。"
-                    "改為自動填入兩個 InputBox。",
+                    "改為自動填入兩個 InputBox（格式 yyyymmdd）。",
                     name,
                 )
                 _run_macro_with_inputboxes(
                     app,
                     names,
-                    prev_date,
-                    three_m_date,
+                    inputbox_prev,
+                    inputbox_three,
                     inputbox_timeout=config.vba.inputbox_timeout_seconds,
                 )
                 return

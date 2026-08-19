@@ -18,7 +18,10 @@ vba:
   # false = 直接走 InputBox（你的 lme_main 屬於這種）
   use_param_injection: true
   # 傳給巨集 / InputBox 的日期字串格式（依 Excel 地區設定調整）
+  # 參數注入用（Application.Run 的兩個參數）
   date_format: "%Y/%m/%d"
+  # InputBox 填入格式（lme_main 要 yyyymmdd，例如 20260818）
+  inputbox_date_format: "%Y%m%d"
   output_timeout_seconds: 180
   poll_interval_seconds: 2
   inputbox_timeout_seconds: 60
