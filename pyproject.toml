@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lme-daily"
+version = "1.0.0"
+description = "LME 每日報價自動化（Excel COM + Bloomberg + 遠期曲線報告）"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "pyyaml>=6.0",
+  "python-dateutil>=2.9",
+  "pandas>=2.0",
+  "openpyxl>=3.1",
+  "xlsxwriter>=3.1",
+  "matplotlib>=3.8",
+]
+
+[project.optional-dependencies]
+windows = [
+  "pywin32>=306",
+  "pywinauto>=0.6.8",
+]
+dev = [
+  "pytest>=8.0",
+]
+
+[project.scripts]
+lme-daily = "lme_daily.main:main"
+
+[tool.setuptools.packages.find]
+include = ["lme_daily*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

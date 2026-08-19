@@ -1,0 +1,16 @@
+# LME / 倫敦 Settlement Business Day 公休日
+# TODO: 請依 LME 官方行事曆核對後補齊；目前僅放 2026 年英國銀行假期作起點，
+# 未列入者一律視為交易日（週末除外）。
+#
+# 格式：YYYY-MM-DD
+
+holidays:
+  # 2026 UK bank holidays（起點，非最終 LME 清單）
+  - "2026-01-01" # New Year's Day
+  - "2026-04-03" # Good Friday
+  - "2026-04-06" # Easter Monday
+  - "2026-05-04" # Early May bank holiday
+  - "2026-05-25" # Spring bank holiday
+  - "2026-08-31" # Summer bank holiday
+  - "2026-12-25" # Christmas Day
+  - "2026-12-28" # Boxing Day (substitute)

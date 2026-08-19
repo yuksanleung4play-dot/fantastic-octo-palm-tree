@@ -1,0 +1,48 @@
+# LME 每日報價自動化 — 請依本機路徑與巨集名稱修改後再執行
+# 本檔與執行目錄 / 專案根目錄同層即可被自動找到，也可用 --config 指定。
+
+paths:
+  working_dir: "D:\\LME\\Daily" # 主工作資料夾：來源檔與輸出檔都放這裡
+  ref_workbook_name: "早班_LME_reference_2024.xlsm" # 含 VBA 巨集（.xlsm / .xlsb）
+  bbg_workbook_name: "LME BBG WORKBOOK.xlsx"
+  output_prefix: "LME每日報價"
+  # 公休日清單檔（相對於本 config 所在目錄；也可填絕對路徑）
+  holidays_file: "holidays.yaml"
+
+vba:
+  # TODO: 請改成實際巨集名稱（VBA 編輯器中的 Sub 名稱）
+  macro_name: "RunDailyLME"
+  # true  = xl.Run(macro, 上日日期, 3M date) 直接傳參（巨集需接受 Optional 參數）
+  # false = 用 pywinauto 監聽 InputBox 彈窗並自動填入
+  use_param_injection: true
+  # 傳給巨集 / InputBox 的日期字串格式（依 Excel 地區設定調整）
+  date_format: "%Y/%m/%d"
+  output_timeout_seconds: 180
+  poll_interval_seconds: 2
+  inputbox_timeout_seconds: 60
+
+excel:
+  visible: true # true 方便除錯；排程時可改 false
+  display_alerts: false
+
+bloomberg:
+  copy_range: "B3:I10"
+  # TODO: 請確認實際 sheet 名稱（目前為預設值）
+  bbg_sheet_name: "Promt date"
+  refresh_wait_seconds: 15
+  calculation_timeout_seconds: 120
+
+chart:
+  forward_months: 27 # cash date 往後畫圖的月數上限
+  # matplotlib = 靜態圖嵌入；xlsxwriter = Excel 原生可互動圖表
+  engine: matplotlib # matplotlib | xlsxwriter
+  image_width: 480
+  image_height: 280
+
+# 可在此直接列出公休日（YYYY-MM-DD），會與 holidays_file 合併
+holidays:
+  dates: []
+
+logging:
+  level: INFO
+  file: "lme_daily.log" # 寫入 working_dir；空字串則只打 console
