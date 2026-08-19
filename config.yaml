@@ -14,8 +14,8 @@ paths:
 vba:
   # TODO: 請改成實際巨集名稱（VBA 編輯器中的 Sub 名稱）
   macro_name: "RunDailyLME"
-  # true  = xl.Run(macro, 上日日期, 3M date) 直接傳參（巨集需接受 Optional 參數）
-  # false = 用 pywinauto 監聽 InputBox 彈窗並自動填入
+  # true = 先試 xl.Run(macro, 上日, 3M)；若巨集沒有參數會自動改填 InputBox
+  # false = 直接走 InputBox（你的 lme_main 屬於這種）
   use_param_injection: true
   # 傳給巨集 / InputBox 的日期字串格式（依 Excel 地區設定調整）
   date_format: "%Y/%m/%d"

@@ -13,7 +13,7 @@ Windows 本機流程：開啟「早班 LME reference」執行 VBA → 刷新 Blo
 
 成功後會印出 `OUTPUT=` 下一行就是 `LME每日報價yyyymmdd.xlsx` 的完整路徑，並用 Excel 打開。
 
-請先改好 `config.yaml` 的 `paths.working_dir`，並登入 Bloomberg、開得了 Excel。
+請確認巨集會彈出兩個 InputBox（上日、3M）。`lme_main` 若沒有參數，程式會自動改填彈窗，不必改 config。
 
 **路徑請用單引號**，否則 YAML 會把 `\Dealing` 當成非法跳脫（`unknown escape character 'D'`）：
 

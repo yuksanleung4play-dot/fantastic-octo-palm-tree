@@ -1,14 +1,12 @@
 """開啟早班 LME reference 工作簿並執行 VBA 巨集。
 
-兩種填入「上日日期 / 3M date」的方式，由 config ``vba.use_param_injection`` 切換：
+``Application.Run(macro, 上日, 3M)`` 若因參數數量不符失敗（DISP_E_BADPARAMCOUNT，
+例如 Sub lme_main() 沒有參數、只靠 InputBox），會自動改成：
 
-1. **參數注入（優先）**：``Application.Run(macro_name, prev_date, three_m_date)``
-   前提是巨集宣告 Optional 參數並在缺失時才呼叫 InputBox。範例見
-   ``examples/RunDailyLME_param_wrapper.bas``。
-2. **pywinauto 備援**：巨集仍用 InputBox 時，在背景執行巨集並自動填兩個彈窗。
+- 在 COM 執行緒呼叫 ``Run(macro)``（不帶參數）
+- 背景執行緒把兩個 InputBox 填成上日日期 / 3M date 並按 Enter
 
-TODO: 請確認 ``vba.macro_name`` 的真實 Sub 名稱，以及巨集是否支援參數覆蓋 InputBox。
-若不支援，請把 ``use_param_injection`` 設為 false。
+不必再手動把 ``use_param_injection`` 改成 false（仍可用該開關跳過參數嘗試）。
 """
 
 from __future__ import annotations
@@ -23,13 +21,56 @@ from lme_daily.config import AppConfig
 from lme_daily.excel_com import (
     close_workbook,
     excel_app,
-    import_win32com,
     open_workbook,
     wait_for_file,
 )
 from lme_daily.exceptions import ExcelComError, MacroOutputError
 
 logger = logging.getLogger(__name__)
+
+# COM HRESULT
+DISP_E_EXCEPTION = -2147352567  # 0x80020009
+DISP_E_BADPARAMCOUNT = -2147352562  # 0x8002000E  參數個數不對
+DISP_E_UNKNOWNNAME = -2147352570  # 0x80020006  找不到名稱
+DISP_E_MEMBERNOTFOUND = -2147352573  # 0x80020003
+
+
+def com_error_codes(exc: BaseException) -> set[int]:
+    """抽出 pywintypes.com_error 的 HRESULT（外層 + excepinfo[5]）。"""
+    codes: set[int] = set()
+    args = getattr(exc, "args", ())
+    if args:
+        try:
+            codes.add(int(args[0]))
+        except (TypeError, ValueError):
+            pass
+    if len(args) >= 3 and isinstance(args[2], (tuple, list)) and len(args[2]) >= 6:
+        try:
+            if args[2][5] is not None:
+                codes.add(int(args[2][5]))
+        except (TypeError, ValueError):
+            pass
+    hresult = getattr(exc, "hresult", None)
+    if isinstance(hresult, int):
+        codes.add(hresult)
+    return codes
+
+
+def is_bad_param_count(exc: BaseException) -> bool:
+    """巨集不接受 Application.Run 傳入的額外參數。"""
+    current: BaseException | None = exc
+    seen: set[int] = set()
+    for _ in range(6):
+        if current is None:
+            break
+        ident = id(current)
+        if ident in seen:
+            break
+        seen.add(ident)
+        if DISP_E_BADPARAMCOUNT in com_error_codes(current):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
 
 
 def run_reference_macro(
@@ -46,7 +87,9 @@ def run_reference_macro(
 
     logger.info(
         "VBA 模式：%s；巨集=%s；上日=%s；3M=%s",
-        "參數注入" if config.vba.use_param_injection else "pywinauto InputBox",
+        "先嘗試參數注入，失敗則改填 InputBox"
+        if config.vba.use_param_injection
+        else "InputBox 自動填入",
         config.vba.macro_name,
         prev_date,
         three_m_date,
@@ -56,17 +99,17 @@ def run_reference_macro(
     with excel_app(visible=config.excel.visible, display_alerts=config.excel.display_alerts) as app:
         workbook = open_workbook(app, config.paths.ref_workbook)
         try:
-            if config.vba.use_param_injection:
-                _run_macro_with_params(app, workbook, config.vba.macro_name, prev_date, three_m_date)
-            else:
-                _run_macro_with_pywinauto(
-                    app,
-                    workbook,
-                    config.vba.macro_name,
-                    prev_date,
-                    three_m_date,
-                    inputbox_timeout=config.vba.inputbox_timeout_seconds,
-                )
+            try:
+                workbook.Activate()
+            except Exception:
+                logger.debug("Workbook.Activate 失敗，繼續")
+            _execute_macro(
+                app,
+                workbook,
+                config,
+                prev_date=prev_date,
+                three_m_date=three_m_date,
+            )
             try:
                 ready = wait_for_file(
                     expected,
@@ -91,6 +134,63 @@ def run_reference_macro(
     return ready
 
 
+def _execute_macro(
+    app: object,
+    workbook: object,
+    config: AppConfig,
+    *,
+    prev_date: str,
+    three_m_date: str,
+) -> None:
+    names = _macro_candidates(workbook, config.vba.macro_name)
+    if not config.vba.use_param_injection:
+        _run_macro_with_inputboxes(
+            app,
+            names,
+            prev_date,
+            three_m_date,
+            inputbox_timeout=config.vba.inputbox_timeout_seconds,
+        )
+        return
+
+    last_exc: BaseException | None = None
+    for name in names:
+        try:
+            _run_macro_with_params(app, name, prev_date, three_m_date)
+            return
+        except Exception as exc:
+            last_exc = exc
+            cause = exc.__cause__ if exc.__cause__ is not None else exc
+            if is_bad_param_count(exc) or is_bad_param_count(cause):
+                logger.warning(
+                    "巨集 %s 不接受參數（DISP_E_BADPARAMCOUNT / 0x8002000E）。"
+                    "這是正常情況（Sub 沒有參數、只用 InputBox）。"
+                    "改為自動填入兩個 InputBox。",
+                    name,
+                )
+                _run_macro_with_inputboxes(
+                    app,
+                    names,
+                    prev_date,
+                    three_m_date,
+                    inputbox_timeout=config.vba.inputbox_timeout_seconds,
+                )
+                return
+            logger.debug("參數注入 %s 失敗：%s", name, exc)
+
+    raise ExcelComError(
+        f"以參數方式執行巨集失敗（嘗試過：{names}）。Excel 錯誤：{last_exc}"
+    ) from last_exc
+
+
+def _macro_candidates(workbook: object, macro_name: str) -> list[str]:
+    qualified = _qualified_macro_name(workbook, macro_name)
+    names = [qualified]
+    if macro_name not in names:
+        names.append(macro_name)
+    return names
+
+
 def _qualified_macro_name(workbook: object, macro_name: str) -> str:
     """Excel 對含空白/中文檔名的巨集呼叫需加工作簿限定。"""
     if "!" in macro_name:
@@ -101,128 +201,250 @@ def _qualified_macro_name(workbook: object, macro_name: str) -> str:
     return macro_name
 
 
-def _run_macro_with_params(
-    app: object,
-    workbook: object,
-    macro_name: str,
-    prev_date: str,
-    three_m_date: str,
-) -> None:
-    qualified = _qualified_macro_name(workbook, macro_name)
-    logger.info("Application.Run(%s, %s, %s)", qualified, prev_date, three_m_date)
-    # TODO: 若巨集不接受參數，這裡會失敗——改 config.vba.use_param_injection=false
+def _run_macro_with_params(app: object, macro_name: str, prev_date: str, three_m_date: str) -> None:
+    logger.info("Application.Run(%s, %s, %s)", macro_name, prev_date, three_m_date)
     try:
-        app.Run(qualified, prev_date, three_m_date)
+        app.Run(macro_name, prev_date, three_m_date)
     except Exception as exc:
-        raise ExcelComError(
-            f"以參數方式執行巨集失敗（{qualified}）。"
-            "若巨集只有 InputBox、沒有 Optional 參數，請將 "
-            "vba.use_param_injection 設為 false 改走 pywinauto。"
-            f" Excel 錯誤：{exc}"
-        ) from exc
+        wrapped = ExcelComError(f"Application.Run 參數模式失敗（{macro_name}）：{exc}")
+        wrapped.__cause__ = exc
+        raise wrapped from exc
     logger.info("巨集執行完畢（參數注入）")
 
 
-def _run_macro_with_pywinauto(
+def _run_macro_with_inputboxes(
     app: object,
-    workbook: object,
-    macro_name: str,
+    macro_names: list[str],
     prev_date: str,
     three_m_date: str,
     *,
     inputbox_timeout: float,
 ) -> None:
+    """COM 執行緒呼叫 Run（不帶參數）；背景執行緒填兩個 InputBox。
+
+    Excel COM 是 STA，``Application.Run`` 必須留在建立 Application 的執行緒，
+    否則可能 RPC_E_WRONG_THREAD。InputBox 由 Excel 行程顯示，背景執行緒用 Win32 填入即可。
+    """
+    stop = threading.Event()
+    fill_error: list[BaseException] = []
+    filler = threading.Thread(
+        target=_fill_two_inputboxes,
+        kwargs={
+            "prev_date": prev_date,
+            "three_m_date": three_m_date,
+            "timeout": inputbox_timeout,
+            "stop": stop,
+            "errors": fill_error,
+        },
+        name="lme-inputbox-filler",
+        daemon=True,
+    )
+    filler.start()
+    run_exc: BaseException | None = None
     try:
-        from pywinauto import Desktop  # type: ignore
-    except ImportError as exc:
-        raise ExcelComError(
-            "use_param_injection=false 需要 pywinauto。請執行：pip install pywinauto"
-        ) from exc
-
-    _, pythoncom = import_win32com()
-    qualified = _qualified_macro_name(workbook, macro_name)
-    errors: list[BaseException] = []
-    finished = threading.Event()
-
-    def _invoke() -> None:
-        pythoncom.CoInitialize()
-        try:
-            logger.info("背景執行 Application.Run(%s) 並等待 InputBox", qualified)
-            app.Run(qualified)
-            logger.info("巨集執行完畢（pywinauto 模式）")
-        except Exception as exc:  # noqa: BLE001 — 傳到主執行緒再轉成 ExcelComError
-            errors.append(exc)
-        finally:
-            finished.set()
+        last_exc: BaseException | None = None
+        for name in macro_names:
             try:
-                pythoncom.CoUninitialize()
-            except Exception:
-                pass
+                logger.info("Application.Run(%s)（無參數，等待 InputBox）", name)
+                app.Run(name)
+                logger.info("巨集執行完畢（InputBox 模式）")
+                last_exc = None
+                break
+            except Exception as exc:
+                last_exc = exc
+                logger.debug("Run(%s) 失敗：%s", name, exc)
+        if last_exc is not None:
+            run_exc = last_exc
+            raise ExcelComError(
+                f"執行巨集失敗（嘗試過：{macro_names}）。請在 Excel 按 Alt+F8 確認名稱。"
+                f" Excel 錯誤：{last_exc}"
+            ) from last_exc
+    finally:
+        stop.set()
+        filler.join(timeout=5)
 
-    worker = threading.Thread(target=_invoke, name="lme-vba-run", daemon=True)
-    worker.start()
+    if fill_error and run_exc is None:
+        raise ExcelComError(f"自動填 InputBox 失敗：{fill_error[0]}") from fill_error[0]
+
+
+def _fill_two_inputboxes(
+    *,
+    prev_date: str,
+    three_m_date: str,
+    timeout: float,
+    stop: threading.Event,
+    errors: list[BaseException],
+) -> None:
     try:
-        _fill_inputbox(Desktop, prev_date, timeout=inputbox_timeout, which="上日日期")
-        time.sleep(0.4)
-        _fill_inputbox(Desktop, three_m_date, timeout=inputbox_timeout, which="3M date")
-    except Exception:
+        _fill_one_inputbox(prev_date, timeout=timeout, which="上日日期", stop=stop)
+        time.sleep(0.35)
+        _fill_one_inputbox(three_m_date, timeout=timeout, which="3M date", stop=stop)
+    except Exception as exc:  # noqa: BLE001
         logger.exception("填寫 InputBox 失敗")
-        raise
-
-    if not finished.wait(timeout=max(inputbox_timeout * 2, 30)):
-        raise ExcelComError("巨集在填完 InputBox 後仍未結束，請檢查 VBA 是否卡住。")
-    worker.join(timeout=5)
-    if errors:
-        raise ExcelComError(f"巨集執行例外：{errors[0]}") from errors[0]
+        errors.append(exc)
+        _dismiss_inputboxes()
 
 
-def _fill_inputbox(desktop_cls: object, value: str, *, timeout: float, which: str) -> None:
-    """尋找 Excel InputBox（標題通常為 Microsoft Excel）並填入後按 Enter。"""
+def _fill_one_inputbox(value: str, *, timeout: float, which: str, stop: threading.Event) -> None:
     logger.info("等待 InputBox（%s），將填入 %s", which, value)
-    desktop = desktop_cls(backend="win32")  # type: ignore[operator]
     deadline = time.monotonic() + timeout
     last_error: Exception | None = None
-    while time.monotonic() < deadline:
-        dialog = _find_excel_inputbox(desktop)
-        if dialog is not None:
-            try:
-                dialog.wait("visible", timeout=5)
-                edit = dialog.child_window(class_name="Edit")
-                edit.wait("ready", timeout=5)
-                edit.set_edit_text(value)
-                logger.info("已在 InputBox（%s）填入：%s", which, value)
-                try:
-                    dialog.type_keys("{ENTER}")
-                except Exception:
-                    try:
-                        dialog.child_window(title="OK").click_input()
-                    except Exception:
-                        dialog.type_keys("{ENTER}")
-                time.sleep(0.3)
+    while time.monotonic() < deadline and not stop.is_set():
+        try:
+            if _try_fill_inputbox_win32(value):
+                logger.info("已用 Win32 填入 InputBox（%s）：%s", which, value)
                 return
-            except Exception as exc:  # noqa: BLE001
-                last_error = exc
-                logger.debug("InputBox 尚未就緒：%s", exc)
-        time.sleep(0.4)
+        except Exception as exc:  # noqa: BLE001
+            last_error = exc
+            logger.debug("Win32 InputBox：%s", exc)
+        try:
+            if _try_fill_inputbox_pywinauto(value):
+                logger.info("已用 pywinauto 填入 InputBox（%s）：%s", which, value)
+                return
+        except Exception as exc:  # noqa: BLE001
+            last_error = exc
+            logger.debug("pywinauto InputBox：%s", exc)
+        time.sleep(0.25)
     detail = f"；最後錯誤：{last_error}" if last_error else ""
     raise ExcelComError(
         f"等待 Excel InputBox（{which}）逾時（{timeout:.0f}s）。"
-        "請確認巨集確實會彈出 InputBox，且 Excel 視窗未被其他程式擋住。"
+        "請確認巨集會彈出 InputBox，視窗未被擋住。"
         f"{detail}"
     )
 
 
+def _try_fill_inputbox_win32(value: str) -> bool:
+    try:
+        import win32con  # type: ignore
+        import win32gui  # type: ignore
+    except ImportError:
+        return False
+
+    fg = win32gui.GetForegroundWindow()
+    hwnds: list[int] = []
+    if fg:
+        try:
+            if win32gui.IsWindowVisible(fg) and win32gui.GetClassName(fg) == "#32770":
+                if win32gui.FindWindowEx(fg, 0, "Edit", None):
+                    hwnds.append(fg)
+        except Exception:
+            pass
+
+    def _enum(hwnd: int, _: object) -> bool:
+        try:
+            if not win32gui.IsWindowVisible(hwnd):
+                return True
+            if win32gui.GetClassName(hwnd) != "#32770":
+                return True
+            title = win32gui.GetWindowText(hwnd) or ""
+            if title and ("Excel" not in title) and ("excel" not in title.lower()) and ("輸入" not in title):
+                # 仍可能是 VBA InputBox（標題常為 Microsoft Excel）；無標題也收
+                if title not in {"Microsoft Excel", "Excel"}:
+                    # 中文 Excel 有時標題就是提示文字，只要有 Edit 就嘗試
+                    pass
+            edit = win32gui.FindWindowEx(hwnd, 0, "Edit", None)
+            if edit:
+                hwnds.append(hwnd)
+        except Exception:
+            return True
+        return True
+
+    win32gui.EnumWindows(_enum, None)
+    # 去重並讓前景視窗優先
+    ordered: list[int] = []
+    for h in hwnds:
+        if h not in ordered:
+            ordered.append(h)
+    hwnds = ordered
+    if not hwnds:
+        return False
+
+    hwnd = hwnds[0]
+    edit = win32gui.FindWindowEx(hwnd, 0, "Edit", None)
+    if not edit:
+        return False
+    win32gui.SendMessage(edit, win32con.WM_SETTEXT, 0, value)
+    time.sleep(0.12)
+    clicked = False
+    for caption in ("確定", "OK", "Ok", "O.K."):
+        btn = win32gui.FindWindowEx(hwnd, 0, "Button", caption)
+        if btn:
+            win32gui.SendMessage(btn, win32con.BM_CLICK, 0, 0)
+            clicked = True
+            break
+    if not clicked:
+        ok = win32gui.GetDlgItem(hwnd, 1)  # IDOK
+        if ok:
+            win32gui.SendMessage(ok, win32con.BM_CLICK, 0, 0)
+            clicked = True
+    if not clicked:
+        win32gui.PostMessage(hwnd, win32con.WM_KEYDOWN, win32con.VK_RETURN, 0)
+        win32gui.PostMessage(hwnd, win32con.WM_KEYUP, win32con.VK_RETURN, 0)
+    time.sleep(0.2)
+    return True
+
+
+def _dismiss_inputboxes() -> None:
+    """填失敗時關掉對話框，讓卡住的 Application.Run 能返回。"""
+    try:
+        import win32con  # type: ignore
+        import win32gui  # type: ignore
+    except ImportError:
+        return
+
+    def _enum(hwnd: int, _: object) -> bool:
+        try:
+            if win32gui.IsWindowVisible(hwnd) and win32gui.GetClassName(hwnd) == "#32770":
+                win32gui.PostMessage(hwnd, win32con.WM_CLOSE, 0, 0)
+                win32gui.PostMessage(hwnd, win32con.WM_KEYDOWN, win32con.VK_ESCAPE, 0)
+        except Exception:
+            return True
+        return True
+
+    try:
+        win32gui.EnumWindows(_enum, None)
+    except Exception:
+        return
+
+
+def _try_fill_inputbox_pywinauto(value: str) -> bool:
+    try:
+        from pywinauto import Desktop  # type: ignore
+    except ImportError:
+        return False
+    desktop = Desktop(backend="win32")
+    dialog = _find_excel_inputbox(desktop)
+    if dialog is None:
+        return False
+    dialog.wait("visible", timeout=3)
+    edit = dialog.child_window(class_name="Edit")
+    edit.wait("ready", timeout=3)
+    edit.set_edit_text(value)
+    try:
+        dialog.type_keys("{ENTER}")
+    except Exception:
+        try:
+            dialog.child_window(title="確定").click_input()
+        except Exception:
+            try:
+                dialog.child_window(title="OK").click_input()
+            except Exception:
+                dialog.type_keys("{ENTER}")
+    time.sleep(0.2)
+    return True
+
+
 def _find_excel_inputbox(desktop: object):
-    """嘗試以常見標題 / class 找到 InputBox 對話框。"""
     specs = [
         {"title": "Microsoft Excel", "class_name": "#32770"},
         {"title_re": r".*Microsoft Excel.*", "class_name": "#32770"},
         {"title_re": r".*Excel.*", "class_name": "#32770"},
+        {"class_name": "#32770"},
     ]
     for spec in specs:
         try:
             window = desktop.window(**spec)  # type: ignore[union-attr]
-            if window.exists(timeout=0.2):
+            if window.exists(timeout=0.15):
                 return window
         except Exception:
             continue
