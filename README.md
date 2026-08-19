@@ -15,6 +15,26 @@ Windows 本機流程：開啟「早班 LME reference」執行 VBA → 刷新 Blo
 
 請確認巨集會彈出兩個 InputBox（上日、3M）。`lme_main` 若沒有參數，程式會自動改填彈窗，不必改 config。
 
+## Bloomberg Terminal 被鎖
+
+**不能、也不該自動解鎖**（Bloomberg 安全機制與使用條款）。腳本以前用 `DispatchEx` 另開 Excel 再 `Quit()`，最容易把 Terminal 鎖上。
+
+現在預設：
+
+1. 先手動登入並解鎖 Bloomberg Terminal
+2. **先開 Excel**（讓 Bloomberg 外掛載入在這個 Excel）
+3. 再跑 `RUN_LME.bat` — 沿用該 Excel，**結束不 Quit**
+
+`config.yaml` 的 `bloomberg.source`：
+
+| 值 | 做法 |
+|----|------|
+| `excel` | 沿用 Excel 做 RefreshAll（預設） |
+| `cached` | 只讀目前儲存格，不 Refresh（最不易鎖） |
+| `blpapi` | Python Desktop API，不經 Excel 外掛（`pip install blpapi`；Terminal 仍須已登入未鎖定） |
+
+真正無人值守、不開 Terminal，只能改用 Bloomberg **Data License / B-PIPE**（需另外簽約）。
+
 **路徑請用單引號**，否則 YAML 會把 `\Dealing` 當成非法跳脫（`unknown escape character 'D'`）：
 
 ```yaml

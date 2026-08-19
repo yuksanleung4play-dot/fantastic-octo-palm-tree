@@ -1,6 +1,10 @@
 """bbg_fetch 純 Python 輔助函式（不需 Excel）。"""
 
-from lme_daily.bbg_fetch import _as_2d_tuple
+from lme_daily.bbg_fetch import _as_2d_tuple, parse_bdp_formula
+
+
+def test_as_2d_tuple_none():
+    assert _as_2d_tuple(None) == ()
 
 
 def test_as_2d_tuple_none():
@@ -22,3 +26,21 @@ def test_as_2d_tuple_matrix():
 
 def test_as_2d_tuple_formats_as_str():
     assert _as_2d_tuple(("0.0", "General"), as_str=True) == (("0.0", "General"),)
+
+
+def test_parse_bdp_formula():
+    assert parse_bdp_formula('=BDP("LMCADS03 Comdty","PX_LAST")') == (
+        "LMCADS03 Comdty",
+        "PX_LAST",
+    )
+    assert parse_bdp_formula('BDP("CA Comdty","PX_BID")') == ("CA Comdty", "PX_BID")
+    assert parse_bdp_formula(9001.5) is None
+    assert parse_bdp_formula("Copper") is None
+
+
+def test_overlay_bdp_grid_replaces_formulas():
+    from lme_daily.bbg_blpapi import _overlay_values
+
+    grid = [["CA", '=BDP("LMCADS03 Comdty","PX_LAST")']]
+    out = _overlay_values(grid, {("LMCADS03 Comdty", "PX_LAST"): 9001.5}, None)  # type: ignore[arg-type]
+    assert out == (("CA", 9001.5),)

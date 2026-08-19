@@ -1,14 +1,22 @@
-"""開啟 LME BBG WORKBOOK，刷新 Bloomberg 連結並讀取指定區間的值。"""
+"""開啟 LME BBG WORKBOOK 並讀取 Bloomberg 數據。
+
+三種來源（config.bloomberg.source），都**不會**自動解鎖 Terminal：
+
+- ``excel``：沿用已開啟的 Excel，RefreshAll（預設；不要 Quit Excel）
+- ``cached``：只讀目前儲存格值，不 Refresh（最不容易觸發上鎖）
+- ``blpapi``：Python Desktop API，不經 Excel Bloomberg 外掛
+"""
 
 from __future__ import annotations
 
 import logging
+import re
 import time
 from typing import Any
 
 from lme_daily.config import AppConfig
 from lme_daily.excel_com import (
-    close_workbook,
+    close_workbook_if_opened,
     excel_app,
     open_workbook,
     wait_until_calculation_done,
@@ -20,25 +28,63 @@ logger = logging.getLogger(__name__)
 RangeValues = tuple[tuple[Any, ...], ...]
 RangeFormats = tuple[tuple[str, ...], ...]
 
+BDP_RE = re.compile(
+    r'(?:WSS\.)?BDP\(\s*"([^"]+)"\s*,\s*"([^"]+)"',
+    re.IGNORECASE,
+)
+
+
+def parse_bdp_formula(cell: Any) -> tuple[str, str] | None:
+    """從 ``=BDP("ticker","FIELD")`` 抽出 (security, field)。"""
+    if not isinstance(cell, str):
+        return None
+    text = cell.strip()
+    if text.startswith("="):
+        text = text[1:]
+    match = BDP_RE.search(text)
+    if not match:
+        return None
+    return match.group(1).strip(), match.group(2).strip()
+
 
 def fetch_bloomberg_snapshot(config: AppConfig) -> tuple[RangeValues, RangeFormats]:
-    """RefreshAll → 等待 → 以 Value2 讀取 copy_range，然後不儲存關閉。"""
+    source = config.bloomberg.source
+    logger.info("Bloomberg 取數來源：%s", source)
+    if source == "blpapi":
+        from lme_daily.bbg_blpapi import fetch_bloomberg_snapshot_blpapi
+
+        return fetch_bloomberg_snapshot_blpapi(config)
+    refresh = source != "cached"
+    return _fetch_via_excel(config, refresh=refresh)
+
+
+def _fetch_via_excel(config: AppConfig, *, refresh: bool) -> tuple[RangeValues, RangeFormats]:
     sheet_name = config.bloomberg.bbg_sheet_name
     copy_range = config.bloomberg.copy_range
     logger.info(
-        "開啟 BBG 工作簿並刷新：sheet=%s range=%s wait=%ss",
+        "Excel 讀取 BBG：sheet=%s range=%s refresh=%s wait=%ss",
         sheet_name,
         copy_range,
+        refresh,
         config.bloomberg.refresh_wait_seconds,
     )
 
-    with excel_app(visible=config.excel.visible, display_alerts=config.excel.display_alerts) as app:
-        workbook = open_workbook(app, config.paths.bbg_workbook, update_links=3)
+    with excel_app(
+        visible=config.excel.visible,
+        display_alerts=config.excel.display_alerts,
+        reuse_running=config.excel.reuse_running,
+        quit_on_exit=config.excel.quit_on_exit,
+        new_instance=config.excel.new_instance,
+    ) as app:
+        workbook, opened_by_us = open_workbook(app, config.paths.bbg_workbook, update_links=3)
         try:
-            _refresh_bloomberg(app, workbook, config)
+            if refresh:
+                _refresh_bloomberg(app, workbook, config)
+            else:
+                logger.info("cached 模式：不呼叫 RefreshAll")
             values, formats = _read_range(workbook, sheet_name, copy_range)
         finally:
-            close_workbook(workbook, save_changes=False)
+            close_workbook_if_opened(workbook, opened_by_us, save_changes=False)
 
     logger.info("已讀取 BBG 區間 %s!%s（%d 列）", sheet_name, copy_range, len(values))
     return values, formats
@@ -51,7 +97,6 @@ def _refresh_bloomberg(app: object, workbook: object, config: AppConfig) -> None
     except Exception as exc:
         raise ExcelComError(f"RefreshAll 失敗：{exc}") from exc
 
-    # Bloomberg 常用 RTD / 非同步查詢；Excel 2013+ 提供此方法
     try:
         if hasattr(app, "CalculateUntilAsyncQueriesDone"):
             logger.info("呼叫 CalculateUntilAsyncQueriesDone()")
@@ -95,7 +140,6 @@ def _read_range(
 
 
 def _as_2d_tuple(raw: Any, *, as_str: bool = False) -> tuple[tuple[Any, ...], ...]:
-    """把 COM Range.Value2 正規化成 2D tuple（單格也包成 1x1）。"""
     if raw is None:
         return ()
     if not isinstance(raw, tuple):

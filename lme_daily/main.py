@@ -121,6 +121,12 @@ def run(config: AppConfig, *, as_of: date, dry_run: bool, skip_vba: bool, skip_b
         logger.info("working_dir=%s", config.paths.working_dir)
         logger.info("chart.engine=%s  forward_months=%s", config.chart.engine, config.chart.forward_months)
         logger.info("vba.macro_name=%s  use_param_injection=%s", config.vba.macro_name, config.vba.use_param_injection)
+        logger.info(
+            "excel.reuse_running=%s  quit_on_exit=%s  bloomberg.source=%s",
+            config.excel.reuse_running,
+            config.excel.quit_on_exit,
+            config.bloomberg.source,
+        )
 
     with log_step("計算上日日期與 3M date"):
         prev_date, three_m_date = calc_lme_dates(

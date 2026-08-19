@@ -21,7 +21,14 @@ Before running:
      Do NOT use double quotes. YAML treats \D as an escape and crashes
      with: unknown escape character 'D'
   2. Excel installed
-  3. Bloomberg Terminal logged in
+  3. Bloomberg Terminal logged in AND unlocked
+     First open Excel (Bloomberg add-in loaded), then run the bat.
+     The script reuses that Excel and does not Quit it.
+     It cannot auto-unlock Bloomberg (policy).
+     Optional config bloomberg.source:
+       excel   = RefreshAll in the reused Excel (default)
+       cached  = read cells only, no refresh
+       blpapi  = pip install blpapi (Terminal still must be unlocked)
   4. Source workbooks in working_dir
 
 Command Prompt (optional):

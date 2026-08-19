@@ -29,8 +29,16 @@ vba:
 excel:
   visible: true # true 方便除錯；排程時可改 false
   display_alerts: false
+  # 沿用已開啟、已載入 Bloomberg 外掛的 Excel；不要另開獨立行程再 Quit
+  reuse_running: true
+  quit_on_exit: false
+  new_instance: false # true=DispatchEx，容易把 Terminal 鎖上
 
 bloomberg:
+  # excel  = 在沿用的 Excel 裡 RefreshAll（預設）
+  # cached = 只讀目前儲存格，不 Refresh（最不容易鎖 Terminal）
+  # blpapi = Python Desktop API，不經 Excel 外掛（仍需 Terminal 已登入未鎖定）
+  source: excel
   copy_range: "B3:I10"
   # TODO: 請確認實際 sheet 名稱（目前為預設值）
   bbg_sheet_name: "Promt date"

@@ -20,7 +20,7 @@ from pathlib import Path
 from lme_daily.config import AppConfig
 from lme_daily.dates import calc_lme_dates
 from lme_daily.excel_com import (
-    close_workbook,
+    close_workbook_if_opened,
     excel_app,
     open_workbook,
     wait_for_file,
@@ -104,8 +104,14 @@ def run_reference_macro(
     )
 
     ready = expected
-    with excel_app(visible=config.excel.visible, display_alerts=config.excel.display_alerts) as app:
-        workbook = open_workbook(app, config.paths.ref_workbook)
+    with excel_app(
+        visible=config.excel.visible,
+        display_alerts=config.excel.display_alerts,
+        reuse_running=config.excel.reuse_running,
+        quit_on_exit=config.excel.quit_on_exit,
+        new_instance=config.excel.new_instance,
+    ) as app:
+        workbook, opened_by_us = open_workbook(app, config.paths.ref_workbook)
         try:
             try:
                 workbook.Activate()
@@ -139,7 +145,7 @@ def run_reference_macro(
         except Exception as exc:
             raise ExcelComError(f"執行巨集 {config.vba.macro_name!r} 失敗：{exc}") from exc
         finally:
-            close_workbook(workbook, save_changes=False)
+            close_workbook_if_opened(workbook, opened_by_us, save_changes=False)
 
     return ready
 

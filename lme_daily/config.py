@@ -42,6 +42,9 @@ class VbaConfig:
 class ExcelUiConfig:
     visible: bool
     display_alerts: bool
+    reuse_running: bool
+    quit_on_exit: bool
+    new_instance: bool
 
 
 @dataclass(frozen=True)
@@ -50,6 +53,11 @@ class BloombergConfig:
     bbg_sheet_name: str
     refresh_wait_seconds: float
     calculation_timeout_seconds: float
+    source: str
+    host: str
+    port: int
+    securities: tuple[str, ...]
+    fields: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -308,6 +316,9 @@ def load_config(path: str | Path | None = None) -> AppConfig:
     engine = str(_get(chart_raw, "engine", context="chart", default="matplotlib")).strip().lower()
     if engine not in {"matplotlib", "xlsxwriter"}:
         raise ConfigError("chart.engine 只能是 matplotlib 或 xlsxwriter")
+    bbg_source = str(_get(bbg_raw, "source", context="bloomberg", default="excel")).strip().lower()
+    if bbg_source not in {"excel", "cached", "blpapi"}:
+        raise ConfigError("bloomberg.source 只能是 excel、cached 或 blpapi")
 
     config = AppConfig(
         source_path=config_path,
@@ -338,6 +349,18 @@ def load_config(path: str | Path | None = None) -> AppConfig:
                 _get(excel_raw, "display_alerts", context="excel", default=False),
                 "excel.display_alerts",
             ),
+            reuse_running=_as_bool(
+                _get(excel_raw, "reuse_running", context="excel", default=True),
+                "excel.reuse_running",
+            ),
+            quit_on_exit=_as_bool(
+                _get(excel_raw, "quit_on_exit", context="excel", default=False),
+                "excel.quit_on_exit",
+            ),
+            new_instance=_as_bool(
+                _get(excel_raw, "new_instance", context="excel", default=False),
+                "excel.new_instance",
+            ),
         ),
         bloomberg=BloombergConfig(
             copy_range=str(_get(bbg_raw, "copy_range", context="bloomberg")),
@@ -345,6 +368,24 @@ def load_config(path: str | Path | None = None) -> AppConfig:
             refresh_wait_seconds=float(_get(bbg_raw, "refresh_wait_seconds", context="bloomberg")),
             calculation_timeout_seconds=float(
                 _get(bbg_raw, "calculation_timeout_seconds", context="bloomberg", default=120)
+            ),
+            source=bbg_source,
+            host=str(_get(bbg_raw, "host", context="bloomberg", default="127.0.0.1")),
+            port=int(_get(bbg_raw, "port", context="bloomberg", default=8194)),
+            securities=tuple(
+                str(x) for x in (_get(bbg_raw, "securities", context="bloomberg", default=[]) or [])
+            ),
+            fields=tuple(
+                str(x)
+                for x in (
+                    _get(
+                        bbg_raw,
+                        "fields",
+                        context="bloomberg",
+                        default=["PX_LAST", "PX_BID", "PX_ASK", "PX_HIGH", "PX_LOW", "PX_SETTLE"],
+                    )
+                    or []
+                )
             ),
         ),
         chart=ChartConfig(
