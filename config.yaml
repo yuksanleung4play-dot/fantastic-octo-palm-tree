@@ -2,7 +2,9 @@
 # 本檔與執行目錄 / 專案根目錄同層即可被自動找到，也可用 --config 指定。
 
 paths:
-  working_dir: "D:\\LME\\Daily" # 主工作資料夾：來源檔與輸出檔都放這裡
+  # Windows 路徑請用單引號（雙引號裡 \Dealing 會被 YAML 當成非法跳脫）
+  # UNC 範例：working_dir: '\\192.168.89.167\Dealing\資料夾'
+  working_dir: 'D:\LME\Daily' # 主工作資料夾：來源檔與輸出檔都放這裡
   ref_workbook_name: "早班_LME_reference_2024.xlsm" # 含 VBA 巨集（.xlsm / .xlsb）
   bbg_workbook_name: "LME BBG WORKBOOK.xlsx"
   output_prefix: "LME每日報價"

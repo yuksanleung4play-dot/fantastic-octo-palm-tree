@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
@@ -135,7 +136,92 @@ def _as_bool(value: Any, context: str) -> bool:
 def _as_path(value: Any, context: str) -> Path:
     if not isinstance(value, (str, Path)) or str(value).strip() == "":
         raise ConfigError(f"{context} 必須是非空路徑字串")
-    return Path(str(value)).expanduser()
+    text = str(value).strip().strip('"').strip("'")
+    return Path(text).expanduser()
+
+
+_YAML_PATH_KEYS = (
+    "working_dir",
+    "holidays_file",
+    "ref_workbook_name",
+    "bbg_workbook_name",
+    "file",
+)
+
+
+def relax_windows_yaml_quotes(text: str) -> str:
+    """把雙引號 Windows/UNC 路徑改成 YAML 單引號，讓 ``\\Dealing`` 被當成普通字元。
+
+    雙引號字串裡 ``\\`` 是跳脫，``\\D`` 會觸發 ``unknown escape character 'D'``。
+    單引號裡反斜線是字面值，適合 ``\\\\server\\share\\資料夾``。
+    """
+    keys = "|".join(_YAML_PATH_KEYS)
+    pattern = re.compile(
+        rf'^(\s*(?:{keys})\s*:\s*)"(.*)"(\s*(?:#.*)?)?\s*$',
+        re.MULTILINE,
+    )
+
+    def _repl(match: re.Match[str]) -> str:
+        prefix, inner, comment = match.group(1), match.group(2), match.group(3) or ""
+        if "\\" not in inner and not inner.startswith("//"):
+            return match.group(0)
+        return f"{prefix}'{inner.replace(chr(39), chr(39) * 2)}'{comment}"
+
+    return pattern.sub(_repl, text)
+
+
+def _yaml_path_help(config_path: Path, exc: Exception) -> str:
+    return (
+        f"無法解析 {config_path}：{exc}\n"
+        "Windows 路徑請用【單引號】，不要用雙引號。雙引號裡的 \\D 會被 YAML 當成非法跳脫。\n"
+        "正確：\n"
+        "  working_dir: '\\\\192.168.89.167\\Dealing\\資料夾'\n"
+        "或正斜線：\n"
+        "  working_dir: '//192.168.89.167/Dealing/資料夾'\n"
+        "錯誤（會爆 unknown escape character 'D'）：\n"
+        '  working_dir: "\\\\192.168.89.167\\Dealing\\資料夾"'
+    )
+
+
+def _looks_like_unc(text: str) -> bool:
+    s = text.strip()
+    return s.startswith("\\\\") or s.startswith("//")
+
+
+def _looks_like_drive(text: str) -> bool:
+    s = text.strip()
+    return len(s) >= 3 and s[1] == ":" and s[0].isalpha() and s[2] in "\\/"
+
+
+def _finalize_working_dir(path: Path, *, config_parent: Path) -> Path:
+    raw = str(path)
+    if _looks_like_unc(raw) or _looks_like_drive(raw):
+        try:
+            return Path(raw).expanduser().resolve()
+        except OSError:
+            return Path(raw)
+    if not path.is_absolute():
+        return (config_parent / path).resolve()
+    return path.resolve()
+
+
+def _parse_yaml_file(config_path: Path) -> Any:
+    text = config_path.read_text(encoding="utf-8-sig")
+    try:
+        return yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        relaxed = relax_windows_yaml_quotes(text)
+        if relaxed == text:
+            raise ConfigError(_yaml_path_help(config_path, exc)) from exc
+        try:
+            data = yaml.safe_load(relaxed)
+        except yaml.YAMLError as exc2:
+            raise ConfigError(_yaml_path_help(config_path, exc2)) from exc2
+        logger.warning(
+            "config.yaml 路徑使用了雙引號 + 反斜線，已自動改以單引號解讀。"
+            "建議改成：working_dir: '\\\\server\\share\\資料夾'"
+        )
+        return data
 
 
 def _parse_holiday_token(token: Any, *, source: str) -> date:
@@ -185,10 +271,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
     """讀取 YAML、組合 working_dir 與各檔名，並在執行前檢查檔案是否存在。"""
     config_path = discover_config_path(path)
     logger.info("讀取設定檔：%s", config_path)
-    try:
-        raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
-    except yaml.YAMLError as exc:
-        raise ConfigError(f"無法解析 {config_path}：{exc}") from exc
+    raw = _parse_yaml_file(config_path) or {}
     raw = _require_mapping(raw, "config")
 
     paths_raw = _require_mapping(_get(raw, "paths", context="config"), "paths")
@@ -200,10 +283,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
     logging_raw = _require_mapping(raw.get("logging") or {}, "logging")
 
     working_dir = _as_path(_get(paths_raw, "working_dir", context="paths"), "paths.working_dir")
-    if not working_dir.is_absolute():
-        working_dir = (config_path.parent / working_dir).resolve()
-    else:
-        working_dir = working_dir.resolve()
+    working_dir = _finalize_working_dir(working_dir, config_parent=config_path.parent)
 
     ref_name = str(_get(paths_raw, "ref_workbook_name", context="paths"))
     bbg_name = str(_get(paths_raw, "bbg_workbook_name", context="paths"))

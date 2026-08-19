@@ -14,6 +14,12 @@ First time only, if packages are missing:
 
 Before running:
   1. Edit config.yaml  ->  paths.working_dir
+     Use SINGLE quotes for Windows/UNC paths:
+
+       working_dir: '\\192.168.89.167\Dealing\your folder'
+
+     Do NOT use double quotes. YAML treats \D as an escape and crashes
+     with: unknown escape character 'D'
   2. Excel installed
   3. Bloomberg Terminal logged in
   4. Source workbooks in working_dir

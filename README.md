@@ -15,6 +15,12 @@ Windows 本機流程：開啟「早班 LME reference」執行 VBA → 刷新 Blo
 
 請先改好 `config.yaml` 的 `paths.working_dir`，並登入 Bloomberg、開得了 Excel。
 
+**路徑請用單引號**，否則 YAML 會把 `\Dealing` 當成非法跳脫（`unknown escape character 'D'`）：
+
+```yaml
+working_dir: '\\192.168.89.167\Dealing\Dealing Department - New\...'
+```
+
 **不要**把 `pywinauto`、`requirements.txt` 當成指令執行。完整說明見 `HOW_TO_RUN.txt`。
 
 舊版 bat 若出現 `嘿濃 echo`：那是 UTF-8 BOM 被繁中 cmd 誤讀，請改用現在這個無 BOM 的 `RUN_LME.bat`。資料夾路徑若含 `&`（例如 `LME --Form & Sheet`），務必雙擊 bat，不要手動 `cd` 未加引號的路徑。
