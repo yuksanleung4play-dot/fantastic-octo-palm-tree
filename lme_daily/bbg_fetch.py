@@ -1,10 +1,12 @@
-"""開啟 LME BBG WORKBOOK 並讀取 Bloomberg 數據。
+"""讀取已開啟的 LME BBG WORKBOOK（不 Open、不 Close）。
 
 三種來源（config.bloomberg.source），都**不會**自動解鎖 Terminal：
 
-- ``excel``：沿用已開啟的 Excel，RefreshAll（預設；不要 Quit Excel）
-- ``cached``：只讀目前儲存格值，不 Refresh（最不容易觸發上鎖）
+- ``excel``：沿用使用者已手動打開的 BBG 工作簿，RefreshAll（預設）
+- ``cached``：只讀目前儲存格值，不 Refresh
 - ``blpapi``：Python Desktop API，不經 Excel Bloomberg 外掛
+
+請先手動打開「LME BBG WORKBOOK.xlsx」。腳本只會讀取，不會幫你開、也不會關。
 """
 
 from __future__ import annotations
@@ -16,12 +18,10 @@ from typing import Any
 
 from lme_daily.config import AppConfig
 from lme_daily.excel_com import (
-    close_workbook_if_opened,
     excel_app,
-    open_workbook,
     wait_until_calculation_done,
 )
-from lme_daily.exceptions import ExcelComError
+from lme_daily.exceptions import BbgWorkbookNotOpenError, ExcelComError
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +72,19 @@ def fetch_bloomberg_snapshot(config: AppConfig) -> tuple[RangeValues, RangeForma
     return normalize_bbg_values(values), formats
 
 
+def _attach_open_bbg_workbook(app: object, config: AppConfig) -> Any:
+    """只抓使用者已手動打開的 BBG 工作簿；絕不 Workbooks.Open。"""
+    name = config.paths.bbg_workbook_name
+    try:
+        workbook = app.Workbooks(name)  # type: ignore[attr-defined]
+    except Exception as exc:
+        raise BbgWorkbookNotOpenError(
+            f"找不到已開啟的「{name}」，請先手動打開這個工作簿再重新執行。"
+        ) from exc
+    logger.info("沿用已開啟的 BBG 工作簿：%s（不 Open、不 Close、不 Activate）", name)
+    return workbook
+
+
 def _fetch_via_excel(config: AppConfig, *, refresh: bool) -> tuple[RangeValues, RangeFormats]:
     sheet_name = config.bloomberg.bbg_sheet_name
     copy_range = config.bloomberg.copy_range
@@ -90,15 +103,12 @@ def _fetch_via_excel(config: AppConfig, *, refresh: bool) -> tuple[RangeValues, 
         quit_on_exit=config.excel.quit_on_exit,
         new_instance=config.excel.new_instance,
     ) as app:
-        workbook, opened_by_us = open_workbook(app, config.paths.bbg_workbook, update_links=3)
-        try:
-            if refresh:
-                _refresh_bloomberg(app, workbook, config)
-            else:
-                logger.info("cached 模式：不呼叫 RefreshAll")
-            values, formats = _read_range(workbook, sheet_name, copy_range)
-        finally:
-            close_workbook_if_opened(workbook, opened_by_us, save_changes=False)
+        workbook = _attach_open_bbg_workbook(app, config)
+        if refresh:
+            _refresh_bloomberg(app, workbook, config)
+        else:
+            logger.info("cached 模式：不呼叫 RefreshAll")
+        values, formats = _read_range(workbook, sheet_name, copy_range)
 
     logger.info("已讀取 BBG 區間 %s!%s（%d 列）", sheet_name, copy_range, len(values))
     return values, formats

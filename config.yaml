@@ -28,6 +28,8 @@ vba:
   output_timeout_seconds: 180
   poll_interval_seconds: 2
   inputbox_timeout_seconds: 60
+  # true = 巨集會自己關閉 reference 工作簿；Python 不要再 Close（避免 RPC_E_DISCONNECTED）
+  auto_closes_workbook: true
 
 excel:
   visible: true # true 方便除錯；排程時可改 false
@@ -35,7 +37,7 @@ excel:
   # 沿用已開啟、已載入 Bloomberg 外掛的 Excel；不要另開獨立行程再 Quit
   reuse_running: true
   quit_on_exit: false
-  new_instance: false # true=DispatchEx，容易把 Terminal 鎖上
+  new_instance: false # 已停用：禁止 DispatchEx 開新 Excel（會鎖 Bloomberg）
 
 bloomberg:
   # excel  = 在沿用的 Excel 裡 RefreshAll（預設）

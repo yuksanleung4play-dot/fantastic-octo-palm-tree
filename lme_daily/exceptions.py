@@ -23,3 +23,7 @@ class MacroOutputError(LMEAutomationError):
 
 class ReportBuildError(LMEAutomationError):
     """最終報告工作簿產生失敗。"""
+
+
+class BbgWorkbookNotOpenError(LMEAutomationError):
+    """LME BBG WORKBOOK.xlsx 沒有在 Excel 裡開著；腳本不會代為開啟。"""

@@ -1,6 +1,6 @@
 # LME 每日報價自動化
 
-Windows 本機流程：開啟「早班 LME reference」執行 VBA → 刷新 Bloomberg 工作簿 → 產出 `LME每日報價yyyymmdd.xlsx`（BBG 快照、六條遠期曲線、原始數據、合併版面）與 PDF。
+Windows 本機流程：在已開啟的 Excel 執行早班 LME VBA → 讀取已手動打開的 Bloomberg 工作簿 → 產出 `LME每日報價yyyymmdd.xlsx`（BBG 快照、六條遠期曲線、原始數據、合併版面）與 PDF。
 
 > 完整流程需要 **Windows + Excel + Bloomberg Terminal**。日期計算與報告產生可在任何平台跑單元測試。
 
@@ -23,13 +23,14 @@ Windows 本機流程：開啟「早班 LME reference」執行 VBA → 刷新 Blo
 
 1. 先手動登入並解鎖 Bloomberg Terminal
 2. **先開 Excel**（讓 Bloomberg 外掛載入在這個 Excel）
-3. 再跑 `RUN_LME.bat` — 沿用該 Excel，**結束不 Quit**
+3. **請先手動打開 `LME BBG WORKBOOK.xlsx`** — 腳本只會讀取，不會幫你開、也不會關
+4. 再跑 `RUN_LME.bat` — 沿用該 Excel，**結束不 Quit**、**不另開新 Excel 進程**
 
 `config.yaml` 的 `bloomberg.source`：
 
 | 值 | 做法 |
 |----|------|
-| `excel` | 沿用 Excel 做 RefreshAll（預設） |
+| `excel` | 對**已手動打開**的 BBG 工作簿做 RefreshAll（預設；不 Open / 不 Close） |
 | `cached` | 只讀目前儲存格，不 Refresh（最不易鎖） |
 | `blpapi` | Python Desktop API，不經 Excel 外掛（`pip install blpapi`；Terminal 仍須已登入未鎖定） |
 
@@ -146,7 +147,7 @@ Application.Run("RunDailyLME", 上日日期, 3M date)
 
 同一個工作簿四個可見 sheet：
 
-1. **BBG快照** — Bloomberg 工作表 `copy_range`（預設 `B3:I10`）的 `.Value2`。字串若以 `N/A` 開頭（例如 `N/A Field Not Applicable`）會正規化成純 `N/A`；空白 / `None` / 數字維持原樣，不會填字。
+1. **BBG快照** — 請先手動打開 `LME BBG WORKBOOK.xlsx`，腳本只讀 `copy_range`（預設 `B3:I10`）的 `.Value2`，不會幫你開檔。字串若以 `N/A` 開頭（例如 `N/A Field Not Applicable`）會正規化成純 `N/A`；空白 / `None` / 數字維持原樣，不會填字。
 2. **遠期走勢圖** — 以 cash date 起 `chart.forward_months`（預設 27）個月為視窗，六個品種各一張圖。資料來自 `vba_dir\yyyymmdd.xlsx`。`NI` / `SN` 空值會 `dropna`，**不會填 0**
 3. **原始數據** — 以絕對路徑外部連結指向 `vba_dir\yyyymmdd.xlsx` 的完整內容（含 27 個月以後）
 4. **合併版面** — 把上述三塊排在同一橫向 A3 版面（深藍/白底、中英雙語標題、頁碼「第 n 頁，共 N 頁」）。Windows 下用 `ExportAsFixedFormat` 匯出 `LME每日報價yyyymmdd.pdf`

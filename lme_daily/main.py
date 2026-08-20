@@ -16,6 +16,7 @@ from pathlib import Path
 
 from lme_daily.config import AppConfig, load_config, validate_required_files
 from lme_daily.dates import calc_lme_dates
+from lme_daily.excel_com import get_workbook_open_count, reset_workbook_open_count
 from lme_daily.exceptions import LMEAutomationError
 
 logger = logging.getLogger("lme_daily")
@@ -172,6 +173,8 @@ def run(config: AppConfig, *, as_of: date, dry_run: bool, skip_vba: bool, skip_b
         logger.info("若實際執行：最終報告 → %s", config.output_workbook_path(as_of))
         return None
 
+    reset_workbook_open_count()
+
     step2_path = config.step2_workbook_path(as_of)
     if skip_vba:
         from lme_daily.vba_runner import relocate_step2_workbook, resolve_existing_step2
@@ -234,6 +237,7 @@ def run(config: AppConfig, *, as_of: date, dry_run: bool, skip_vba: bool, skip_b
     with log_step("匯出合併版面 PDF"):
         pdf_path = _export_print_pdf(config, output_path, as_of=as_of)
 
+    logger.info("本次 Workbook.Open 次數：%d（沿用已開啟檔不計；用來對照 Bloomberg 上鎖頻率）", get_workbook_open_count())
     logger.info("最終輸出檔案：%s", output_path.resolve())
     print(str(output_path.resolve()))
     if pdf_path is not None:

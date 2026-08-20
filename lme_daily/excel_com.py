@@ -1,7 +1,7 @@
 """Excel COM 共用封裝（Windows + 本機 Excel）。
 
-預設沿用已開啟的 Excel，結束時不 Quit。DispatchEx + Quit 會拆掉 Bloomberg
-Excel 外掛連線，Terminal 常被自動鎖上。
+永遠只沿用已開啟的 Excel（GetActiveObject）。禁止 Dispatch / DispatchEx
+另開行程：那是 Bloomberg Terminal 被鎖的根因。結束時不 Quit。
 """
 
 from __future__ import annotations
@@ -21,6 +21,26 @@ logger = logging.getLogger(__name__)
 XL_DONE = 0
 XL_CALCULATING = 1
 XL_PENDING = 2
+
+# RPC_E_DISCONNECTED — 工作簿已被巨集 / 使用者關閉
+RPC_E_DISCONNECTED = -2147417848  # 0x80010108
+
+_workbook_open_count = 0
+
+
+def reset_workbook_open_count() -> None:
+    global _workbook_open_count
+    _workbook_open_count = 0
+
+
+def get_workbook_open_count() -> int:
+    """本次行程實際呼叫 ``Workbooks.Open`` 的次數（沿用已開啟檔不計）。"""
+    return _workbook_open_count
+
+
+def _record_workbook_open() -> None:
+    global _workbook_open_count
+    _workbook_open_count += 1
 
 
 def require_windows_excel() -> None:
@@ -52,22 +72,26 @@ def excel_app(
     quit_on_exit: bool = False,
     new_instance: bool = False,
 ) -> Iterator[Any]:
-    """取得 Excel.Application。
+    """取得既有 Excel.Application（GetActiveObject）。
 
-    - ``reuse_running=True``：優先 GetActiveObject，沿用你已登入 Bloomberg 的 Excel。
-    - ``new_instance=False``：不要 DispatchEx（獨立行程容易讓 Terminal 上鎖）。
-    - ``quit_on_exit=False``：離開時不 Quit，只關我們開啟的工作簿。
+    找不到已開啟的 Excel 就報錯，**絕不** Dispatch / DispatchEx 開新進程。
+    ``yield`` 期間呼叫端拋出的例外維持原樣，不會被包成「啟動 Excel 失敗」。
     """
+    if not reuse_running:
+        logger.warning("excel.reuse_running=false 已忽略：禁止另開 Excel 進程")
+    if quit_on_exit:
+        logger.warning("excel.quit_on_exit=true 已忽略：不會 Quit 沿用的 Excel")
+
     win32com_client, pythoncom = import_win32com()
     pythoncom.CoInitialize()
     app = None
-    started_by_us = False
     try:
-        app, started_by_us = _acquire_excel(
-            win32com_client,
-            reuse_running=reuse_running,
-            new_instance=new_instance,
-        )
+        try:
+            app = _acquire_running_excel(win32com_client, new_instance=new_instance)
+        except ExcelComError:
+            raise
+        except Exception as exc:
+            raise ExcelComError(f"啟動 Excel 失敗：{exc}") from exc
         app.Visible = visible
         app.DisplayAlerts = display_alerts
         try:
@@ -75,19 +99,8 @@ def excel_app(
         except Exception:
             logger.debug("AskToUpdateLinks 無法設定，略過")
         yield app
-    except ExcelComError:
-        raise
-    except Exception as exc:
-        raise ExcelComError(f"啟動 Excel 失敗：{exc}") from exc
     finally:
-        if app is not None and quit_on_exit and started_by_us:
-            try:
-                app.DisplayAlerts = False
-                app.Quit()
-                logger.info("已關閉 Excel.Application（quit_on_exit=true 且由本程式啟動）")
-            except Exception as exc:
-                logger.warning("Excel.Quit 失敗：%s", exc)
-        elif app is not None:
+        if app is not None:
             logger.info("Excel 保持開啟，不呼叫 Quit（避免 Bloomberg Terminal 被鎖）")
         try:
             pythoncom.CoUninitialize()
@@ -95,22 +108,24 @@ def excel_app(
             pass
 
 
-def _acquire_excel(win32com_client: Any, *, reuse_running: bool, new_instance: bool) -> tuple[Any, bool]:
-    if reuse_running and not new_instance:
-        try:
-            app = win32com_client.GetActiveObject("Excel.Application")
-            logger.info("沿用已開啟的 Excel.Application（GetActiveObject）")
-            return app, False
-        except Exception:
-            logger.info("沒有已開啟的 Excel，改為 Dispatch 啟動（會載入 Bloomberg 外掛）")
-
+def _acquire_running_excel(win32com_client: Any, *, new_instance: bool) -> Any:
+    """只允許 GetActiveObject。DispatchEx / Dispatch 分支已刪除，避免以後改回去。"""
     if new_instance:
-        logger.warning(
-            "excel.new_instance=true 使用 DispatchEx。獨立 Excel 行程常導致 Bloomberg Terminal 上鎖。"
+        raise ExcelComError(
+            "excel.new_instance 已停用：禁止 DispatchEx 另開 Excel 進程"
+            "（會導致 Bloomberg Terminal 上鎖）。請先手動開 Excel，"
+            "登入並解鎖 Bloomberg Terminal 後再執行。"
         )
-        return win32com_client.DispatchEx("Excel.Application"), True
-
-    return win32com_client.Dispatch("Excel.Application"), True
+    try:
+        app = win32com_client.GetActiveObject("Excel.Application")
+    except Exception as exc:
+        raise ExcelComError(
+            "找不到已開啟的 Excel。請先手動開 Excel，登入並解鎖 Bloomberg Terminal，"
+            "並手動打開「LME BBG WORKBOOK.xlsx」後再執行。"
+            f" 原始錯誤：{exc}"
+        ) from exc
+    logger.info("沿用已開啟的 Excel.Application（GetActiveObject）")
+    return app
 
 
 def find_open_workbook(app: Any, path: Path) -> Any | None:
@@ -152,6 +167,7 @@ def open_workbook(
     if not present:
         raise ExcelComError(f"工作簿不存在：{resolved}")
     logger.info("開啟工作簿：%s", resolved)
+    _record_workbook_open()
     try:
         workbook = app.Workbooks.Open(
             str(resolved),
@@ -163,23 +179,74 @@ def open_workbook(
         raise ExcelComError(f"開啟工作簿失敗（{resolved}）：{exc}") from exc
 
 
+def com_hresult_codes(exc: BaseException) -> set[int]:
+    codes: set[int] = set()
+    args = getattr(exc, "args", ())
+    if args:
+        try:
+            codes.add(int(args[0]))
+        except (TypeError, ValueError):
+            pass
+    if len(args) >= 3 and isinstance(args[2], (tuple, list)) and len(args[2]) >= 6:
+        try:
+            if args[2][5] is not None:
+                codes.add(int(args[2][5]))
+        except (TypeError, ValueError):
+            pass
+    hresult = getattr(exc, "hresult", None)
+    if isinstance(hresult, int):
+        codes.add(hresult)
+    return codes
+
+
+def is_rpc_disconnected(exc: BaseException | None) -> bool:
+    current: BaseException | None = exc
+    seen: set[int] = set()
+    for _ in range(6):
+        if current is None:
+            break
+        ident = id(current)
+        if ident in seen:
+            break
+        seen.add(ident)
+        if RPC_E_DISCONNECTED in com_hresult_codes(current):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
+
+
+def _workbook_label(workbook: Any) -> str:
+    try:
+        name = getattr(workbook, "Name", None)
+        if name:
+            return str(name)
+    except Exception as exc:
+        if is_rpc_disconnected(exc):
+            return "<disconnected>"
+        logger.debug("讀取 workbook.Name 失敗：%s", exc)
+        return "<unknown>"
+    return "<unknown>"
+
+
 def close_workbook(workbook: Any, *, save_changes: bool = False) -> None:
-    name = getattr(workbook, "Name", "<unknown>")
+    """關閉工作簿。若已被外部關閉（RPC_E_DISCONNECTED）只記 log，不拋例外。"""
+    name = _workbook_label(workbook)
     try:
         workbook.Close(SaveChanges=save_changes)
         logger.info("已關閉工作簿：%s（SaveChanges=%s）", name, save_changes)
     except Exception as exc:
-        raise ExcelComError(f"關閉工作簿失敗（{name}）：{exc}") from exc
+        if is_rpc_disconnected(exc):
+            logger.info("工作簿已由外部關閉，略過 Close（%s）：%s", name, exc)
+            return
+        logger.warning("關閉工作簿失敗，略過（%s）：%s", name, exc)
 
 
 def close_workbook_if_opened(workbook: Any, opened_by_us: bool, *, save_changes: bool = False) -> None:
     if opened_by_us:
         close_workbook(workbook, save_changes=save_changes)
-    else:
-        logger.info(
-            "工作簿原本就開著，不關閉：%s",
-            getattr(workbook, "Name", "<unknown>"),
-        )
+        return
+    name = _workbook_label(workbook)
+    logger.info("工作簿原本就開著，不關閉：%s", name)
 
 
 def wait_until_calculation_done(

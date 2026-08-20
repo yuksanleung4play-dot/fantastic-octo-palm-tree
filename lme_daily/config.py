@@ -27,6 +27,10 @@ class PathsConfig:
     output_prefix: str
     holidays_file: Path | None
 
+    @property
+    def bbg_workbook_name(self) -> str:
+        return self.bbg_workbook.name
+
 
 @dataclass(frozen=True)
 class VbaConfig:
@@ -37,6 +41,7 @@ class VbaConfig:
     output_timeout_seconds: float
     poll_interval_seconds: float
     inputbox_timeout_seconds: float
+    auto_closes_workbook: bool
 
 
 @dataclass(frozen=True)
@@ -398,6 +403,10 @@ def load_config(path: str | Path | None = None) -> AppConfig:
             ),
             inputbox_timeout_seconds=float(
                 _get(vba_raw, "inputbox_timeout_seconds", context="vba", default=60)
+            ),
+            auto_closes_workbook=_as_bool(
+                _get(vba_raw, "auto_closes_workbook", context="vba", default=True),
+                "vba.auto_closes_workbook",
             ),
         ),
         excel=ExcelUiConfig(

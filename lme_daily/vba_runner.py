@@ -21,8 +21,8 @@ from pathlib import Path
 from lme_daily.config import AppConfig
 from lme_daily.dates import calc_lme_dates
 from lme_daily.excel_com import (
-    close_workbook_if_opened,
     excel_app,
+    is_rpc_disconnected,
     open_workbook,
     wait_for_any_file,
 )
@@ -133,7 +133,12 @@ def run_reference_macro(
     prev_date: str,
     three_m_date: str,
 ) -> Path:
-    """執行巨集、等到 ``vba_dir\\yyyymmdd.xlsx`` 產生後關閉參考工作簿。"""
+    """執行巨集、等到 ``vba_dir\\yyyymmdd.xlsx`` 產生。
+
+    巨集（lme_main）執行完會自己關閉 reference 工作簿。預設
+    ``vba.auto_closes_workbook=true``，Python **不要**再 Close，否則會碰到
+    RPC_E_DISCONNECTED。成功與否只看中繼檔是否出現且大小正常。
+    """
     expected = config.step2_workbook_path(as_of)
     expected.parent.mkdir(parents=True, exist_ok=True)
     if expected.exists():
@@ -167,10 +172,10 @@ def run_reference_macro(
     ) as app:
         workbook, opened_by_us = open_workbook(app, config.paths.ref_workbook)
         try:
-            try:
-                workbook.Activate()
-            except Exception:
-                logger.debug("Workbook.Activate 失敗，繼續")
+            workbook.Activate()
+        except Exception:
+            logger.debug("Workbook.Activate 失敗，繼續")
+        try:
             _execute_macro(
                 app,
                 workbook,
@@ -180,30 +185,41 @@ def run_reference_macro(
                 inputbox_prev=ibox_prev,
                 inputbox_three=ibox_three,
             )
-            try:
-                found = wait_for_any_file(
-                    step2_search_paths(config, as_of),
-                    timeout_seconds=config.vba.output_timeout_seconds,
-                    poll_interval=config.vba.poll_interval_seconds,
-                )
-                ready = relocate_step2_workbook(found, expected)
-            except ExcelComError as exc:
-                searched = " ； ".join(str(p) for p in step2_search_paths(config, as_of))
-                raise MacroOutputError(
-                    f"巨集執行後未產生預期檔案 {expected.name}。"
-                    f"VBA 中繼檔必須落在 {expected.parent}（vba_dir），"
-                    f"或仍寫在 working_dir 根目錄 {config.paths.working_dir} 再由程式搬入。"
-                    f"檔名為當日 {as_of.strftime('%Y%m%d')}.xlsx。"
-                    f"已檢查：{searched}。原始錯誤：{exc}"
-                ) from exc
-        except ExcelComError:
-            raise
-        except MacroOutputError:
-            raise
         except Exception as exc:
-            raise ExcelComError(f"執行巨集 {config.vba.macro_name!r} 失敗：{exc}") from exc
-        finally:
+            if is_rpc_disconnected(exc) or is_rpc_disconnected(exc.__cause__):
+                logger.warning(
+                    "巨集執行後參考工作簿已斷線（RPC_E_DISCONNECTED；多半由巨集自行關閉），"
+                    "改以輸出檔判定成功：%s",
+                    exc,
+                )
+            elif isinstance(exc, (ExcelComError, MacroOutputError)):
+                raise
+            else:
+                raise ExcelComError(f"執行巨集 {config.vba.macro_name!r} 失敗：{exc}") from exc
+        try:
+            found = wait_for_any_file(
+                step2_search_paths(config, as_of),
+                timeout_seconds=config.vba.output_timeout_seconds,
+                poll_interval=config.vba.poll_interval_seconds,
+            )
+            ready = relocate_step2_workbook(found, expected)
+        except ExcelComError as exc:
+            searched = " ； ".join(str(p) for p in step2_search_paths(config, as_of))
+            raise MacroOutputError(
+                f"巨集執行後未產生預期檔案 {expected.name}。"
+                f"VBA 中繼檔必須落在 {expected.parent}（vba_dir），"
+                f"或仍寫在 working_dir 根目錄 {config.paths.working_dir} 再由程式搬入。"
+                f"檔名為當日 {as_of.strftime('%Y%m%d')}.xlsx。"
+                f"已檢查：{searched}。原始錯誤：{exc}"
+            ) from exc
+        if not config.vba.auto_closes_workbook:
+            from lme_daily.excel_com import close_workbook_if_opened
+
             close_workbook_if_opened(workbook, opened_by_us, save_changes=False)
+        else:
+            logger.info(
+                "不關閉參考工作簿（vba.auto_closes_workbook=true；巨集會自行關閉）"
+            )
 
     return ready
 
