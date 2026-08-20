@@ -50,7 +50,7 @@ def _write_config(tmp_path: Path) -> Path:
         "bloomberg": {
             "copy_range": "B3:I10",
             "bbg_sheet_name": "Promt date",
-            "refresh_wait_seconds": 0,
+            "refresh_wait_seconds": 15,
             "calculation_timeout_seconds": 1,
         },
         "chart": {"forward_months": 27, "engine": "matplotlib"},

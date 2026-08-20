@@ -26,4 +26,4 @@ class ReportBuildError(LMEAutomationError):
 
 
 class BbgWorkbookNotOpenError(LMEAutomationError):
-    """LME BBG WORKBOOK.xlsx 沒有在 Excel 裡開著；腳本不會代為開啟。"""
+    """保留給呼叫端：BBG 工作簿無法使用時的明確錯誤（attach 路徑改為找不到就自行 Open）。"""

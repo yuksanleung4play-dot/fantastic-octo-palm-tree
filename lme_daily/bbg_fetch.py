@@ -1,12 +1,12 @@
-"""讀取已開啟的 LME BBG WORKBOOK（不 Open、不 Close）。
+"""讀取 LME BBG WORKBOOK（已開就沿用，未開就 Open；讀完不 Close）。
 
 三種來源（config.bloomberg.source），都**不會**自動解鎖 Terminal：
 
-- ``excel``：沿用使用者已手動打開的 BBG 工作簿，RefreshAll（預設）
+- ``excel``：沿用或開啟 BBG 工作簿，等待後 RefreshAll（預設）
 - ``cached``：只讀目前儲存格值，不 Refresh
 - ``blpapi``：Python Desktop API，不經 Excel Bloomberg 外掛
 
-請先手動打開「LME BBG WORKBOOK.xlsx」。腳本只會讀取，不會幫你開、也不會關。
+腳本會自動開啟這個工作簿（若尚未開啟），開啟後等待設定秒數再讀取，讀取後不會關閉。
 """
 
 from __future__ import annotations
@@ -18,10 +18,11 @@ from typing import Any
 
 from lme_daily.config import AppConfig
 from lme_daily.excel_com import (
+    _record_workbook_open,
     excel_app,
     wait_until_calculation_done,
 )
-from lme_daily.exceptions import BbgWorkbookNotOpenError, ExcelComError
+from lme_daily.exceptions import ExcelComError
 
 logger = logging.getLogger(__name__)
 
@@ -73,27 +74,47 @@ def fetch_bloomberg_snapshot(config: AppConfig) -> tuple[RangeValues, RangeForma
 
 
 def _attach_open_bbg_workbook(app: object, config: AppConfig) -> Any:
-    """只抓使用者已手動打開的 BBG 工作簿；絕不 Workbooks.Open。"""
+    """已開著就沿用；抓不到再 ``Workbooks.Open``。讀完由呼叫端決定不 Close。"""
     name = config.paths.bbg_workbook_name
     try:
         workbook = app.Workbooks(name)  # type: ignore[attr-defined]
+        logger.info("沿用已開啟的 %s", name)
+        return workbook
     except Exception as exc:
-        raise BbgWorkbookNotOpenError(
-            f"找不到已開啟的「{name}」，請先手動打開這個工作簿再重新執行。"
-        ) from exc
-    logger.info("沿用已開啟的 BBG 工作簿：%s（不 Open、不 Close、不 Activate）", name)
+        logger.info("%s 未開啟，改由程式開啟", name)
+        logger.debug("Workbooks(%s) 失敗：%s", name, exc)
+    return _open_bbg_workbook(app, config)
+
+
+def _open_bbg_workbook(app: object, config: AppConfig) -> Any:
+    path = config.paths.bbg_workbook
+    try:
+        app.DisplayAlerts = False  # type: ignore[attr-defined]
+    except Exception:
+        logger.debug("DisplayAlerts 無法設定，繼續 Open")
+    _record_workbook_open()
+    try:
+        workbook = app.Workbooks.Open(  # type: ignore[attr-defined]
+            str(path),
+            UpdateLinks=0,
+            IgnoreReadOnlyRecommended=True,
+        )
+    except Exception as exc:
+        raise ExcelComError(f"開啟 Bloomberg 工作簿失敗（{path}）：{exc}") from exc
+    logger.info("已用程式開啟：%s（讀取後不 Close）", path)
     return workbook
 
 
 def _fetch_via_excel(config: AppConfig, *, refresh: bool) -> tuple[RangeValues, RangeFormats]:
     sheet_name = config.bloomberg.bbg_sheet_name
     copy_range = config.bloomberg.copy_range
+    wait = config.bloomberg.refresh_wait_seconds
     logger.info(
         "Excel 讀取 BBG：sheet=%s range=%s refresh=%s wait=%ss",
         sheet_name,
         copy_range,
         refresh,
-        config.bloomberg.refresh_wait_seconds,
+        wait,
     )
 
     with excel_app(
@@ -104,6 +125,8 @@ def _fetch_via_excel(config: AppConfig, *, refresh: bool) -> tuple[RangeValues, 
         new_instance=config.excel.new_instance,
     ) as app:
         workbook = _attach_open_bbg_workbook(app, config)
+        logger.info("已開啟，等待 %s 秒後開始讀取", wait)
+        time.sleep(wait)
         if refresh:
             _refresh_bloomberg(app, workbook, config)
         else:
@@ -126,11 +149,8 @@ def _refresh_bloomberg(app: object, workbook: object, config: AppConfig) -> None
             logger.info("呼叫 CalculateUntilAsyncQueriesDone()")
             app.CalculateUntilAsyncQueriesDone()
     except Exception as exc:
-        logger.warning("CalculateUntilAsyncQueriesDone 失敗（將改以 sleep + CalculationState）：%s", exc)
+        logger.warning("CalculateUntilAsyncQueriesDone 失敗（將改以 CalculationState）：%s", exc)
 
-    wait = config.bloomberg.refresh_wait_seconds
-    logger.info("等待 Bloomberg 刷新 %.1f 秒", wait)
-    time.sleep(wait)
     wait_until_calculation_done(
         app,
         timeout_seconds=config.bloomberg.calculation_timeout_seconds,

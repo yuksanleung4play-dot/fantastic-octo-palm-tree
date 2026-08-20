@@ -23,8 +23,8 @@ Before running:
   2. Excel installed
   3. Bloomberg Terminal logged in AND unlocked
      First open Excel (Bloomberg add-in loaded).
-     Manually open "LME BBG WORKBOOK.xlsx" - the script only reads it;
-     it will not Open or Close that workbook for you.
+     The script opens "LME BBG WORKBOOK.xlsx" if it is not already open,
+     waits bloomberg.refresh_wait_seconds, then reads it and leaves it open.
      Then run the bat. The script attaches to that Excel and does not Quit it.
      It never starts a new Excel process (no DispatchEx).
      It cannot auto-unlock Bloomberg (policy).
