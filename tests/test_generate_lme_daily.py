@@ -83,6 +83,7 @@ def test_generate_skip_vba_bbg_writes_named_report(tmp_path: Path):
         ]
     )
     assert code == 0
-    dest = work / "LME每日報價20260819.xlsx"
+    dest = work / "20260819" / "LME每日報價20260819.xlsx"
     assert dest.is_file()
     assert dest.stat().st_size > 0
+    assert (work / "20260819" / "20260819.xlsx").is_file()

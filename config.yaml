@@ -4,10 +4,13 @@
 paths:
   # Windows 路徑請用單引號（雙引號裡 \Dealing 會被 YAML 當成非法跳脫）
   # UNC 範例：working_dir: '\\192.168.89.167\Dealing\資料夾'
-  working_dir: '\\192.168.89.167\Dealing\Dealing Department - New\1. 交易部日常工作分類\2. 期貨\LME --Form & Sheet' # 來源檔與產出都放這裡
+  working_dir: '\\192.168.89.167\Dealing\Dealing Department - New\1. 交易部日常工作分類\2. 期貨\LME --Form & Sheet' # 來源工作簿 + VBA 中繼檔
   ref_workbook_name: "早班_LME_reference_2024.xlsm" # 含 VBA 巨集（.xlsm / .xlsb）
   bbg_workbook_name: "LME BBG WORKBOOK.xlsx"
   output_prefix: "LME每日報價"
+  # 留空 = 最終報告也放 working_dir\yyyymmdd\；填了路徑 = 最終報告改放 output_dir\yyyymmdd\
+  # VBA 中繼檔 yyyymmdd.xlsx 永遠在 working_dir\yyyymmdd\，不受此欄影響
+  output_dir: ''
   # 公休日清單檔（相對於本 config 所在目錄；也可填絕對路徑）
   holidays_file: "holidays.yaml"
 
@@ -58,4 +61,4 @@ holidays:
 
 logging:
   level: INFO
-  file: "lme_daily.log" # 寫入 working_dir；空字串則只打 console
+  file: "lme_daily.log" # 另寫一份到 working_dir；當日 run_dir 一定有 lme_daily.log

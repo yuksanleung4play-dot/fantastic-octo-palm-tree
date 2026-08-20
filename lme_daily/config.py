@@ -21,6 +21,7 @@ CONFIG_FILENAME = "config.yaml"
 @dataclass(frozen=True)
 class PathsConfig:
     working_dir: Path
+    output_dir: Path | None
     ref_workbook: Path
     bbg_workbook: Path
     output_prefix: str
@@ -85,12 +86,42 @@ class AppConfig:
     holidays: frozenset[date]
     logging: LoggingConfig
 
-    def output_workbook_path(self, as_of: date) -> Path:
-        name = f"{self.paths.output_prefix}{as_of.strftime('%Y%m%d')}.xlsx"
-        return self.paths.working_dir / name
+    def daily_stamp(self, as_of: date) -> str:
+        return as_of.strftime("%Y%m%d")
+
+    def vba_dir(self, as_of: date) -> Path:
+        """VBA 中繼檔固定目錄：working_dir\\yyyymmdd，不受 output_dir 影響。"""
+        return self.paths.working_dir / self.daily_stamp(as_of)
+
+    def run_dir(self, as_of: date) -> Path:
+        """最終報告目錄：output_dir 留空則與 vba_dir 相同，否則 output_dir\\yyyymmdd。"""
+        base = self.paths.output_dir if self.paths.output_dir is not None else self.paths.working_dir
+        return base / self.daily_stamp(as_of)
+
+    def ensure_run_dirs(self, as_of: date) -> tuple[Path, Path]:
+        vba_dir = self.vba_dir(as_of)
+        run_dir = self.run_dir(as_of)
+        vba_dir.mkdir(parents=True, exist_ok=True)
+        run_dir.mkdir(parents=True, exist_ok=True)
+        return vba_dir, run_dir
 
     def step2_workbook_path(self, as_of: date) -> Path:
-        return self.paths.working_dir / f"{as_of.strftime('%Y%m%d')}.xlsx"
+        return self.vba_dir(as_of) / f"{self.daily_stamp(as_of)}.xlsx"
+
+    def step2_legacy_path(self, as_of: date) -> Path:
+        """巨集若仍寫到 working_dir 根目錄時的舊路徑。"""
+        return self.paths.working_dir / f"{self.daily_stamp(as_of)}.xlsx"
+
+    def output_workbook_path(self, as_of: date) -> Path:
+        name = f"{self.paths.output_prefix}{self.daily_stamp(as_of)}.xlsx"
+        return self.run_dir(as_of) / name
+
+    def output_pdf_path(self, as_of: date) -> Path:
+        name = f"{self.paths.output_prefix}{self.daily_stamp(as_of)}.pdf"
+        return self.run_dir(as_of) / name
+
+    def run_log_path(self, as_of: date) -> Path:
+        return self.run_dir(as_of) / "lme_daily.log"
 
 
 def discover_config_path(explicit: str | Path | None = None) -> Path:
@@ -151,6 +182,7 @@ def _as_path(value: Any, context: str) -> Path:
 
 _YAML_PATH_KEYS = (
     "working_dir",
+    "output_dir",
     "holidays_file",
     "ref_workbook_name",
     "bbg_workbook_name",
@@ -200,6 +232,24 @@ def _looks_like_unc(text: str) -> bool:
 def _looks_like_drive(text: str) -> bool:
     s = text.strip()
     return len(s) >= 3 and s[1] == ":" and s[0].isalpha() and s[2] in "\\/"
+
+
+def _finalize_optional_dir(value: Any, *, base: Path, context: str) -> Path | None:
+    if value is None:
+        return None
+    text = str(value).strip().strip('"').strip("'")
+    if text == "":
+        return None
+    path = _as_path(text, context)
+    raw = str(path)
+    if _looks_like_unc(raw) or _looks_like_drive(raw):
+        try:
+            return Path(raw).expanduser().resolve()
+        except OSError:
+            return Path(raw)
+    if not path.is_absolute():
+        return (base / path).resolve()
+    return path.resolve()
 
 
 def _finalize_working_dir(path: Path, *, config_parent: Path) -> Path:
@@ -305,8 +355,15 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         if not holidays_file.is_absolute():
             holidays_file = (config_path.parent / holidays_file).resolve()
 
+    output_dir = _finalize_optional_dir(
+        paths_raw.get("output_dir"),
+        base=working_dir,
+        context="paths.output_dir",
+    )
+
     paths = PathsConfig(
         working_dir=working_dir,
+        output_dir=output_dir,
         ref_workbook=working_dir / ref_name,
         bbg_workbook=working_dir / bbg_name,
         output_prefix=output_prefix,

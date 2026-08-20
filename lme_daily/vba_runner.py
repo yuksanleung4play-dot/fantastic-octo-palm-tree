@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import logging
+import shutil
 import threading
 import time
 from datetime import date
@@ -23,7 +24,7 @@ from lme_daily.excel_com import (
     close_workbook_if_opened,
     excel_app,
     open_workbook,
-    wait_for_file,
+    wait_for_any_file,
 )
 from lme_daily.exceptions import ExcelComError, MacroOutputError
 
@@ -74,6 +75,57 @@ def is_bad_param_count(exc: BaseException) -> bool:
     return False
 
 
+def step2_search_paths(config: AppConfig, as_of: date) -> list[Path]:
+    """優先 ``vba_dir\\yyyymmdd.xlsx``，其次 working_dir 根目錄（巨集常寫 ThisWorkbook.Path）。"""
+    primary = config.step2_workbook_path(as_of)
+    legacy = config.step2_legacy_path(as_of)
+    paths = [primary]
+    try:
+        different = legacy.resolve() != primary.resolve()
+    except OSError:
+        different = str(legacy) != str(primary)
+    if different:
+        paths.append(legacy)
+    return paths
+
+
+def relocate_step2_workbook(found: Path, dest: Path) -> Path:
+    """若巨集寫到 working_dir 根目錄，搬到 ``vba_dir``。"""
+    dest = Path(dest)
+    found = Path(found)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        same = found.resolve() == dest.resolve()
+    except OSError:
+        same = str(found) == str(dest)
+    if same:
+        return dest
+    if dest.exists():
+        try:
+            dest.unlink()
+        except OSError:
+            logger.debug("無法刪除既有 dest，稍後改以複製覆寫：%s", dest)
+    try:
+        shutil.move(str(found), str(dest))
+        logger.info("已將 VBA 產出從 %s 移到 %s", found, dest)
+        return dest
+    except OSError as exc:
+        logger.warning("無法搬移 %s → %s（%s），改為複製", found, dest, exc)
+        shutil.copy2(found, dest)
+        logger.info("已將 VBA 產出從 %s 複製到 %s", found, dest)
+        return dest
+
+
+def resolve_existing_step2(config: AppConfig, as_of: date) -> Path | None:
+    for path in step2_search_paths(config, as_of):
+        try:
+            if path.is_file() and path.stat().st_size > 0:
+                return path
+        except OSError:
+            continue
+    return None
+
+
 def run_reference_macro(
     config: AppConfig,
     *,
@@ -81,8 +133,9 @@ def run_reference_macro(
     prev_date: str,
     three_m_date: str,
 ) -> Path:
-    """執行巨集、等到 ``yyyymmdd.xlsx`` 產生後關閉參考工作簿。"""
+    """執行巨集、等到 ``vba_dir\\yyyymmdd.xlsx`` 產生後關閉參考工作簿。"""
     expected = config.step2_workbook_path(as_of)
+    expected.parent.mkdir(parents=True, exist_ok=True)
     if expected.exists():
         logger.warning("輸出檔已存在，將覆寫：%s", expected)
 
@@ -102,6 +155,7 @@ def run_reference_macro(
         ibox_prev,
         ibox_three,
     )
+    logger.info("VBA 中繼檔預期位置（vba_dir）：%s", expected)
 
     ready = expected
     with excel_app(
@@ -127,16 +181,20 @@ def run_reference_macro(
                 inputbox_three=ibox_three,
             )
             try:
-                ready = wait_for_file(
-                    expected,
+                found = wait_for_any_file(
+                    step2_search_paths(config, as_of),
                     timeout_seconds=config.vba.output_timeout_seconds,
                     poll_interval=config.vba.poll_interval_seconds,
                 )
+                ready = relocate_step2_workbook(found, expected)
             except ExcelComError as exc:
+                searched = " ； ".join(str(p) for p in step2_search_paths(config, as_of))
                 raise MacroOutputError(
                     f"巨集執行後未產生預期檔案 {expected.name}。"
-                    f"請確認巨集會把結果寫到 {config.paths.working_dir}，"
-                    f"且檔名為當日 {as_of.strftime('%Y%m%d')}.xlsx。原始錯誤：{exc}"
+                    f"VBA 中繼檔必須落在 {expected.parent}（vba_dir），"
+                    f"或仍寫在 working_dir 根目錄 {config.paths.working_dir} 再由程式搬入。"
+                    f"檔名為當日 {as_of.strftime('%Y%m%d')}.xlsx。"
+                    f"已檢查：{searched}。原始錯誤：{exc}"
                 ) from exc
         except ExcelComError:
             raise

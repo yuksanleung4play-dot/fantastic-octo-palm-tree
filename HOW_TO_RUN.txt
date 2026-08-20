@@ -29,7 +29,10 @@ Before running:
        excel   = RefreshAll in the reused Excel (default)
        cached  = read cells only, no refresh
        blpapi  = pip install blpapi (Terminal still must be unlocked)
-  4. Source workbooks in working_dir
+  4. Source workbooks in working_dir (xlsm / BBG xlsx)
+     VBA yyyymmdd.xlsx always goes to working_dir\yyyymmdd\
+     Final report xlsx/pdf/log go to run_dir
+     (output_dir empty = same folder; output_dir set = output_dir\yyyymmdd\)
 
 Command Prompt (optional):
   py -3 generate_lme_daily.py

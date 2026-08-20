@@ -40,7 +40,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--skip-vba",
         action="store_true",
-        help="跳過巨集，直接使用 working_dir 裡既有的 yyyymmdd.xlsx",
+        help="跳過巨集，直接使用 vba_dir（working_dir\\yyyymmdd）裡既有的 yyyymmdd.xlsx",
     )
     parser.add_argument(
         "--skip-bbg",
@@ -86,6 +86,20 @@ def setup_logging(config: AppConfig) -> None:
             logger.warning("無法寫入日誌檔 %s：%s（改只輸出到 console）", log_path, exc)
 
 
+def attach_run_dir_log(run_dir: Path) -> None:
+    """每天一份 lme_daily.log 寫進 run_dir（最終報告資料夾）。"""
+    log_path = run_dir / "lme_daily.log"
+    fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    try:
+        run_dir.mkdir(parents=True, exist_ok=True)
+        handler = logging.FileHandler(log_path, encoding="utf-8")
+        handler.setFormatter(fmt)
+        logging.getLogger().addHandler(handler)
+        logger.info("當日日誌：%s", log_path)
+    except OSError as exc:
+        logger.warning("無法寫入當日日誌 %s：%s", log_path, exc)
+
+
 @contextmanager
 def log_step(name: str):
     started = datetime.now()
@@ -118,7 +132,14 @@ def run(config: AppConfig, *, as_of: date, dry_run: bool, skip_vba: bool, skip_b
             require_ref_workbook=not dry_run and not skip_vba,
             require_bbg_workbook=not dry_run and not skip_bbg,
         )
+        vba_dir, run_dir = config.ensure_run_dirs(as_of)
         logger.info("working_dir=%s", config.paths.working_dir)
+        logger.info("vba_dir=%s（VBA 中繼檔，不受 output_dir 影響）", vba_dir)
+        logger.info(
+            "run_dir=%s（最終報告；output_dir=%s）",
+            run_dir,
+            config.paths.output_dir or "(空，與 vba_dir 相同)",
+        )
         logger.info("chart.engine=%s  forward_months=%s", config.chart.engine, config.chart.forward_months)
         logger.info("vba.macro_name=%s  use_param_injection=%s", config.vba.macro_name, config.vba.use_param_injection)
         logger.info(
@@ -127,6 +148,8 @@ def run(config: AppConfig, *, as_of: date, dry_run: bool, skip_vba: bool, skip_b
             config.excel.quit_on_exit,
             config.bloomberg.source,
         )
+
+    attach_run_dir_log(run_dir)
 
     with log_step("計算上日日期與 3M date"):
         prev_date, three_m_date = calc_lme_dates(
@@ -145,13 +168,23 @@ def run(config: AppConfig, *, as_of: date, dry_run: bool, skip_vba: bool, skip_b
 
     if dry_run:
         logger.info("dry-run：到此結束，不呼叫 Excel / Bloomberg")
+        logger.info("若實際執行：VBA 中繼檔 → %s", config.step2_workbook_path(as_of))
+        logger.info("若實際執行：最終報告 → %s", config.output_workbook_path(as_of))
         return None
 
     step2_path = config.step2_workbook_path(as_of)
     if skip_vba:
-        logger.warning("略過 VBA（--skip-vba），改用既有檔案：%s", step2_path)
-        if not step2_path.is_file():
-            raise LMEAutomationError(f"--skip-vba 但找不到 {step2_path}")
+        from lme_daily.vba_runner import relocate_step2_workbook, resolve_existing_step2
+
+        found = resolve_existing_step2(config, as_of)
+        logger.warning("略過 VBA（--skip-vba），改用既有檔案：%s", found or step2_path)
+        if found is None:
+            raise LMEAutomationError(
+                f"--skip-vba 但找不到 VBA 中繼檔 {step2_path}"
+                f"（也沒有 {config.step2_legacy_path(as_of)}）。"
+                "遠期走勢圖與原始數據只讀 vba_dir 下的 yyyymmdd.xlsx，不會生成缺資料的報告。"
+            )
+        step2_path = relocate_step2_workbook(found, step2_path)
     else:
         from lme_daily.vba_runner import run_reference_macro
 
@@ -162,7 +195,17 @@ def run(config: AppConfig, *, as_of: date, dry_run: bool, skip_vba: bool, skip_b
                 prev_date=prev_date,
                 three_m_date=three_m_date,
             )
-            logger.info("步驟二產出：%s", step2_path)
+            logger.info("步驟二產出（vba_dir）：%s", step2_path)
+
+    try:
+        step2_ready = step2_path.is_file()
+    except OSError:
+        step2_ready = False
+    if not step2_ready:
+        raise LMEAutomationError(
+            f"找不到 VBA 中繼檔 {step2_path}。"
+            "「遠期走勢圖」與「原始數據」只讀此檔，中斷而不產生缺資料報告。"
+        )
 
     if skip_bbg:
         logger.warning("略過 Bloomberg 刷新（--skip-bbg），BBG快照將為空")
@@ -184,11 +227,44 @@ def run(config: AppConfig, *, as_of: date, dry_run: bool, skip_vba: bool, skip_b
             step2_path=step2_path,
             bbg_values=bbg_values,
             bbg_formats=bbg_formats,
+            output_path=config.output_workbook_path(as_of),
         )
+
+    pdf_path: Path | None = None
+    with log_step("匯出合併版面 PDF"):
+        pdf_path = _export_print_pdf(config, output_path, as_of=as_of)
 
     logger.info("最終輸出檔案：%s", output_path.resolve())
     print(str(output_path.resolve()))
+    if pdf_path is not None:
+        logger.info("PDF：%s", pdf_path.resolve())
+        print(str(pdf_path.resolve()))
     return output_path
+
+
+def _export_print_pdf(config: AppConfig, workbook_path: Path, *, as_of: date) -> Path | None:
+    """Windows + Excel 才把「合併版面」匯出 PDF；其他平台略過，xlsx 仍算成功。"""
+    from lme_daily.excel_com import export_sheet_as_pdf
+    from lme_daily.exceptions import ExcelComError
+    from lme_daily.report_builder import SHEET_PRINT
+
+    pdf_path = config.output_pdf_path(as_of)
+    if sys.platform != "win32":
+        logger.warning("非 Windows，略過 PDF 匯出（xlsx 已完成）：%s", pdf_path.name)
+        return None
+    try:
+        return export_sheet_as_pdf(
+            workbook_path=workbook_path,
+            sheet_name=SHEET_PRINT,
+            pdf_path=pdf_path,
+            visible=config.excel.visible,
+            display_alerts=config.excel.display_alerts,
+            reuse_running=config.excel.reuse_running,
+            quit_on_exit=config.excel.quit_on_exit,
+            new_instance=config.excel.new_instance,
+        )
+    except ExcelComError as exc:
+        raise LMEAutomationError(f"無法匯出 PDF：{exc}") from exc
 
 
 def run_cli(argv: list[str] | None = None) -> tuple[int, Path | None]:

@@ -19,6 +19,7 @@ def _write_config(tmp_path: Path, **overrides) -> Path:
             "ref_workbook_name": "ref.xlsm",
             "bbg_workbook_name": "bbg.xlsx",
             "output_prefix": "LME每日報價",
+            "output_dir": "",
         },
         "vba": {"macro_name": "RunDailyLME", "use_param_injection": True},
         "bloomberg": {
@@ -126,3 +127,39 @@ def test_load_config_accepts_unc_written_like_windows_users(tmp_path: Path):
     config = load_config(cfg)
     assert "192.168.89.167" in str(config.paths.working_dir)
     assert "Dealing" in str(config.paths.working_dir)
+
+
+def test_empty_output_dir_shares_vba_and_run_folder(tmp_path: Path):
+    (tmp_path / "work").mkdir()
+    config = load_config(_write_config(tmp_path))
+    as_of = date(2026, 8, 20)
+    assert config.paths.output_dir is None
+    vba_dir, run_dir = config.ensure_run_dirs(as_of)
+    assert vba_dir == run_dir == config.paths.working_dir / "20260820"
+    assert vba_dir.is_dir()
+    again_v, again_r = config.ensure_run_dirs(as_of)
+    assert again_v == vba_dir
+    assert again_r == run_dir
+    assert config.step2_workbook_path(as_of) == vba_dir / "20260820.xlsx"
+    assert config.output_workbook_path(as_of) == run_dir / "LME每日報價20260820.xlsx"
+    assert config.output_pdf_path(as_of) == run_dir / "LME每日報價20260820.pdf"
+    assert config.run_log_path(as_of) == run_dir / "lme_daily.log"
+
+
+def test_output_dir_splits_vba_and_report_folders(tmp_path: Path):
+    work = tmp_path / "work"
+    export = tmp_path / "LME_Export"
+    work.mkdir()
+    cfg = _write_config(tmp_path, paths={"output_dir": str(export)})
+    config = load_config(cfg)
+    as_of = date(2026, 8, 20)
+    assert config.paths.output_dir == export.resolve()
+    vba_dir, run_dir = config.ensure_run_dirs(as_of)
+    assert vba_dir == work.resolve() / "20260820"
+    assert run_dir == export.resolve() / "20260820"
+    assert vba_dir != run_dir
+    assert vba_dir.is_dir() and run_dir.is_dir()
+    assert config.step2_workbook_path(as_of).parent == vba_dir
+    assert config.output_workbook_path(as_of).parent == run_dir
+    assert config.paths.ref_workbook.parent == work.resolve()
+    assert config.paths.bbg_workbook.parent == work.resolve()

@@ -1,6 +1,6 @@
 # LME 每日報價自動化
 
-Windows 本機流程：開啟「早班 LME reference」執行 VBA → 刷新 Bloomberg 工作簿 → 產出 `LME每日報價yyyymmdd.xlsx`（BBG 快照、六條遠期曲線、原始數據）。
+Windows 本機流程：開啟「早班 LME reference」執行 VBA → 刷新 Bloomberg 工作簿 → 產出 `LME每日報價yyyymmdd.xlsx`（BBG 快照、六條遠期曲線、原始數據、合併版面）與 PDF。
 
 > 完整流程需要 **Windows + Excel + Bloomberg Terminal**。日期計算與報告產生可在任何平台跑單元測試。
 
@@ -71,10 +71,31 @@ python -m lme_daily --config config.yaml
 |------|------|
 | `--as-of YYYY-MM-DD` | 覆寫執行日（影響上日 / 3M / 輸出檔名） |
 | `--dry-run` | 只檢查設定並計算日期，不開 Excel |
-| `--skip-vba` | 使用 `working_dir` 裡既有的 `yyyymmdd.xlsx` |
+| `--skip-vba` | 使用 `working_dir\yyyymmdd\` 裡既有的 `yyyymmdd.xlsx`（若只在根目錄也會搬入） |
 | `--skip-bbg` | 跳過 Bloomberg 刷新 |
 
-日誌會打到 console，並寫入 `working_dir` 下的 `lme_daily.log`。
+日誌會打到 console；`logging.file` 若有填會寫一份到 `working_dir`，另外**每天一份** `lme_daily.log` 一定寫進最終報告資料夾 `run_dir`。
+
+## 兩個資料夾：`vba_dir` vs `run_dir`
+
+整個流程有兩個用途不同的資料夾，不要混用：
+
+| 變數 | 位置 | 放什麼 |
+|------|------|--------|
+| `vba_dir` | 永遠 `working_dir\yyyymmdd\` | VBA 巨集產生的中繼檔 `yyyymmdd.xlsx`（例如 `20260820.xlsx`） |
+| `run_dir` | `output_dir` 留空 → 與 `vba_dir` 相同；有填 → `output_dir\yyyymmdd\` | `LME每日報價yyyymmdd.xlsx`、對應 `.pdf`、當日 `lme_daily.log` |
+
+```yaml
+paths:
+  working_dir: '\\192.168.89.167\Dealing\...'
+  output_prefix: "LME每日報價"
+  output_dir: ''    # 留空 = 最終報告也放 working_dir\yyyymmdd\
+                    # 填了路徑 = 最終報告改放 output_dir\yyyymmdd\
+```
+
+兩個資料夾都會在流程一開始 `mkdir(parents=True, exist_ok=True)`（同一天重跑不會報錯）。來源工作簿（`早班_LME_reference_2024.xlsm`、`LME BBG WORKBOOK.xlsx`）永遠讀自 `working_dir` 根目錄。
+
+**關鍵：** 不管 `output_dir` 有沒有填，「遠期走勢圖」與「原始數據」的資料來源一律是 `working_dir\yyyymmdd\yyyymmdd.xlsx`。原始數據 sheet 用**絕對路徑** Excel 外部連結，避免報告跟中繼檔不在同一資料夾時斷鏈。若該中繼檔不存在，流程會中斷，不會產出缺資料的報告。
 
 ## 目錄
 
@@ -95,7 +116,7 @@ lme_daily/
   excel_com.py         # win32com Excel 封裝
   vba_runner.py        # 參數注入 或 pywinauto InputBox
   bbg_fetch.py         # RefreshAll + Value2
-  report_builder.py    # 三個 sheet；matplotlib 或 xlsxwriter
+  report_builder.py    # 四個 sheet（含合併版面）；matplotlib 或 xlsxwriter
 examples/RunDailyLME_param_wrapper.bas
 tests/
 ```
@@ -119,15 +140,16 @@ Application.Run("RunDailyLME", 上日日期, 3M date)
 
 若巨集只能走 InputBox，改成 `use_param_injection: false`，改由 `pywinauto` 自動填兩個彈窗並按 Enter。
 
-巨集完成後必須在 `working_dir` 產生 `yyyymmdd.xlsx`（例如 `20260819.xlsx`），腳本會 polling 等到檔案就緒。
+巨集完成後必須產生 `yyyymmdd.xlsx`。程式會先在 `working_dir\yyyymmdd\`（`vba_dir`）等檔；若巨集仍寫到 `working_dir` 根目錄，會自動搬進 `vba_dir`。最終報告**不會**把這份中繼檔跟著 `output_dir` 搬走。
 
 ## 報告內容
 
-同一個工作簿三個 sheet：
+同一個工作簿四個可見 sheet：
 
-1. **BBG快照** — Bloomberg 工作表 `copy_range`（預設 `B3:I10`）的 `.Value2`
-2. **遠期走勢圖** — 以 cash date 起 `chart.forward_months`（預設 27）個月為視窗，六個品種各一張圖。`NI` / `SN` 空值會 `dropna`，**不會填 0**
-3. **原始數據** — 步驟二檔案的完整內容（含 27 個月以後）
+1. **BBG快照** — Bloomberg 工作表 `copy_range`（預設 `B3:I10`）的 `.Value2`。字串若以 `N/A` 開頭（例如 `N/A Field Not Applicable`）會正規化成純 `N/A`；空白 / `None` / 數字維持原樣，不會填字。
+2. **遠期走勢圖** — 以 cash date 起 `chart.forward_months`（預設 27）個月為視窗，六個品種各一張圖。資料來自 `vba_dir\yyyymmdd.xlsx`。`NI` / `SN` 空值會 `dropna`，**不會填 0**
+3. **原始數據** — 以絕對路徑外部連結指向 `vba_dir\yyyymmdd.xlsx` 的完整內容（含 27 個月以後）
+4. **合併版面** — 把上述三塊排在同一橫向 A3 版面（深藍/白底、中英雙語標題、頁碼「第 n 頁，共 N 頁」）。Windows 下用 `ExportAsFixedFormat` 匯出 `LME每日報價yyyymmdd.pdf`
 
 `chart.engine`：
 

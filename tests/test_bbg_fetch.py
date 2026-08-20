@@ -1,10 +1,6 @@
 """bbg_fetch 純 Python 輔助函式（不需 Excel）。"""
 
-from lme_daily.bbg_fetch import _as_2d_tuple, parse_bdp_formula
-
-
-def test_as_2d_tuple_none():
-    assert _as_2d_tuple(None) == ()
+from lme_daily.bbg_fetch import _as_2d_tuple, normalize_bbg_cell, parse_bdp_formula
 
 
 def test_as_2d_tuple_none():
@@ -36,6 +32,23 @@ def test_parse_bdp_formula():
     assert parse_bdp_formula('BDP("CA Comdty","PX_BID")') == ("CA Comdty", "PX_BID")
     assert parse_bdp_formula(9001.5) is None
     assert parse_bdp_formula("Copper") is None
+
+
+def test_normalize_bbg_cell_blank_stays_blank():
+    assert normalize_bbg_cell(None) is None
+    assert normalize_bbg_cell("") == ""
+    assert normalize_bbg_cell("   ") == "   "
+
+
+def test_normalize_bbg_cell_na_prefix_becomes_na():
+    assert normalize_bbg_cell("N/A Field Not Applicable") == "N/A"
+    assert normalize_bbg_cell("N/A Requesting Data...") == "N/A"
+    assert normalize_bbg_cell("n/a ****") == "N/A"
+
+
+def test_normalize_bbg_cell_number_unchanged():
+    assert normalize_bbg_cell(14234.50) == 14234.50
+    assert normalize_bbg_cell("Copper") == "Copper"
 
 
 def test_overlay_bdp_grid_replaces_formulas():

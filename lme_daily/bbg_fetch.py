@@ -34,6 +34,18 @@ BDP_RE = re.compile(
 )
 
 
+def normalize_bbg_cell(value: Any) -> Any:
+    """只正規化以 N/A 開頭的字串；空白/None 維持原樣，不填 N/A。"""
+    if isinstance(value, str) and value.strip().upper().startswith("N/A"):
+        return "N/A"
+    return value
+
+
+def normalize_bbg_values(values: RangeValues) -> RangeValues:
+    """讀值之後、寫入 BBG快照之前套用一次。"""
+    return tuple(tuple(normalize_bbg_cell(cell) for cell in row) for row in values)
+
+
 def parse_bdp_formula(cell: Any) -> tuple[str, str] | None:
     """從 ``=BDP("ticker","FIELD")`` 抽出 (security, field)。"""
     if not isinstance(cell, str):
@@ -53,9 +65,11 @@ def fetch_bloomberg_snapshot(config: AppConfig) -> tuple[RangeValues, RangeForma
     if source == "blpapi":
         from lme_daily.bbg_blpapi import fetch_bloomberg_snapshot_blpapi
 
-        return fetch_bloomberg_snapshot_blpapi(config)
-    refresh = source != "cached"
-    return _fetch_via_excel(config, refresh=refresh)
+        values, formats = fetch_bloomberg_snapshot_blpapi(config)
+    else:
+        refresh = source != "cached"
+        values, formats = _fetch_via_excel(config, refresh=refresh)
+    return normalize_bbg_values(values), formats
 
 
 def _fetch_via_excel(config: AppConfig, *, refresh: bool) -> tuple[RangeValues, RangeFormats]:

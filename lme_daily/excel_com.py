@@ -144,7 +144,12 @@ def open_workbook(
     if existing is not None:
         logger.info("工作簿已在 Excel 開啟，沿用：%s", getattr(existing, "FullName", resolved))
         return existing, False
-    if not resolved.is_file():
+    try:
+        present = resolved.is_file()
+    except OSError as exc:
+        logger.debug("is_file(%s) 失敗（可能是網路磁碟鎖定）：%s", resolved, exc)
+        present = True
+    if not present:
         raise ExcelComError(f"工作簿不存在：{resolved}")
     logger.info("開啟工作簿：%s", resolved)
     try:
@@ -201,18 +206,96 @@ def wait_until_calculation_done(
 
 
 def wait_for_file(path: Path, *, timeout_seconds: float, poll_interval: float) -> Path:
+    return wait_for_any_file([path], timeout_seconds=timeout_seconds, poll_interval=poll_interval)
+
+
+def wait_for_any_file(
+    paths: list[Path],
+    *,
+    timeout_seconds: float,
+    poll_interval: float,
+) -> Path:
+    unique: list[Path] = []
+    for path in paths:
+        if path not in unique:
+            unique.append(path)
+    if not unique:
+        raise ExcelComError("wait_for_any_file 沒有任何路徑")
     deadline = time.monotonic() + timeout_seconds
-    logger.info("等待輸出檔產生：%s（timeout=%.0fs）", path, timeout_seconds)
+    shown = " 或 ".join(str(p) for p in unique)
+    logger.info("等待輸出檔產生：%s（timeout=%.0fs）", shown, timeout_seconds)
     while time.monotonic() < deadline:
-        if path.exists() and path.stat().st_size > 0:
-            if _file_unlocked(path):
-                logger.info("輸出檔已就緒：%s（%d bytes）", path, path.stat().st_size)
-                return path
-            logger.debug("檔案存在但仍被鎖定，繼續等待：%s", path)
+        for path in unique:
+            try:
+                if path.exists() and path.stat().st_size > 0 and _file_unlocked(path):
+                    logger.info("輸出檔已就緒：%s（%d bytes）", path, path.stat().st_size)
+                    return path
+            except OSError:
+                logger.debug("檢查檔案時 OSError，繼續等待：%s", path)
         time.sleep(poll_interval)
     raise ExcelComError(
-        f"等待檔案逾時（{timeout_seconds:.0f}s）仍未產生或無法讀取：{path}"
+        f"等待檔案逾時（{timeout_seconds:.0f}s）仍未產生或無法讀取：{shown}"
     )
+
+
+def export_sheet_as_pdf(
+    *,
+    workbook_path: Path,
+    sheet_name: str,
+    pdf_path: Path,
+    visible: bool = True,
+    display_alerts: bool = False,
+    reuse_running: bool = True,
+    quit_on_exit: bool = False,
+    new_instance: bool = False,
+) -> Path:
+    """用 Excel 把指定工作表匯出成 PDF（不 Quit 沿用的 Excel）。"""
+    xl_type_pdf = 0
+    xl_quality_standard = 0
+    pdf_path = Path(pdf_path)
+    pdf_path.parent.mkdir(parents=True, exist_ok=True)
+    logger.info("匯出 PDF：sheet=%s → %s", sheet_name, pdf_path)
+    with excel_app(
+        visible=visible,
+        display_alerts=display_alerts,
+        reuse_running=reuse_running,
+        quit_on_exit=quit_on_exit,
+        new_instance=new_instance,
+    ) as app:
+        workbook, opened_by_us = open_workbook(app, workbook_path)
+        try:
+            try:
+                sheet = workbook.Worksheets(sheet_name)
+            except Exception as exc:
+                raise ExcelComError(
+                    f"找不到工作表 {sheet_name!r}，無法匯出 PDF：{exc}"
+                ) from exc
+            try:
+                sheet.Activate()
+            except Exception:
+                logger.debug("Activate 列印表失敗，繼續 ExportAsFixedFormat")
+            sheet.ExportAsFixedFormat(
+                Type=xl_type_pdf,
+                Filename=str(pdf_path),
+                Quality=xl_quality_standard,
+                IncludeDocProperties=True,
+                IgnorePrintAreas=False,
+                OpenAfterPublish=False,
+            )
+        except ExcelComError:
+            raise
+        except Exception as exc:
+            raise ExcelComError(f"ExportAsFixedFormat 匯出 PDF 失敗：{exc}") from exc
+        finally:
+            close_workbook_if_opened(workbook, opened_by_us, save_changes=False)
+    try:
+        ready = pdf_path.is_file() and pdf_path.stat().st_size > 0
+    except OSError as exc:
+        raise ExcelComError(f"無法確認 PDF 是否寫入：{pdf_path}（{exc}）") from exc
+    if not ready:
+        raise ExcelComError(f"PDF 寫入後不存在或是空檔：{pdf_path}")
+    logger.info("PDF 已寫入：%s", pdf_path)
+    return pdf_path
 
 
 def _file_unlocked(path: Path) -> bool:
