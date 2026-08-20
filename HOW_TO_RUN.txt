@@ -34,7 +34,7 @@ Before running:
        blpapi  = pip install blpapi (Terminal still must be unlocked)
   4. Source workbooks in working_dir (xlsm / BBG xlsx)
      VBA yyyymmdd.xlsx always goes to working_dir\yyyymmdd\
-     Final report xlsx/pdf/log go to run_dir
+     Final report xlsx/log go to run_dir
      (output_dir empty = same folder; output_dir set = output_dir\yyyymmdd\)
 
 Command Prompt (optional):

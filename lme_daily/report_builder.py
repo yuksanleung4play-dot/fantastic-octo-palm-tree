@@ -49,7 +49,7 @@ SHEET_RAW = "原始數據"
 SHEET_PRINT = "合併版面"
 SHEET_CHART_DATA = "_chart_data"
 
-# BBG快照 / 遠期走勢圖 sheet 仍用深藍，避免動到非 PDF 頁。
+# BBG快照 / 遠期走勢圖 sheet 仍用深藍，避免動到非合併版面頁。
 COLOR_NAVY = "0B2447"
 COLOR_GOLD = "C5A059"
 COLOR_GRAY = "F2F4F7"
@@ -57,7 +57,7 @@ COLOR_LINE = "D6D9DE"
 COLOR_MUTED = "6B7280"
 COLOR_INK = "1F2937"
 COLOR_WHITE = "FFFFFF"
-# 合併版面 / PDF：山證國際官網暖色（磚紅／橙漸層替代），白底。
+# 合併版面：山證國際官網暖色（磚紅／橙漸層替代），白底。
 COLOR_BRICK = "A63A2E"
 COLOR_CREAM = "FFF5E8"
 COLOR_ACCENT = "C9683A"  # #B5502C→#F2CDA8 橫向漸層的實色替代
@@ -65,7 +65,19 @@ COLOR_ALERT = "D9291C"
 COLOR_TITLE_DARK = "2B2B2B"
 
 PRINT_FOOTER = "第 &P 頁，共 &N 頁"
-PRINT_DISCLAIMER = "免責聲明：本報告僅供參考，不構成任何投資建議。"
+PRINT_DISCLAIMER_FULL = (
+    "免責聲明：本報告由山證國際金融控股有限公司（\"本公司\"或\"山證國際\"）提供，"
+    "所載之內容或意見乃根據本公司認為可靠之數據源來編制，惟本公司並不就此等內容之準確性、"
+    "完整性及正確性作出明示或默示之保證。本報告的作用純粹為提供信息，並不應視為對本報告內"
+    "提及的任何產品買賣或交易之專業推介、建議、邀請或要約。"
+    "\n\n"
+    "投資附帶風險，投資者需注意投資項目之價值可升亦可跌，而過往之表現亦不一定反映未來之表現。"
+    "投資者進行投資前請尋求獨立之投資意見。本公司竭力確保其提供之數據準確可靠，但不保證該等"
+    "數據絕對正確可靠；對於任何因資料不確或遺漏又或因根據或倚賴本資料所作決定、行動或不行動"
+    "而引致之損失或損害，本公司概不負責（不論是民事侵權行為責任或合約責任或其他）。"
+)
+DISCLAIMER_FONT_SIZE = 8
+DISCLAIMER_ROW_HEIGHT = 96
 CHART_ROW_STRIDE = 19
 PAPERSIZE_A3 = 8
 PAPERSIZE_A4 = 9
@@ -321,7 +333,6 @@ def _apply_print_layout_openpyxl(
     ws.sheet_properties.pageSetUpPr.fitToPage = True
     ws.oddHeader.center.text = header_footer_run(header_color, header)
     ws.oddFooter.center.text = PRINT_FOOTER
-    ws.oddFooter.left.text = header_footer_run(COLOR_MUTED, PRINT_DISCLAIMER)
     ws.page_margins = PageMargins(
         left=0.4, right=0.4, top=0.75, bottom=0.7, header=0.3, footer=0.4
     )
@@ -334,6 +345,18 @@ def _set_print_area(ws: Worksheet, last_row: int, last_col: int = 18) -> None:
     if last_row < 1:
         return
     ws.print_area = f"A1:{get_column_letter(last_col)}{last_row}"
+
+
+def _write_print_disclaimer_openpyxl(ws: Worksheet, *, after_row: int, last_col: int = 18) -> int:
+    """合併版面最下方：完整兩段免責聲明，自動換行、深灰小字。"""
+    row = after_row + 2
+    end = get_column_letter(last_col)
+    ws.merge_cells(f"A{row}:{end}{row}")
+    cell = ws.cell(row=row, column=1, value=PRINT_DISCLAIMER_FULL)
+    cell.font = Font(size=DISCLAIMER_FONT_SIZE, color=COLOR_INK)
+    cell.alignment = Alignment(wrap_text=True, vertical="top", horizontal="left")
+    ws.row_dimensions[row].height = DISCLAIMER_ROW_HEIGHT
+    return row
 
 
 def _write_report_banner_openpyxl(ws: Worksheet, as_of: date, *, last_col: int = 18) -> int:
@@ -447,6 +470,7 @@ def _write_print_sheet_openpyxl(
     _section_heading_openpyxl(ws, raw_heading, SHEET_RAW, "Underlying Data")
     last_raw = _copy_raw_sheet(step2_path, ws, start_row=raw_heading + 1)
 
+    disc_row = _write_print_disclaimer_openpyxl(ws, after_row=max(last_raw, after_images))
     _apply_print_layout_openpyxl(
         ws,
         header=header,
@@ -454,10 +478,9 @@ def _write_print_sheet_openpyxl(
         paper_size=PAPERSIZE_A3,
         header_color=COLOR_TITLE_DARK,
     )
-    _set_print_area(ws, max(last_raw, after_images) + 1)
+    _set_print_area(ws, disc_row)
     ws.oddHeader.left.text = header_footer_run(COLOR_TITLE_DARK, COMPANY_ZH)
     ws.oddHeader.right.text = header_footer_run(COLOR_TITLE_DARK, as_of.strftime("%Y-%m-%d"))
-    ws.oddFooter.left.text = header_footer_run(COLOR_ALERT, PRINT_DISCLAIMER)
 
 
 def _build_with_openpyxl(
@@ -643,7 +666,7 @@ def _apply_print_layout_xlsxwriter(
     ws.set_paper(paper)
     ws.fit_to_pages(1, 0)
     ws.set_header(f"&C{header_footer_run(header_color, header)}")
-    ws.set_footer(f"&L{header_footer_run(COLOR_MUTED, PRINT_DISCLAIMER)}&C{PRINT_FOOTER}")
+    ws.set_footer(f"&C{PRINT_FOOTER}")
     ws.center_horizontally()
     ws.set_margins(left=0.4, right=0.4, top=0.75, bottom=0.7)
 
@@ -889,6 +912,18 @@ def _write_print_sheet_xlsxwriter(
         worksheet=ws,
         start_row=raw_heading + 1,
     )
+    disc_row = max(last_raw, after_images) + 2
+    disc_fmt = workbook.add_format(
+        {
+            "font_size": DISCLAIMER_FONT_SIZE,
+            "font_color": _css(COLOR_INK),
+            "text_wrap": True,
+            "valign": "top",
+            "align": "left",
+        }
+    )
+    ws.merge_range(disc_row, 0, disc_row, last_col, PRINT_DISCLAIMER_FULL, disc_fmt)
+    ws.set_row(disc_row, DISCLAIMER_ROW_HEIGHT)
     _apply_print_layout_xlsxwriter(
         ws, header=header, paper=PAPERSIZE_A3, header_color=COLOR_TITLE_DARK
     )
@@ -897,10 +932,9 @@ def _write_print_sheet_xlsxwriter(
         f"&C{header_footer_run(COLOR_TITLE_DARK, header)}"
         f"&R{header_footer_run(COLOR_TITLE_DARK, as_of.strftime('%Y-%m-%d'))}"
     )
-    ws.set_footer(f"&L{header_footer_run(COLOR_ALERT, PRINT_DISCLAIMER)}&C{PRINT_FOOTER}")
+    ws.set_footer(f"&C{PRINT_FOOTER}")
     ws.set_tab_color(_css(COLOR_ACCENT))
-    end_row = max(last_raw, after_images) + 1
-    ws.print_area(0, 0, end_row, last_col)
+    ws.print_area(0, 0, disc_row, last_col)
 
 
 def dataframe_preview_rows(df: pd.DataFrame, limit: int = 5) -> list[list[Any]]:

@@ -75,6 +75,8 @@ def test_skip_vba_and_bbg_builds_report(tmp_path: Path):
     assert dest.is_file()
     assert (work / "20260819" / "20260819.xlsx").is_file()
     assert (work / "20260819" / "lme_daily.log").is_file()
+    assert not (work / "20260819" / "LME每日報價20260819.pdf").exists()
+    assert list(dest.parent.glob("*.pdf")) == []
     from openpyxl import load_workbook
 
     wb = load_workbook(dest)

@@ -121,10 +121,6 @@ class AppConfig:
         name = f"{self.paths.output_prefix}{self.daily_stamp(as_of)}.xlsx"
         return self.run_dir(as_of) / name
 
-    def output_pdf_path(self, as_of: date) -> Path:
-        name = f"{self.paths.output_prefix}{self.daily_stamp(as_of)}.pdf"
-        return self.run_dir(as_of) / name
-
     def run_log_path(self, as_of: date) -> Path:
         return self.run_dir(as_of) / "lme_daily.log"
 

@@ -143,7 +143,6 @@ def test_empty_output_dir_shares_vba_and_run_folder(tmp_path: Path):
     assert again_r == run_dir
     assert config.step2_workbook_path(as_of) == vba_dir / "20260820.xlsx"
     assert config.output_workbook_path(as_of) == run_dir / "LME每日報價20260820.xlsx"
-    assert config.output_pdf_path(as_of) == run_dir / "LME每日報價20260820.pdf"
     assert config.run_log_path(as_of) == run_dir / "lme_daily.log"
 
 

@@ -233,42 +233,10 @@ def run(config: AppConfig, *, as_of: date, dry_run: bool, skip_vba: bool, skip_b
             output_path=config.output_workbook_path(as_of),
         )
 
-    pdf_path: Path | None = None
-    with log_step("匯出合併版面 PDF"):
-        pdf_path = _export_print_pdf(config, output_path, as_of=as_of)
-
     logger.info("本次 Workbook.Open 次數：%d（沿用已開啟檔不計；用來對照 Bloomberg 上鎖頻率）", get_workbook_open_count())
     logger.info("最終輸出檔案：%s", output_path.resolve())
     print(str(output_path.resolve()))
-    if pdf_path is not None:
-        logger.info("PDF：%s", pdf_path.resolve())
-        print(str(pdf_path.resolve()))
     return output_path
-
-
-def _export_print_pdf(config: AppConfig, workbook_path: Path, *, as_of: date) -> Path | None:
-    """Windows + Excel 才把「合併版面」匯出 PDF；其他平台略過，xlsx 仍算成功。"""
-    from lme_daily.excel_com import export_sheet_as_pdf
-    from lme_daily.exceptions import ExcelComError
-    from lme_daily.report_builder import SHEET_PRINT
-
-    pdf_path = config.output_pdf_path(as_of)
-    if sys.platform != "win32":
-        logger.warning("非 Windows，略過 PDF 匯出（xlsx 已完成）：%s", pdf_path.name)
-        return None
-    try:
-        return export_sheet_as_pdf(
-            workbook_path=workbook_path,
-            sheet_name=SHEET_PRINT,
-            pdf_path=pdf_path,
-            visible=config.excel.visible,
-            display_alerts=config.excel.display_alerts,
-            reuse_running=config.excel.reuse_running,
-            quit_on_exit=config.excel.quit_on_exit,
-            new_instance=config.excel.new_instance,
-        )
-    except ExcelComError as exc:
-        raise LMEAutomationError(f"無法匯出 PDF：{exc}") from exc
 
 
 def run_cli(argv: list[str] | None = None) -> tuple[int, Path | None]:

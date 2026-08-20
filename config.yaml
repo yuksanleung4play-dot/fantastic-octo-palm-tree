@@ -9,6 +9,7 @@ paths:
   bbg_workbook_name: "LME BBG WORKBOOK.xlsx"
   output_prefix: "LME每日報價"
   # 留空 = 最終報告也放 working_dir\yyyymmdd\；填了路徑 = 最終報告改放 output_dir\yyyymmdd\
+  # 最終報告只有 LME每日報價yyyymmdd.xlsx（不匯出 PDF）
   # VBA 中繼檔 yyyymmdd.xlsx 永遠在 working_dir\yyyymmdd\，不受此欄影響
   output_dir: ''
   # 公休日清單檔（相對於本 config 所在目錄；也可填絕對路徑）

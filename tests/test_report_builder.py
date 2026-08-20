@@ -15,7 +15,9 @@ from lme_daily.config import load_config
 from lme_daily.exceptions import ReportBuildError
 from lme_daily.report_builder import (
     DATE_COL,
+    DISCLAIMER_FONT_SIZE,
     HF_FONT_SIZE,
+    PRINT_DISCLAIMER_FULL,
     SHEET_BBG,
     SHEET_CHART,
     SHEET_PRINT,
@@ -156,6 +158,7 @@ def test_build_report_three_sheets(tmp_path: Path, engine: str):
     assert "LME每日報價" in str(print_ws["A2"].value)
     assert "LME Daily Quotation" in str(print_ws["A3"].value)
     assert "第 &P 頁，共 &N 頁" in (print_ws.oddFooter.center.text or "")
+    assert "免責聲明" not in (print_ws.oddFooter.left.text or "")
     assert print_ws.page_setup.orientation == "landscape"
     if engine == "matplotlib":
         assert print_ws.page_setup.fitToWidth == 1
@@ -369,4 +372,57 @@ def test_print_sheet_header_font_size_and_layout(tmp_path: Path, engine: str):
             if size is not None:
                 assert float(size) <= 24, (cell.coordinate, size)
     wb.close()
+
+
+def _find_disclaimer_cell(ws: Worksheet):
+    for row in ws.iter_rows():
+        for cell in row:
+            text = str(cell.value or "")
+            if "投資附帶風險" in text and "本報告由山證國際" in text:
+                return cell
+    return None
+
+
+@pytest.mark.parametrize("engine", ["matplotlib", "xlsxwriter"])
+def test_print_sheet_full_disclaimer_only(tmp_path: Path, engine: str):
+    """合併版面底部為完整兩段免責聲明；其他 sheet 不重複。"""
+    cfg_path = _write_min_config(tmp_path, engine)
+    config = load_config(cfg_path)
+    as_of = date(2026, 8, 19)
+    vba_dir = config.vba_dir(as_of)
+    vba_dir.mkdir(parents=True, exist_ok=True)
+    step2 = vba_dir / "20260819.xlsx"
+    _make_step2(step2)
+    dest = build_report(
+        config,
+        as_of=as_of,
+        step2_path=step2,
+        bbg_values=_bbg_sample()[0],
+        bbg_formats=_bbg_sample()[1],
+    )
+    wb = load_workbook(dest)
+    print_ws = wb[SHEET_PRINT]
+    cell = _find_disclaimer_cell(print_ws)
+    assert cell is not None
+    text = str(cell.value)
+    assert text == PRINT_DISCLAIMER_FULL
+    assert "\n\n" in text
+    assert text.count("免責聲明") == 1
+    assert cell.alignment.wrap_text is True
+    size = cell.font.size
+    assert size is not None
+    assert 7 <= float(size) <= 8
+    assert float(size) == float(DISCLAIMER_FONT_SIZE)
+    height = print_ws.row_dimensions[cell.row].height
+    assert height is not None and float(height) >= 60
+    assert str(cell.row) in (print_ws.print_area or "")
+    assert "本報告僅供參考" not in text
+    for name in (SHEET_BBG, SHEET_CHART, SHEET_RAW):
+        ws = wb[name]
+        joined = "\n".join(_cell_texts(ws) + _header_footer_texts(ws))
+        assert "免責聲明" not in joined
+        assert "本報告僅供參考" not in joined
+        assert "投資附帶風險" not in joined
+    wb.close()
+
 
