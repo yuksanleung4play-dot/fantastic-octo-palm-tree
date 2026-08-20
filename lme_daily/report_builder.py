@@ -5,7 +5,7 @@
 - ``xlsxwriter``：Excel 原生可互動折線圖
 
 「遠期走勢圖」與「原始數據」的資料來源一律是 ``vba_dir / yyyymmdd.xlsx``，
-不跟隨 ``output_dir`` / ``run_dir``。原始數據 sheet 使用絕對路徑外部連結。
+不跟隨 ``output_dir`` / ``run_dir``。原始數據 sheet 貼入靜態值，不使用外部連結。
 """
 
 from __future__ import annotations
@@ -27,6 +27,7 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 from openpyxl.worksheet.page import PageMargins
 from openpyxl.worksheet.worksheet import Worksheet
 
+from lme_daily.bbg_fetch import normalize_bbg_cell
 from lme_daily.config import AppConfig
 from lme_daily.exceptions import ReportBuildError
 
@@ -48,7 +49,7 @@ SHEET_RAW = "原始數據"
 SHEET_PRINT = "合併版面"
 SHEET_CHART_DATA = "_chart_data"
 
-# 山證國際風格：深藍主色、白底、金色/淺灰強調（非像素還原官網）
+# BBG快照 / 遠期走勢圖 sheet 仍用深藍，避免動到非 PDF 頁。
 COLOR_NAVY = "0B2447"
 COLOR_GOLD = "C5A059"
 COLOR_GRAY = "F2F4F7"
@@ -56,12 +57,20 @@ COLOR_LINE = "D6D9DE"
 COLOR_MUTED = "6B7280"
 COLOR_INK = "1F2937"
 COLOR_WHITE = "FFFFFF"
+# 合併版面 / PDF：山證國際官網暖色（磚紅／橙漸層替代），白底。
+COLOR_BRICK = "A63A2E"
+COLOR_CREAM = "FFF5E8"
+COLOR_ACCENT = "C9683A"  # #B5502C→#F2CDA8 橫向漸層的實色替代
+COLOR_ALERT = "D9291C"
+COLOR_TITLE_DARK = "2B2B2B"
 
 PRINT_FOOTER = "第 &P 頁，共 &N 頁"
 PRINT_DISCLAIMER = "免責聲明：本報告僅供參考，不構成任何投資建議。"
 CHART_ROW_STRIDE = 19
 PAPERSIZE_A3 = 8
 PAPERSIZE_A4 = 9
+# Excel 頁首/頁尾 ``&nn`` 必須兩位數字。``&8`` 接 ``2026-08-20`` 會變成 ``&82``（82pt）。
+HF_FONT_SIZE = "08"
 
 EXCEL_EPOCH = datetime(1899, 12, 30)
 SOURCE_LABEL = "資料來源"
@@ -78,6 +87,18 @@ def _css(color: str) -> str:
 
 def _win_path(path: Path) -> str:
     return str(path).replace("/", "\\")
+
+
+def header_footer_run(color: str, text: str, *, size: str = HF_FONT_SIZE) -> str:
+    """Excel 頁首/頁尾片段：顏色 + 兩位字級 + 文字。
+
+    ``&nn`` 後面加空白，避免日期開頭數字被吃進字級碼（``&8`` + ``2026`` → ``&82``）。
+    """
+    return f"&K{color}&{size} {text}"
+
+
+def _is_excel_formula(value: Any) -> bool:
+    return isinstance(value, str) and value.startswith("=")
 
 
 def excel_absolute_external_formula(source_path: Path, sheet_name: str, cell_addr: str) -> str:
@@ -105,6 +126,7 @@ def build_report(
     dest.parent.mkdir(parents=True, exist_ok=True)
     logger.info("開始產生報告（engine=%s）：%s", config.chart.engine, dest)
     logger.info("圖表/原始數據來源（vba_dir 中繼檔）：%s", step2_path)
+    logger.debug("%s：%s", SOURCE_LABEL, _win_path(step2_path))
 
     try:
         step2_ready = step2_path.is_file()
@@ -213,9 +235,10 @@ def _write_bbg_sheet_openpyxl(
     formats: tuple[tuple[str, ...], ...],
     *,
     start_row: int = 1,
+    header_fill_color: str = COLOR_NAVY,
 ) -> int:
     ws.sheet_view.showGridLines = True
-    header_fill = PatternFill("solid", fgColor=COLOR_NAVY)
+    header_fill = PatternFill("solid", fgColor=header_fill_color)
     header_font = Font(color=COLOR_WHITE, bold=True)
     last_row = start_row - 1
     for r_idx, row in enumerate(values):
@@ -224,9 +247,9 @@ def _write_bbg_sheet_openpyxl(
         last_row = excel_row
         for c_idx, raw in enumerate(row):
             fmt = fmt_row[c_idx] if c_idx < len(fmt_row) else None
-            value = raw
+            value = normalize_bbg_cell(raw)
             if _looks_like_date_format(fmt):
-                value = _excel_serial_to_datetime(raw)
+                value = _excel_serial_to_datetime(value)
             cell = ws.cell(row=excel_row, column=c_idx + 1, value=value)
             cell.border = _thin_border()
             if fmt and fmt not in {"General", "G"}:
@@ -252,28 +275,20 @@ def _copy_raw_sheet(
     dest_ws: Worksheet,
     *,
     start_row: int = 1,
-    link: bool = False,
 ) -> int:
-    """複製步驟二到目標表。
-
-    ``link=True``（「原始數據」sheet）寫入指向 ``vba_dir`` 中繼檔的**絕對路徑**外部連結。
-    ``link=False``（合併版面）寫入值，PDF 不依賴外部連結。
-    """
+    """把步驟二中繼檔的「值」貼進目標表，不寫公式、不建外部連結。"""
     src_wb = load_workbook(source_path, data_only=True)
     last_row = start_row - 1
     try:
         src_ws = src_wb.active
-        sheet_name = str(src_ws.title)
         for row in src_ws.iter_rows():
             for cell in row:
                 target_row = cell.row + start_row - 1
                 last_row = max(last_row, target_row)
-                if link:
-                    value: Any = excel_absolute_external_formula(
-                        source_path, sheet_name, cell.coordinate
-                    )
-                else:
-                    value = cell.value
+                value = cell.value
+                if _is_excel_formula(value):
+                    logger.debug("原始數據略過公式儲存格 %s", cell.coordinate)
+                    continue
                 target = dest_ws.cell(row=target_row, column=cell.column, value=value)
                 if cell.number_format:
                     target.number_format = cell.number_format
@@ -295,6 +310,7 @@ def _apply_print_layout_openpyxl(
     header: str,
     tab_color: str | None = None,
     paper_size: int = PAPERSIZE_A4,
+    header_color: str = COLOR_NAVY,
 ) -> None:
     ws.page_setup.orientation = "landscape"
     ws.page_setup.paperSize = paper_size
@@ -303,9 +319,9 @@ def _apply_print_layout_openpyxl(
     ws.page_setup.fitToHeight = 0
     ws.page_setup.horizontalCentered = True
     ws.sheet_properties.pageSetUpPr.fitToPage = True
-    ws.oddHeader.center.text = f"&K{COLOR_NAVY}{header}"
+    ws.oddHeader.center.text = header_footer_run(header_color, header)
     ws.oddFooter.center.text = PRINT_FOOTER
-    ws.oddFooter.left.text = f"&K{COLOR_MUTED}&8{PRINT_DISCLAIMER}"
+    ws.oddFooter.left.text = header_footer_run(COLOR_MUTED, PRINT_DISCLAIMER)
     ws.page_margins = PageMargins(
         left=0.4, right=0.4, top=0.75, bottom=0.7, header=0.3, footer=0.4
     )
@@ -321,60 +337,59 @@ def _set_print_area(ws: Worksheet, last_row: int, last_col: int = 18) -> None:
 
 
 def _write_report_banner_openpyxl(ws: Worksheet, as_of: date, *, last_col: int = 18) -> int:
-    """頁首：公司名 + 中英雙語報表標題 + 日期。"""
+    """頁首：公司名 + 中英雙語報表標題 + 日期（磚紅底、米白字）。"""
     end = get_column_letter(last_col)
-    navy = PatternFill("solid", fgColor=COLOR_NAVY)
-    gold = PatternFill("solid", fgColor=COLOR_GOLD)
-    white = Font(color=COLOR_WHITE, bold=True)
+    brick = PatternFill("solid", fgColor=COLOR_BRICK)
+    accent = PatternFill("solid", fgColor=COLOR_ACCENT)
     center = Alignment(horizontal="center", vertical="center")
 
     ws.merge_cells(f"A1:{end}1")
     ws["A1"] = f"{COMPANY_ZH}  /  {COMPANY_EN}"
-    ws["A1"].font = Font(color=COLOR_WHITE, size=11, bold=True)
-    ws["A1"].fill = navy
+    ws["A1"].font = Font(color=COLOR_CREAM, size=11, bold=True)
+    ws["A1"].fill = brick
     ws["A1"].alignment = center
     ws.row_dimensions[1].height = 18
 
     ws.merge_cells(f"A2:{end}2")
     ws["A2"] = REPORT_TITLE_ZH
-    ws["A2"].font = Font(color=COLOR_WHITE, size=18, bold=True)
-    ws["A2"].fill = navy
+    ws["A2"].font = Font(color=COLOR_CREAM, size=18, bold=True)
+    ws["A2"].fill = brick
     ws["A2"].alignment = center
     ws.row_dimensions[2].height = 24
 
     ws.merge_cells(f"A3:{end}3")
     ws["A3"] = REPORT_TITLE_EN
-    ws["A3"].font = Font(color="D6E4F0", size=11)
-    ws["A3"].fill = navy
+    ws["A3"].font = Font(color=COLOR_CREAM, size=11)
+    ws["A3"].fill = brick
     ws["A3"].alignment = center
     ws.row_dimensions[3].height = 16
 
     ws.merge_cells(f"A4:{end}4")
     ws["A4"] = f"報價日期 / As of  {as_of.strftime('%Y-%m-%d')}"
-    ws["A4"].font = Font(color=COLOR_NAVY, size=11, bold=True)
+    ws["A4"].font = Font(color=COLOR_TITLE_DARK, size=11, bold=True)
     ws["A4"].fill = PatternFill("solid", fgColor=COLOR_GRAY)
     ws["A4"].alignment = center
     ws.row_dimensions[4].height = 18
 
     ws.merge_cells(f"A5:{end}5")
-    ws["A5"].fill = gold
+    ws["A5"].fill = accent
     ws.row_dimensions[5].height = 4
     return 6
 
 
 def _section_heading_openpyxl(ws: Worksheet, row: int, zh: str, en: str, *, last_col: int = 18) -> int:
     end = get_column_letter(last_col)
+    brick = PatternFill("solid", fgColor=COLOR_BRICK)
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=last_col)
     cell = ws.cell(row=row, column=1, value=f"{zh}  /  {en}")
-    cell.font = Font(color=COLOR_WHITE, bold=True, size=12)
-    cell.fill = PatternFill("solid", fgColor=COLOR_NAVY)
+    cell.font = Font(color=COLOR_CREAM, bold=True, size=12)
+    cell.fill = brick
     cell.alignment = Alignment(horizontal="left", vertical="center", indent=1)
     ws.row_dimensions[row].height = 18
-    # keep merge range filled
     for col in range(1, last_col + 1):
-        ws.cell(row=row, column=col).fill = PatternFill("solid", fgColor=COLOR_NAVY)
-    ws[f"A{row}"].fill = PatternFill("solid", fgColor=COLOR_NAVY)
-    ws[f"{end}{row}"].fill = PatternFill("solid", fgColor=COLOR_NAVY)
+        ws.cell(row=row, column=col).fill = brick
+    ws[f"A{row}"].fill = brick
+    ws[f"{end}{row}"].fill = brick
     return row + 1
 
 
@@ -420,7 +435,9 @@ def _write_print_sheet_openpyxl(
 
     bbg_heading = 6
     _section_heading_openpyxl(ws, bbg_heading, SHEET_BBG, "Bloomberg Snapshot")
-    last = _write_bbg_sheet_openpyxl(ws, bbg_values, bbg_formats, start_row=bbg_heading + 1)
+    last = _write_bbg_sheet_openpyxl(
+        ws, bbg_values, bbg_formats, start_row=bbg_heading + 1, header_fill_color=COLOR_BRICK
+    )
 
     chart_heading = last + 2
     _section_heading_openpyxl(ws, chart_heading, SHEET_CHART, "Forward Curve")
@@ -428,14 +445,19 @@ def _write_print_sheet_openpyxl(
 
     raw_heading = after_images + 1
     _section_heading_openpyxl(ws, raw_heading, SHEET_RAW, "Underlying Data")
-    last_raw = _copy_raw_sheet(step2_path, ws, start_row=raw_heading + 1, link=False)
+    last_raw = _copy_raw_sheet(step2_path, ws, start_row=raw_heading + 1)
 
     _apply_print_layout_openpyxl(
-        ws, header=header, tab_color=COLOR_GOLD, paper_size=PAPERSIZE_A3
+        ws,
+        header=header,
+        tab_color=COLOR_ACCENT,
+        paper_size=PAPERSIZE_A3,
+        header_color=COLOR_TITLE_DARK,
     )
     _set_print_area(ws, max(last_raw, after_images) + 1)
-    ws.oddHeader.left.text = f"&K{COLOR_WHITE}&8{COMPANY_ZH}"
-    ws.oddHeader.right.text = f"&K{COLOR_NAVY}&8{as_of.strftime('%Y-%m-%d')}"
+    ws.oddHeader.left.text = header_footer_run(COLOR_TITLE_DARK, COMPANY_ZH)
+    ws.oddHeader.right.text = header_footer_run(COLOR_TITLE_DARK, as_of.strftime("%Y-%m-%d"))
+    ws.oddFooter.left.text = header_footer_run(COLOR_ALERT, PRINT_DISCLAIMER)
 
 
 def _build_with_openpyxl(
@@ -459,19 +481,17 @@ def _build_with_openpyxl(
         ws_chart = wb.create_sheet(SHEET_CHART)
         ws_chart["A1"] = "LME 遠期曲線（cash date → +{} 個月）".format(config.chart.forward_months)
         ws_chart["A1"].font = Font(bold=True, size=14, color=COLOR_NAVY)
-        ws_chart["A2"] = f"{SOURCE_LABEL}：{_win_path(step2_path)}"
-        ws_chart["A2"].font = Font(size=9, color=COLOR_MUTED)
+        logger.debug("%s：%s", SOURCE_LABEL, _win_path(step2_path))
         _place_chart_images(ws_chart, images, config, start_row=4)
         _apply_print_layout_openpyxl(
             ws_chart, header=f"{header} · {SHEET_CHART}", tab_color=COLOR_GOLD
         )
 
         ws_raw = wb.create_sheet(SHEET_RAW)
-        _copy_raw_sheet(step2_path, ws_raw, link=True)
+        _copy_raw_sheet(step2_path, ws_raw)
         _apply_print_layout_openpyxl(
             ws_raw, header=f"{header} · {SHEET_RAW}", tab_color=COLOR_MUTED
         )
-        ws_raw.oddHeader.left.text = f"{SOURCE_LABEL}：{_win_path(step2_path)}"
 
         _write_print_sheet_openpyxl(
             wb,
@@ -585,7 +605,7 @@ def _build_with_xlsxwriter(
         header = f"{REPORT_TITLE_ZH} {as_of.strftime('%Y-%m-%d')}"
         _write_bbg_sheet_xlsxwriter(workbook, bbg_values, bbg_formats, header=header)
         _write_xlsxwriter_charts(workbook, plot_df, config, header=header, step2_path=step2_path)
-        _write_raw_sheet_xlsxwriter(workbook, step2_path, curve_df, header=header, link=True)
+        _write_raw_sheet_xlsxwriter(workbook, step2_path, curve_df, header=header)
         tmp_dir, images = _render_matplotlib_pngs(plot_df, config)
         _write_print_sheet_xlsxwriter(
             workbook,
@@ -616,12 +636,14 @@ def _build_with_xlsxwriter(
             shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
-def _apply_print_layout_xlsxwriter(ws: Any, *, header: str, paper: int = 9) -> None:
+def _apply_print_layout_xlsxwriter(
+    ws: Any, *, header: str, paper: int = 9, header_color: str = COLOR_NAVY
+) -> None:
     ws.set_landscape()
     ws.set_paper(paper)
     ws.fit_to_pages(1, 0)
-    ws.set_header(f"&C&K{COLOR_NAVY}{header}")
-    ws.set_footer(f"&L&K{COLOR_MUTED}&8{PRINT_DISCLAIMER}&C{PRINT_FOOTER}")
+    ws.set_header(f"&C{header_footer_run(header_color, header)}")
+    ws.set_footer(f"&L{header_footer_run(COLOR_MUTED, PRINT_DISCLAIMER)}&C{PRINT_FOOTER}")
     ws.center_horizontally()
     ws.set_margins(left=0.4, right=0.4, top=0.75, bottom=0.7)
 
@@ -633,9 +655,10 @@ def _write_bbg_rows_xlsxwriter(
     formats: tuple[tuple[str, ...], ...],
     *,
     start_row: int = 0,
+    header_fill_color: str = COLOR_NAVY,
 ) -> int:
     header_fmt = workbook.add_format(
-        {"bold": True, "bg_color": _css(COLOR_NAVY), "font_color": _css(COLOR_WHITE)}
+        {"bold": True, "bg_color": _css(header_fill_color), "font_color": _css(COLOR_WHITE)}
     )
     date_fmt = workbook.add_format({"num_format": "yyyy-mm-dd"})
     last = start_row - 1
@@ -645,10 +668,10 @@ def _write_bbg_rows_xlsxwriter(
         last = excel_row
         for c_idx, raw in enumerate(row):
             fmt = fmt_row[c_idx] if c_idx < len(fmt_row) else None
-            value = raw
+            value = normalize_bbg_cell(raw)
             cell_fmt = header_fmt if r_idx == 0 else None
             if _looks_like_date_format(fmt):
-                value = _excel_serial_to_datetime(raw)
+                value = _excel_serial_to_datetime(value)
                 cell_fmt = date_fmt if r_idx != 0 else header_fmt
             if isinstance(value, date) and not isinstance(value, datetime):
                 value = datetime(value.year, value.month, value.day)
@@ -684,9 +707,8 @@ def _write_xlsxwriter_charts(
     title_fmt = workbook.add_format(
         {"bold": True, "font_size": 14, "font_color": _css(COLOR_NAVY)}
     )
-    src_fmt = workbook.add_format({"font_size": 9, "font_color": _css(COLOR_MUTED)})
     chart_ws.write(0, 0, f"LME 遠期曲線（cash date → +{config.chart.forward_months} 個月）", title_fmt)
-    chart_ws.write(1, 0, f"{SOURCE_LABEL}：{_win_path(step2_path)}", src_fmt)
+    logger.debug("%s：%s", SOURCE_LABEL, _win_path(step2_path))
     _apply_print_layout_xlsxwriter(chart_ws, header=f"{header} · {SHEET_CHART}")
     chart_ws.set_tab_color(_css(COLOR_GOLD))
 
@@ -736,7 +758,6 @@ def _write_raw_sheet_xlsxwriter(
     curve_df: pd.DataFrame,
     *,
     header: str,
-    link: bool = False,
     worksheet: Any | None = None,
     start_row: int = 0,
 ) -> int:
@@ -744,28 +765,20 @@ def _write_raw_sheet_xlsxwriter(
     if worksheet is None:
         _apply_print_layout_xlsxwriter(ws, header=f"{header} · {SHEET_RAW}")
         ws.set_tab_color(_css(COLOR_MUTED))
-        if link:
-            ws.set_header(
-                f"&C&K{COLOR_NAVY}{header} · {SHEET_RAW}"
-                f"&L{SOURCE_LABEL}：{_win_path(step2_path)}"
-            )
     header_fmt = workbook.add_format({"bold": True})
     date_fmt = workbook.add_format({"num_format": "yyyy-mm-dd"})
     last = start_row - 1
     try:
         src_wb = load_workbook(step2_path, data_only=True)
         src_ws = src_wb.active
-        sheet_name = str(src_ws.title)
         for row in src_ws.iter_rows():
             for cell in row:
                 r, c = cell.row - 1 + start_row, cell.column - 1
                 last = max(last, r)
-                if link:
-                    ws.write_formula(
-                        r, c, excel_absolute_external_formula(step2_path, sheet_name, cell.coordinate)
-                    )
-                    continue
                 value = cell.value
+                if _is_excel_formula(value):
+                    logger.debug("原始數據略過公式儲存格 %s", cell.coordinate)
+                    continue
                 fmt = header_fmt if cell.row == 1 else None
                 if isinstance(value, datetime):
                     ws.write_datetime(r, c, value, date_fmt)
@@ -808,49 +821,51 @@ def _write_print_sheet_xlsxwriter(
     header: str,
 ) -> None:
     ws = workbook.add_worksheet(SHEET_PRINT)
-    navy = workbook.add_format(
+    brick = workbook.add_format(
         {
             "bold": True,
-            "font_color": _css(COLOR_WHITE),
-            "bg_color": _css(COLOR_NAVY),
+            "font_color": _css(COLOR_CREAM),
+            "bg_color": _css(COLOR_BRICK),
             "align": "center",
             "valign": "vcenter",
         }
     )
     sub = workbook.add_format(
         {
-            "font_color": "#D6E4F0",
-            "bg_color": _css(COLOR_NAVY),
+            "font_color": _css(COLOR_CREAM),
+            "bg_color": _css(COLOR_BRICK),
             "align": "center",
         }
     )
     date_fmt = workbook.add_format(
         {
             "bold": True,
-            "font_color": _css(COLOR_NAVY),
+            "font_color": _css(COLOR_TITLE_DARK),
             "bg_color": _css(COLOR_GRAY),
             "align": "center",
         }
     )
-    gold = workbook.add_format({"bg_color": _css(COLOR_GOLD)})
+    accent = workbook.add_format({"bg_color": _css(COLOR_ACCENT)})
     section = workbook.add_format(
         {
             "bold": True,
-            "font_color": _css(COLOR_WHITE),
-            "bg_color": _css(COLOR_NAVY),
+            "font_color": _css(COLOR_CREAM),
+            "bg_color": _css(COLOR_BRICK),
             "align": "left",
         }
     )
     last_col = 17
-    ws.merge_range(0, 0, 0, last_col, f"{COMPANY_ZH}  /  {COMPANY_EN}", navy)
-    ws.merge_range(1, 0, 1, last_col, REPORT_TITLE_ZH, navy)
+    ws.merge_range(0, 0, 0, last_col, f"{COMPANY_ZH}  /  {COMPANY_EN}", brick)
+    ws.merge_range(1, 0, 1, last_col, REPORT_TITLE_ZH, brick)
     ws.merge_range(2, 0, 2, last_col, REPORT_TITLE_EN, sub)
     ws.merge_range(3, 0, 3, last_col, f"報價日期 / As of  {as_of.strftime('%Y-%m-%d')}", date_fmt)
-    ws.merge_range(4, 0, 4, last_col, "", gold)
+    ws.merge_range(4, 0, 4, last_col, "", accent)
     ws.set_row(1, 22)
 
     ws.merge_range(5, 0, 5, last_col, f"{SHEET_BBG}  /  Bloomberg Snapshot", section)
-    last = _write_bbg_rows_xlsxwriter(ws, workbook, bbg_values, bbg_formats, start_row=6)
+    last = _write_bbg_rows_xlsxwriter(
+        ws, workbook, bbg_values, bbg_formats, start_row=6, header_fill_color=COLOR_BRICK
+    )
 
     chart_heading = last + 2
     ws.merge_range(chart_heading, 0, chart_heading, last_col, f"{SHEET_CHART}  /  Forward Curve", section)
@@ -871,12 +886,19 @@ def _write_print_sheet_xlsxwriter(
         step2_path,
         curve_df,
         header=header,
-        link=False,
         worksheet=ws,
         start_row=raw_heading + 1,
     )
-    _apply_print_layout_xlsxwriter(ws, header=header, paper=8)
-    ws.set_tab_color(_css(COLOR_GOLD))
+    _apply_print_layout_xlsxwriter(
+        ws, header=header, paper=PAPERSIZE_A3, header_color=COLOR_TITLE_DARK
+    )
+    ws.set_header(
+        f"&L{header_footer_run(COLOR_TITLE_DARK, COMPANY_ZH)}"
+        f"&C{header_footer_run(COLOR_TITLE_DARK, header)}"
+        f"&R{header_footer_run(COLOR_TITLE_DARK, as_of.strftime('%Y-%m-%d'))}"
+    )
+    ws.set_footer(f"&L{header_footer_run(COLOR_ALERT, PRINT_DISCLAIMER)}&C{PRINT_FOOTER}")
+    ws.set_tab_color(_css(COLOR_ACCENT))
     end_row = max(last_raw, after_images) + 1
     ws.print_area(0, 0, end_row, last_col)
 

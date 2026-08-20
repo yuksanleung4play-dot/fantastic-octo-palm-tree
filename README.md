@@ -96,7 +96,7 @@ paths:
 
 兩個資料夾都會在流程一開始 `mkdir(parents=True, exist_ok=True)`（同一天重跑不會報錯）。來源工作簿（`早班_LME_reference_2024.xlsm`、`LME BBG WORKBOOK.xlsx`）永遠讀自 `working_dir` 根目錄。
 
-**關鍵：** 不管 `output_dir` 有沒有填，「遠期走勢圖」與「原始數據」的資料來源一律是 `working_dir\yyyymmdd\yyyymmdd.xlsx`。原始數據 sheet 用**絕對路徑** Excel 外部連結，避免報告跟中繼檔不在同一資料夾時斷鏈。若該中繼檔不存在，流程會中斷，不會產出缺資料的報告。
+**關鍵：** 不管 `output_dir` 有沒有填，「遠期走勢圖」與「原始數據」的資料來源一律是 `working_dir\yyyymmdd\yyyymmdd.xlsx`。原始數據 sheet 會把中繼檔的**值**貼進儲存格（不使用 Excel 外部連結），因此之後即使來源檔被關掉或移動，這個 sheet 也不會變成 `#REF!`。若該中繼檔不存在，流程會中斷，不會產出缺資料的報告。
 
 ## 目錄
 
@@ -149,8 +149,8 @@ Application.Run("RunDailyLME", 上日日期, 3M date)
 
 1. **BBG快照** — 腳本會自動開啟 `LME BBG WORKBOOK.xlsx`（若尚未開啟），開啟後等待設定秒數再讀 `copy_range`（預設 `B3:I10`）的 `.Value2`，讀取後不會關閉。字串若以 `N/A` 開頭（例如 `N/A Field Not Applicable`）會正規化成純 `N/A`；空白 / `None` / 數字維持原樣，不會填字。
 2. **遠期走勢圖** — 以 cash date 起 `chart.forward_months`（預設 27）個月為視窗，六個品種各一張圖。資料來自 `vba_dir\yyyymmdd.xlsx`。`NI` / `SN` 空值會 `dropna`，**不會填 0**
-3. **原始數據** — 以絕對路徑外部連結指向 `vba_dir\yyyymmdd.xlsx` 的完整內容（含 27 個月以後）
-4. **合併版面** — 把上述三塊排在同一橫向 A3 版面（深藍/白底、中英雙語標題、頁碼「第 n 頁，共 N 頁」）。Windows 下用 `ExportAsFixedFormat` 匯出 `LME每日報價yyyymmdd.pdf`
+3. **原始數據** — 把 `vba_dir\yyyymmdd.xlsx` 的儲存格**值**貼進此 sheet（含 27 個月以後）；不使用外部連結，來源檔關閉或移動後也不會變成 `#REF!`
+4. **合併版面** — 把上述三塊排在同一橫向 A3 版面（磚紅/橙標題列、白底、中英雙語標題、頁碼「第 n 頁，共 N 頁」）。Windows 下用 `ExportAsFixedFormat` 匯出 `LME每日報價yyyymmdd.pdf`
 
 `chart.engine`：
 
