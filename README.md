@@ -116,7 +116,7 @@ lme_daily/
   dates.py             # 上日日期 / 3M date
   excel_com.py         # win32com Excel 封裝
   vba_runner.py        # 參數注入 或 pywinauto InputBox
-  bbg_fetch.py         # RefreshAll + Value2
+  bbg_fetch.py         # RefreshAll + cell.Text（顯示文字）
   report_builder.py    # 四個 sheet（含合併版面）；matplotlib 或 xlsxwriter
 examples/RunDailyLME_param_wrapper.bas
 tests/
@@ -147,9 +147,9 @@ Application.Run("RunDailyLME", 上日日期, 3M date)
 
 同一個工作簿四個可見 sheet：
 
-1. **BBG快照** — 腳本會自動開啟 `LME BBG WORKBOOK.xlsx`（若尚未開啟），開啟後等待設定秒數再讀 `copy_range`（預設 `B3:I10`）的 `.Value2`，讀取後不會關閉。字串若以 `N/A` 開頭（例如 `N/A Field Not Applicable`）會正規化成純 `N/A`；空白 / `None` / 數字維持原樣，不會填字。
-2. **遠期走勢圖** — 以 cash date 起 `chart.forward_months`（預設 27）個月為視窗，六個品種各一張圖。資料來自 `vba_dir\yyyymmdd.xlsx`。`NI` / `SN` 空值會 `dropna`，**不會填 0**
-3. **原始數據** — 把 `vba_dir\yyyymmdd.xlsx` 的儲存格**值**貼進此 sheet（含 27 個月以後）；不使用外部連結，來源檔關閉或移動後也不會變成 `#REF!`
+1. **BBG快照** — 腳本會自動開啟 `LME BBG WORKBOOK.xlsx`（若尚未開啟），開啟後等待設定秒數再讀 `copy_range`（預設 `B3:I10`）的 `.Text`（Excel 套用格式後的顯示文字，例如 `16,554.09`），再轉回數值，讀取後不會關閉。這樣報告上的兩位小數與 Bloomberg 工作簿畫面一致（標準四捨五入）。`#N/A` / 以 `N/A` 開頭的顯示字串會變成純 `N/A`；空白維持空值。寫入時數值儲存格套用 `#,##0.00`。
+2. **遠期走勢圖** — 以 cash date 起 `chart.forward_months`（預設 27）個月為視窗，六個品種各一張圖。資料來自 `vba_dir\yyyymmdd.xlsx`。價格依來源畫面兩位小數（四捨五入）寫入圖表資料。`NI` / `SN` 空值會 `dropna`，**不會填 0**
+3. **原始數據** — 把 `vba_dir\yyyymmdd.xlsx` 的儲存格**值**貼進此 sheet（含 27 個月以後）；不使用外部連結，來源檔關閉或移動後也不會變成 `#REF!`。數值同樣依畫面兩位小數四捨五入，與來源工作簿顯示一致
 4. **合併版面** — 把上述三塊排在同一橫向 A3 版面（磚紅/橙標題列、白底、中英雙語標題、頁碼「第 n 頁，共 N 頁」），底部為完整兩段免責聲明。不匯出 PDF。
 
 `chart.engine`：

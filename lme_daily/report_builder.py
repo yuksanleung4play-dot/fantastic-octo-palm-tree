@@ -27,7 +27,7 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 from openpyxl.worksheet.page import PageMargins
 from openpyxl.worksheet.worksheet import Worksheet
 
-from lme_daily.bbg_fetch import normalize_bbg_cell, truncate_2dp
+from lme_daily.bbg_fetch import normalize_bbg_cell, value_from_stored_number
 from lme_daily.config import AppConfig
 from lme_daily.exceptions import ReportBuildError
 
@@ -258,14 +258,13 @@ def _is_number_like(value: Any) -> bool:
 
 
 def _prepare_written_value(raw: Any, fmt: str | None = None, *, is_header: bool = False) -> tuple[Any, str | None]:
-    """normalize →（非日期）truncate_2dp。回傳 (value, number_format)。"""
+    """normalize 後寫入；數值已在讀取時依 Excel 顯示文字解析。回傳 (value, number_format)。"""
     value = normalize_bbg_cell(raw)
     if is_header:
         return value, None
     if _looks_like_date_format(fmt):
         value = _excel_serial_to_datetime(value)
         return value, "YYYY-MM-DD"
-    value = truncate_2dp(value)
     if _is_number_like(value):
         return value, NUMBER_FORMAT_2DP
     return value, None
@@ -382,7 +381,7 @@ def _copy_raw_sheet(
                     continue
                 is_header = cell.row == 1
                 if not is_header:
-                    value = truncate_2dp(value)
+                    value = value_from_stored_number(value)
                 target = dest_ws.cell(row=target_row, column=cell.column, value=value)
                 if _is_number_like(value):
                     target.number_format = NUMBER_FORMAT_2DP
@@ -665,7 +664,7 @@ def _render_matplotlib_pngs(plot_df: pd.DataFrame, config: AppConfig) -> tuple[P
         fig.patch.set_facecolor("white")
         ax.set_facecolor("white")
         if not series_df.empty:
-            y = series_df[code].map(lambda v: truncate_2dp(v) if pd.notna(v) else v)
+            y = series_df[code].map(lambda v: value_from_stored_number(v) if pd.notna(v) else v)
             ax.plot(
                 series_df[DATE_COL],
                 y,
@@ -843,7 +842,7 @@ def _write_xlsxwriter_charts(
             ts = rec[DATE_COL]
             if isinstance(ts, pd.Timestamp):
                 ts = ts.to_pydatetime()
-            px = truncate_2dp(rec[code])
+            px = value_from_stored_number(rec[code])
             data_ws.write_datetime(r + 1, col, ts, date_fmt)
             data_ws.write_number(r + 1, col + 1, float(px), price_fmt)
             data_widths.add(col, ts, number_format="yyyy-mm-dd")
@@ -907,7 +906,7 @@ def _write_raw_sheet_xlsxwriter(
                     continue
                 is_header = cell.row == 1
                 if not is_header:
-                    value = truncate_2dp(value)
+                    value = value_from_stored_number(value)
                 fmt = header_fmt if is_header else None
                 num_fmt: str | None = None
                 if isinstance(value, datetime):
@@ -944,7 +943,7 @@ def _write_raw_sheet_xlsxwriter(
                 ws.write_datetime(excel_row, c_idx, value.to_pydatetime(), date_fmt)
                 widths.add(c_idx, value.to_pydatetime(), number_format="yyyy-mm-dd")
             else:
-                value = truncate_2dp(value)
+                value = value_from_stored_number(value)
                 if _is_number_like(value):
                     ws.write_number(excel_row, c_idx, float(value), price_fmt)
                     widths.add(c_idx, value, number_format=NUMBER_FORMAT_2DP)

@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import logging
-import math
 import re
 import time
 from datetime import date, datetime
@@ -44,24 +43,45 @@ def normalize_bbg_cell(value: Any) -> Any:
     return value
 
 
-def truncate_2dp(value: Any) -> Any:
-    """無條件捨去到小數點後兩位，不四捨五入。正負數都向零截斷。
+def parse_excel_display_text(text: Any) -> Any:
+    """把 Excel ``cell.Text``（套用格式後的顯示字串）轉回報告用的值。
 
-    字串（例如 ``N/A``）、``None``、日期維持原樣。不要用 ``round()``。
+    例如 ``"16,554.09"`` → ``16554.09``，與畫面上的四捨五入結果一致。
     """
+    if text is None:
+        return None
+    if isinstance(text, bool):
+        return text
+    if isinstance(text, (datetime, date)):
+        return text
+    if not isinstance(text, str):
+        text = str(text)
+    cleaned = text.replace(",", "").replace("\xa0", "").strip()
+    if cleaned.upper().startswith("N/A") or cleaned.startswith("#N/A"):
+        return "N/A"
+    if cleaned == "":
+        return None
+    try:
+        return float(cleaned)
+    except ValueError:
+        return text
+
+
+def value_from_stored_number(value: Any) -> Any:
+    """openpyxl / pandas 沒有 ``.Text`` 時，用兩位小數顯示字串再解析，模擬 Excel 畫面。"""
     if value is None:
+        return None
+    if isinstance(value, bool) or isinstance(value, (datetime, date)):
         return value
     if isinstance(value, str):
-        return value
-    if isinstance(value, (bool, datetime, date)):
-        return value
+        return parse_excel_display_text(value)
     try:
         num = float(value)
     except (TypeError, ValueError):
+        return parse_excel_display_text(str(value))
+    if num != num:  # NaN
         return value
-    if math.isnan(num) or math.isinf(num):
-        return value
-    return math.trunc(num * 100) / 100
+    return parse_excel_display_text(f"{num:,.2f}")
 
 
 def normalize_bbg_values(values: RangeValues) -> RangeValues:
@@ -193,15 +213,27 @@ def _read_range(
 
     try:
         rng = sheet.Range(copy_range)
-        raw_values = rng.Value2
         raw_formats = rng.NumberFormat
+        n_rows = int(rng.Rows.Count)
+        n_cols = int(rng.Columns.Count)
+        parsed_rows: list[tuple[Any, ...]] = []
+        for r in range(1, n_rows + 1):
+            row_vals: list[Any] = []
+            for c in range(1, n_cols + 1):
+                cell = rng.Cells(r, c)
+                try:
+                    text = cell.Text
+                except Exception:
+                    text = getattr(cell, "Value2", None)
+                row_vals.append(parse_excel_display_text(text))
+            parsed_rows.append(tuple(row_vals))
+        values = tuple(parsed_rows)
     except Exception as exc:
         raise ExcelComError(f"讀取 {sheet_name}!{copy_range} 失敗：{exc}") from exc
 
-    values = _as_2d_tuple(raw_values)
     formats = _as_2d_tuple(raw_formats, as_str=True)
     if not values:
-        raise ExcelComError(f"{sheet_name}!{copy_range} 讀到空值（Value2 為 None）")
+        raise ExcelComError(f"{sheet_name}!{copy_range} 讀到空值")
     return values, formats
 
 

@@ -22,6 +22,7 @@ from lme_daily.report_builder import (
     PRINT_DISCLAIMER_FULL,
     SHEET_BBG,
     SHEET_CHART,
+    SHEET_CHART_DATA,
     SHEET_PRINT,
     SHEET_RAW,
     SIX_SERIES,
@@ -447,7 +448,9 @@ def test_apply_autofit_columns_covers_five_digit_prices():
 
 
 @pytest.mark.parametrize("engine", ["matplotlib", "xlsxwriter"])
-def test_report_truncates_values_and_autofits_columns(tmp_path: Path, engine: str):
+def test_report_writes_display_rounded_values_and_autofits_columns(tmp_path: Path, engine: str):
+    from lme_daily.bbg_fetch import normalize_bbg_cell, parse_excel_display_text
+
     cfg_path = _write_min_config(tmp_path, engine)
     config = load_config(cfg_path)
     as_of = date(2026, 8, 19)
@@ -463,9 +466,12 @@ def test_report_truncates_values_and_autofits_columns(tmp_path: Path, engine: st
     src.loc[0, "SN"] = 1838.005
     src.to_excel(step2, index=False)
 
+    last = normalize_bbg_cell(parse_excel_display_text("16,554.09"))
+    bid = normalize_bbg_cell(parse_excel_display_text("1,838.13"))
+    ask = normalize_bbg_cell(parse_excel_display_text("1,838.01"))
     values = (
         ("Metal", "Last", "Bid", "Ask", "High", "Low", "Settle", "AsOf"),
-        ("CA", 16554.08984375, 1838.129999, 1838.005, 9050.0, 8980.0, 9001.0, 45953),
+        ("CA", last, bid, ask, 9050.0, 8980.0, 9001.0, 45953),
     )
     formats = (
         ("General",) * 8,
@@ -480,20 +486,24 @@ def test_report_truncates_values_and_autofits_columns(tmp_path: Path, engine: st
     )
     wb = load_workbook(dest)
     bbg = wb[SHEET_BBG]
-    assert bbg["B2"].value == 16554.08
-    assert bbg["C2"].value == 1838.12
-    assert bbg["D2"].value == 1838.00
+    assert bbg["B2"].value == 16554.09
+    assert bbg["C2"].value == 1838.13
+    assert bbg["D2"].value == 1838.01
     assert "0.00" in (bbg["B2"].number_format or "")
     assert bbg.column_dimensions["B"].width >= AUTOFIT_MIN_WIDTH
 
     raw = wb[SHEET_RAW]
-    assert raw["B2"].value == 16554.08
-    assert raw["E2"].value == 54454.08
-    assert raw["F2"].value == 1838.00
+    assert raw["B2"].value == 16554.09
+    assert raw["E2"].value == 54454.09
+    assert raw["F2"].value == 1838.01
     assert "0.00" in (raw["B2"].number_format or "")
     assert raw.column_dimensions["B"].width >= AUTOFIT_MIN_WIDTH
     assert raw.column_dimensions["E"].width >= AUTOFIT_MIN_WIDTH
     assert raw.column_dimensions["F"].width >= AUTOFIT_MIN_WIDTH
+
+    if engine == "xlsxwriter" and SHEET_CHART_DATA in wb.sheetnames:
+        chart_data = wb[SHEET_CHART_DATA]
+        assert chart_data["B2"].value == 16554.09
     wb.close()
 
 
