@@ -27,7 +27,7 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 from openpyxl.worksheet.page import PageMargins
 from openpyxl.worksheet.worksheet import Worksheet
 
-from lme_daily.bbg_fetch import normalize_bbg_cell
+from lme_daily.bbg_fetch import normalize_bbg_cell, truncate_2dp
 from lme_daily.config import AppConfig
 from lme_daily.exceptions import ReportBuildError
 
@@ -91,6 +91,10 @@ COMPANY_ZH = "山證國際金融控股有限公司"
 COMPANY_EN = "Shanxi Securities International"
 REPORT_TITLE_ZH = "LME每日報價"
 REPORT_TITLE_EN = "LME Daily Quotation"
+NUMBER_FORMAT_2DP = "#,##0.00"
+AUTOFIT_PADDING = 3
+# 下限：容納 5 位數 + 小數點 + 2 位小數（如 16554.08 / 16,554.08）；不是上限。
+AUTOFIT_MIN_WIDTH = 10
 
 
 def _css(color: str) -> str:
@@ -241,6 +245,88 @@ def _thin_border() -> Border:
     return Border(left=side, right=side, top=side, bottom=side)
 
 
+def _is_number_like(value: Any) -> bool:
+    if value is None or isinstance(value, (bool, str, datetime, date)):
+        return False
+    if isinstance(value, (int, float)):
+        return True
+    try:
+        float(value)
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
+def _prepare_written_value(raw: Any, fmt: str | None = None, *, is_header: bool = False) -> tuple[Any, str | None]:
+    """normalize →（非日期）truncate_2dp。回傳 (value, number_format)。"""
+    value = normalize_bbg_cell(raw)
+    if is_header:
+        return value, None
+    if _looks_like_date_format(fmt):
+        value = _excel_serial_to_datetime(value)
+        return value, "YYYY-MM-DD"
+    value = truncate_2dp(value)
+    if _is_number_like(value):
+        return value, NUMBER_FORMAT_2DP
+    return value, None
+
+
+def _cell_display_text(value: Any, *, number_format: str | None = None) -> str:
+    if value is None:
+        return ""
+    fmt = number_format or ""
+    if _is_number_like(value) and ("0.00" in fmt or fmt in {"", "General", "G"}):
+        return f"{float(value):,.2f}"
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m-%d")
+    if isinstance(value, date):
+        return value.strftime("%Y-%m-%d")
+    return str(value)
+
+
+def _visual_len(text: str) -> int:
+    return sum(2 if ord(ch) > 127 else 1 for ch in text)
+
+
+def _autofit_width(max_len: int) -> float:
+    if max_len <= 0:
+        return 8
+    return max(max_len + AUTOFIT_PADDING, AUTOFIT_MIN_WIDTH)
+
+
+def apply_autofit_columns(ws: Worksheet, *, padding: int = AUTOFIT_PADDING) -> None:
+    """依內容自動調整欄寬。必須在該 sheet 資料全部寫入後呼叫。"""
+    for col_cells in ws.columns:
+        max_len = 0
+        for cell in col_cells:
+            if cell.value is None:
+                continue
+            text = _cell_display_text(cell.value, number_format=cell.number_format)
+            max_len = max(max_len, _visual_len(text))
+        letter = get_column_letter(col_cells[0].column)
+        if max_len <= 0:
+            ws.column_dimensions[letter].width = 8
+        else:
+            ws.column_dimensions[letter].width = max(max_len + padding, AUTOFIT_MIN_WIDTH)
+
+
+class _ColWidthAcc:
+    """xlsxwriter 無法回讀儲存格，寫入時累計各欄顯示寬度。"""
+
+    def __init__(self) -> None:
+        self._max: dict[int, int] = {}
+
+    def add(self, col: int, value: Any, number_format: str | None = None) -> None:
+        text = _cell_display_text(value, number_format=number_format)
+        if not text:
+            return
+        self._max[col] = max(self._max.get(col, 0), _visual_len(text))
+
+    def apply_xlsxwriter(self, ws: Any) -> None:
+        for col, max_len in self._max.items():
+            ws.set_column(col, col, _autofit_width(max_len))
+
+
 def _write_bbg_sheet_openpyxl(
     ws: Worksheet,
     values: tuple[tuple[Any, ...], ...],
@@ -259,13 +345,11 @@ def _write_bbg_sheet_openpyxl(
         last_row = excel_row
         for c_idx, raw in enumerate(row):
             fmt = fmt_row[c_idx] if c_idx < len(fmt_row) else None
-            value = normalize_bbg_cell(raw)
-            if _looks_like_date_format(fmt):
-                value = _excel_serial_to_datetime(value)
+            value, num_fmt = _prepare_written_value(raw, fmt, is_header=(r_idx == 0))
             cell = ws.cell(row=excel_row, column=c_idx + 1, value=value)
             cell.border = _thin_border()
-            if fmt and fmt not in {"General", "G"}:
-                cell.number_format = fmt
+            if num_fmt:
+                cell.number_format = num_fmt
             elif isinstance(value, datetime):
                 cell.number_format = "YYYY-MM-DD"
             elif isinstance(value, date):
@@ -274,11 +358,6 @@ def _write_bbg_sheet_openpyxl(
                 cell.fill = header_fill
                 cell.font = header_font
                 cell.alignment = Alignment(horizontal="center")
-    for idx in range(1, max(ws.max_column or 1, 8) + 1):
-        letter = get_column_letter(idx)
-        current = ws.column_dimensions[letter].width or 0
-        if current < 14:
-            ws.column_dimensions[letter].width = 14
     return last_row
 
 
@@ -301,16 +380,16 @@ def _copy_raw_sheet(
                 if _is_excel_formula(value):
                     logger.debug("原始數據略過公式儲存格 %s", cell.coordinate)
                     continue
+                is_header = cell.row == 1
+                if not is_header:
+                    value = truncate_2dp(value)
                 target = dest_ws.cell(row=target_row, column=cell.column, value=value)
-                if cell.number_format:
+                if _is_number_like(value):
+                    target.number_format = NUMBER_FORMAT_2DP
+                elif cell.number_format:
                     target.number_format = cell.number_format
                 if cell.has_style and cell.font and cell.font.bold:
                     target.font = Font(bold=True)
-        for col_letter, dim in src_ws.column_dimensions.items():
-            if dim.width:
-                current = dest_ws.column_dimensions[col_letter].width or 0
-                if dim.width > current:
-                    dest_ws.column_dimensions[col_letter].width = dim.width
     finally:
         src_wb.close()
     return last_row
@@ -497,6 +576,7 @@ def _build_with_openpyxl(
     ws_bbg = wb.active
     ws_bbg.title = SHEET_BBG
     _write_bbg_sheet_openpyxl(ws_bbg, bbg_values, bbg_formats)
+    apply_autofit_columns(ws_bbg)
     _apply_print_layout_openpyxl(ws_bbg, header=f"{header} · {SHEET_BBG}", tab_color=COLOR_NAVY)
 
     tmp_dir, images = _render_matplotlib_pngs(plot_df, config)
@@ -506,12 +586,14 @@ def _build_with_openpyxl(
         ws_chart["A1"].font = Font(bold=True, size=14, color=COLOR_NAVY)
         logger.debug("%s：%s", SOURCE_LABEL, _win_path(step2_path))
         _place_chart_images(ws_chart, images, config, start_row=4)
+        apply_autofit_columns(ws_chart)
         _apply_print_layout_openpyxl(
             ws_chart, header=f"{header} · {SHEET_CHART}", tab_color=COLOR_GOLD
         )
 
         ws_raw = wb.create_sheet(SHEET_RAW)
         _copy_raw_sheet(step2_path, ws_raw)
+        apply_autofit_columns(ws_raw)
         _apply_print_layout_openpyxl(
             ws_raw, header=f"{header} · {SHEET_RAW}", tab_color=COLOR_MUTED
         )
@@ -583,9 +665,10 @@ def _render_matplotlib_pngs(plot_df: pd.DataFrame, config: AppConfig) -> tuple[P
         fig.patch.set_facecolor("white")
         ax.set_facecolor("white")
         if not series_df.empty:
+            y = series_df[code].map(lambda v: truncate_2dp(v) if pd.notna(v) else v)
             ax.plot(
                 series_df[DATE_COL],
-                series_df[code],
+                y,
                 color=_css(COLOR_NAVY),
                 linewidth=1.7,
             )
@@ -684,6 +767,8 @@ def _write_bbg_rows_xlsxwriter(
         {"bold": True, "bg_color": _css(header_fill_color), "font_color": _css(COLOR_WHITE)}
     )
     date_fmt = workbook.add_format({"num_format": "yyyy-mm-dd"})
+    price_fmt = workbook.add_format({"num_format": NUMBER_FORMAT_2DP})
+    widths = _ColWidthAcc()
     last = start_row - 1
     for r_idx, row in enumerate(values):
         fmt_row = formats[r_idx] if r_idx < len(formats) else ()
@@ -691,15 +776,19 @@ def _write_bbg_rows_xlsxwriter(
         last = excel_row
         for c_idx, raw in enumerate(row):
             fmt = fmt_row[c_idx] if c_idx < len(fmt_row) else None
-            value = normalize_bbg_cell(raw)
+            value, num_fmt = _prepare_written_value(raw, fmt, is_header=(r_idx == 0))
             cell_fmt = header_fmt if r_idx == 0 else None
-            if _looks_like_date_format(fmt):
-                value = _excel_serial_to_datetime(value)
-                cell_fmt = date_fmt if r_idx != 0 else header_fmt
-            if isinstance(value, date) and not isinstance(value, datetime):
+            if num_fmt == "YYYY-MM-DD" and r_idx != 0:
+                if isinstance(value, date) and not isinstance(value, datetime):
+                    value = datetime(value.year, value.month, value.day)
+                cell_fmt = date_fmt
+            elif num_fmt == NUMBER_FORMAT_2DP:
+                cell_fmt = price_fmt
+            if isinstance(value, date) and not isinstance(value, datetime) and r_idx != 0:
                 value = datetime(value.year, value.month, value.day)
             ws.write(excel_row, c_idx, value, cell_fmt)
-    ws.set_column(0, 12, 14)
+            widths.add(c_idx, value, number_format=num_fmt)
+    widths.apply_xlsxwriter(ws)
     return last
 
 
@@ -736,22 +825,29 @@ def _write_xlsxwriter_charts(
     chart_ws.set_tab_color(_css(COLOR_GOLD))
 
     date_fmt = workbook.add_format({"num_format": "yyyy-mm-dd"})
+    price_fmt = workbook.add_format({"num_format": NUMBER_FORMAT_2DP})
     positions = [
         ("A4", "J4"),
         ("A23", "J23"),
         ("A42", "J42"),
     ]
+    data_widths = _ColWidthAcc()
     col = 0
     for idx, (code, title) in enumerate(SIX_SERIES.items()):
         series_df = plot_df.dropna(subset=[code])[[DATE_COL, code]].reset_index(drop=True)
         data_ws.write(0, col, f"{code}_date")
         data_ws.write(0, col + 1, f"{code}_px")
+        data_widths.add(col, f"{code}_date")
+        data_widths.add(col + 1, f"{code}_px")
         for r, rec in series_df.iterrows():
             ts = rec[DATE_COL]
             if isinstance(ts, pd.Timestamp):
                 ts = ts.to_pydatetime()
+            px = truncate_2dp(rec[code])
             data_ws.write_datetime(r + 1, col, ts, date_fmt)
-            data_ws.write_number(r + 1, col + 1, float(rec[code]))
+            data_ws.write_number(r + 1, col + 1, float(px), price_fmt)
+            data_widths.add(col, ts, number_format="yyyy-mm-dd")
+            data_widths.add(col + 1, px, number_format=NUMBER_FORMAT_2DP)
 
         chart = workbook.add_chart({"type": "line"})
         n = len(series_df)
@@ -773,6 +869,10 @@ def _write_xlsxwriter_charts(
         anchor = positions[row_pair][col_slot]
         chart_ws.insert_chart(anchor, chart)
         col += 2
+    data_widths.apply_xlsxwriter(data_ws)
+    chart_widths = _ColWidthAcc()
+    chart_widths.add(0, f"LME 遠期曲線（cash date → +{config.chart.forward_months} 個月）")
+    chart_widths.apply_xlsxwriter(chart_ws)
 
 
 def _write_raw_sheet_xlsxwriter(
@@ -790,6 +890,9 @@ def _write_raw_sheet_xlsxwriter(
         ws.set_tab_color(_css(COLOR_MUTED))
     header_fmt = workbook.add_format({"bold": True})
     date_fmt = workbook.add_format({"num_format": "yyyy-mm-dd"})
+    price_fmt = workbook.add_format({"num_format": NUMBER_FORMAT_2DP})
+    widths = _ColWidthAcc()
+    own_sheet = worksheet is None
     last = start_row - 1
     try:
         src_wb = load_workbook(step2_path, data_only=True)
@@ -802,20 +905,33 @@ def _write_raw_sheet_xlsxwriter(
                 if _is_excel_formula(value):
                     logger.debug("原始數據略過公式儲存格 %s", cell.coordinate)
                     continue
-                fmt = header_fmt if cell.row == 1 else None
+                is_header = cell.row == 1
+                if not is_header:
+                    value = truncate_2dp(value)
+                fmt = header_fmt if is_header else None
+                num_fmt: str | None = None
                 if isinstance(value, datetime):
                     ws.write_datetime(r, c, value, date_fmt)
+                    num_fmt = "yyyy-mm-dd"
                 elif isinstance(value, date):
                     ws.write_datetime(r, c, datetime(value.year, value.month, value.day), date_fmt)
+                    num_fmt = "yyyy-mm-dd"
+                elif _is_number_like(value):
+                    ws.write_number(r, c, float(value), price_fmt)
+                    num_fmt = NUMBER_FORMAT_2DP
                 else:
                     ws.write(r, c, value, fmt)
+                widths.add(c, value, number_format=num_fmt)
         src_wb.close()
+        if own_sheet:
+            widths.apply_xlsxwriter(ws)
         return last
     except Exception as exc:
         logger.warning("xlsxwriter 逐格複製原始數據失敗，改用 pandas：%s", exc)
 
     for c_idx, col_name in enumerate(curve_df.columns):
         ws.write(start_row, c_idx, col_name, header_fmt)
+        widths.add(c_idx, col_name)
         last = start_row
     for r_idx, rec in curve_df.iterrows():
         excel_row = int(r_idx) + 1 + start_row
@@ -826,8 +942,17 @@ def _write_raw_sheet_xlsxwriter(
                 continue
             if col_name == DATE_COL and isinstance(value, pd.Timestamp):
                 ws.write_datetime(excel_row, c_idx, value.to_pydatetime(), date_fmt)
+                widths.add(c_idx, value.to_pydatetime(), number_format="yyyy-mm-dd")
             else:
-                ws.write(excel_row, c_idx, value)
+                value = truncate_2dp(value)
+                if _is_number_like(value):
+                    ws.write_number(excel_row, c_idx, float(value), price_fmt)
+                    widths.add(c_idx, value, number_format=NUMBER_FORMAT_2DP)
+                else:
+                    ws.write(excel_row, c_idx, value)
+                    widths.add(c_idx, value)
+    if own_sheet:
+        widths.apply_xlsxwriter(ws)
     return last
 
 

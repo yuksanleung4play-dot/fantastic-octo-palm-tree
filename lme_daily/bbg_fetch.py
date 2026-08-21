@@ -12,8 +12,10 @@
 from __future__ import annotations
 
 import logging
+import math
 import re
 import time
+from datetime import date, datetime
 from typing import Any
 
 from lme_daily.config import AppConfig
@@ -40,6 +42,26 @@ def normalize_bbg_cell(value: Any) -> Any:
     if isinstance(value, str) and value.strip().upper().startswith("N/A"):
         return "N/A"
     return value
+
+
+def truncate_2dp(value: Any) -> Any:
+    """無條件捨去到小數點後兩位，不四捨五入。正負數都向零截斷。
+
+    字串（例如 ``N/A``）、``None``、日期維持原樣。不要用 ``round()``。
+    """
+    if value is None:
+        return value
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (bool, datetime, date)):
+        return value
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        return value
+    if math.isnan(num) or math.isinf(num):
+        return value
+    return math.trunc(num * 100) / 100
 
 
 def normalize_bbg_values(values: RangeValues) -> RangeValues:

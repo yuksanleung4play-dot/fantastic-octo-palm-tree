@@ -2,7 +2,7 @@
 
 import pytest
 
-from lme_daily.bbg_fetch import _as_2d_tuple, normalize_bbg_cell, parse_bdp_formula
+from lme_daily.bbg_fetch import _as_2d_tuple, normalize_bbg_cell, parse_bdp_formula, truncate_2dp
 
 
 def test_as_2d_tuple_none():
@@ -51,6 +51,20 @@ def test_normalize_bbg_cell_na_prefix_becomes_na():
 def test_normalize_bbg_cell_number_unchanged():
     assert normalize_bbg_cell(14234.50) == 14234.50
     assert normalize_bbg_cell("Copper") == "Copper"
+
+
+def test_truncate_2dp_truncates_toward_zero_not_round():
+    assert truncate_2dp(16554.08984375) == 16554.08
+    assert truncate_2dp(1838.129999) == 1838.12
+    assert truncate_2dp(1838.005) == 1838.00
+    assert truncate_2dp(1838.005) != 1838.01
+    assert truncate_2dp(None) is None
+    assert truncate_2dp("N/A") == "N/A"
+
+
+def test_truncate_2dp_negative_toward_zero():
+    assert truncate_2dp(-1.239) == -1.23
+    assert truncate_2dp(-1838.005) == -1838.00
 
 
 def test_overlay_bdp_grid_replaces_formulas():

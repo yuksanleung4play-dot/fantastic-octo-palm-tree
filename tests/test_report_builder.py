@@ -14,9 +14,11 @@ from openpyxl.worksheet.worksheet import Worksheet
 from lme_daily.config import load_config
 from lme_daily.exceptions import ReportBuildError
 from lme_daily.report_builder import (
+    AUTOFIT_MIN_WIDTH,
     DATE_COL,
     DISCLAIMER_FONT_SIZE,
     HF_FONT_SIZE,
+    NUMBER_FORMAT_2DP,
     PRINT_DISCLAIMER_FULL,
     SHEET_BBG,
     SHEET_CHART,
@@ -24,6 +26,7 @@ from lme_daily.report_builder import (
     SHEET_RAW,
     SIX_SERIES,
     SOURCE_LABEL,
+    apply_autofit_columns,
     build_report,
     excel_absolute_external_formula,
     header_footer_run,
@@ -423,6 +426,74 @@ def test_print_sheet_full_disclaimer_only(tmp_path: Path, engine: str):
         assert "免責聲明" not in joined
         assert "本報告僅供參考" not in joined
         assert "投資附帶風險" not in joined
+    wb.close()
+
+
+def test_apply_autofit_columns_covers_five_digit_prices():
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws["A1"] = "CA"
+    ws["A2"] = 16554.08
+    ws["A2"].number_format = NUMBER_FORMAT_2DP
+    ws["B1"] = "NI"
+    ws["B2"] = 54454.00
+    ws["B2"].number_format = NUMBER_FORMAT_2DP
+    apply_autofit_columns(ws)
+    assert ws.column_dimensions["A"].width >= AUTOFIT_MIN_WIDTH
+    assert ws.column_dimensions["B"].width >= AUTOFIT_MIN_WIDTH
+    wb.close()
+
+
+@pytest.mark.parametrize("engine", ["matplotlib", "xlsxwriter"])
+def test_report_truncates_values_and_autofits_columns(tmp_path: Path, engine: str):
+    cfg_path = _write_min_config(tmp_path, engine)
+    config = load_config(cfg_path)
+    as_of = date(2026, 8, 19)
+    vba_dir = config.vba_dir(as_of)
+    vba_dir.mkdir(parents=True, exist_ok=True)
+    step2 = vba_dir / "20260819.xlsx"
+    _make_step2(step2)
+    src = pd.read_excel(step2)
+    for col in ("CA", "NI", "SN"):
+        src[col] = src[col].astype(float)
+    src.loc[0, "CA"] = 16554.08984375
+    src.loc[0, "NI"] = 54454.089
+    src.loc[0, "SN"] = 1838.005
+    src.to_excel(step2, index=False)
+
+    values = (
+        ("Metal", "Last", "Bid", "Ask", "High", "Low", "Settle", "AsOf"),
+        ("CA", 16554.08984375, 1838.129999, 1838.005, 9050.0, 8980.0, 9001.0, 45953),
+    )
+    formats = (
+        ("General",) * 8,
+        ("General", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "YYYY-MM-DD"),
+    )
+    dest = build_report(
+        config,
+        as_of=as_of,
+        step2_path=step2,
+        bbg_values=values,
+        bbg_formats=formats,
+    )
+    wb = load_workbook(dest)
+    bbg = wb[SHEET_BBG]
+    assert bbg["B2"].value == 16554.08
+    assert bbg["C2"].value == 1838.12
+    assert bbg["D2"].value == 1838.00
+    assert "0.00" in (bbg["B2"].number_format or "")
+    assert bbg.column_dimensions["B"].width >= AUTOFIT_MIN_WIDTH
+
+    raw = wb[SHEET_RAW]
+    assert raw["B2"].value == 16554.08
+    assert raw["E2"].value == 54454.08
+    assert raw["F2"].value == 1838.00
+    assert "0.00" in (raw["B2"].number_format or "")
+    assert raw.column_dimensions["B"].width >= AUTOFIT_MIN_WIDTH
+    assert raw.column_dimensions["E"].width >= AUTOFIT_MIN_WIDTH
+    assert raw.column_dimensions["F"].width >= AUTOFIT_MIN_WIDTH
     wb.close()
 
 
