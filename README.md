@@ -1,6 +1,6 @@
 # LME 每日報價自動化
 
-Windows 本機流程：在已開啟的 Excel 執行早班 LME VBA → 讀取已手動打開的 Bloomberg 工作簿 → 產出 `LME每日報價yyyymmdd.xlsx`（BBG 快照、六條遠期曲線、原始數據、合併版面）。
+Windows 本機流程：先讀 Bloomberg 工作簿的 LME_PROMPT_DT（3M date）→ 在已開啟的 Excel 執行早班 LME VBA → 產出 `LME每日報價yyyymmdd.xlsx`（BBG 快照、六條遠期曲線、原始數據、合併版面）。
 
 > 完整流程需要 **Windows + Excel + Bloomberg Terminal**。日期計算與報告產生可在任何平台跑單元測試。
 
@@ -124,8 +124,8 @@ tests/
 
 ## 日期規則（`dates.calc_lme_dates`）
 
-- **上日日期**：從執行日前一天往前，找最近一個 Settlement Business Day（排除週末 + `holiday_list`）。
-- **3M date**：執行日 + 3 個自然月（同一天，月底由 `relativedelta` 夾住）。若不是交易日則先順延；若順延跨月則改往前推到上一個交易日。
+- **上日日期**：從執行日前一天往前，找最近一個 Settlement Business Day（排除週末 + `holiday_list`）。BBG 工作簿目前沒有對應的 Cash/上日欄位，所以仍用 Python 計算。
+- **3M date**：優先讀 BBG 工作簿 `bloomberg.prompt_date_cell`（預設 `B4`）的 `LME_PROMPT_DT`（Excel `.Value2` 日期序列，失敗再試 `.Text`），轉成 `yyyymmdd` 後注入巨集／InputBox。這是 LME 官方 Prompt Date，不再用 Python 公休日清單驗證。若儲存格是 `N/A`、空白或無法解析，才 fallback 到 Python 的 3M 規則（執行日 + 3 個自然月，非交易日先順延、跨月則往前）。
 
 公休日請填 `holidays.yaml` 或 `config.yaml` 的 `holidays.dates`。未填時**只排除週末**。
 
@@ -161,6 +161,7 @@ Application.Run("RunDailyLME", 上日日期, 3M date)
 
 - `vba.macro_name` 真實名稱，以及巨集是否支援參數覆蓋 InputBox
 - `bloomberg.bbg_sheet_name`（預設 `Promt date`）
+- `bloomberg.prompt_date_cell`（預設 `B4`，LME_PROMPT_DT / 3M Prompt Date）
 - LME 公休日清單（`holidays.yaml`）
 
 ## 測試

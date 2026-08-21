@@ -3,7 +3,10 @@
 from lme_daily.bbg_fetch import (
     _as_2d_tuple,
     _read_range,
+    fetch_bbg_3m_prompt_date,
+    format_3m_date_for_vba,
     normalize_bbg_cell,
+    parse_bbg_prompt_date_value,
     parse_bdp_formula,
     parse_excel_display_text,
     value_from_stored_number,
@@ -123,7 +126,7 @@ def test_overlay_bdp_grid_replaces_formulas():
     assert out == (("CA", 9001.5),)
 
 
-def _bbg_workbook_mock():
+def _bbg_workbook_mock(*, prompt_value2=46345.0, prompt_text="11/19/2026"):
     from unittest.mock import MagicMock
 
     texts = (
@@ -143,7 +146,18 @@ def _bbg_workbook_mock():
     rng.Columns.Count = 2
     rng.Cells.side_effect = cells
     rng.NumberFormat = (("General", "General"), ("General", "0.00"))
-    workbook.Worksheets.return_value.Range.return_value = rng
+    prompt_cell = MagicMock()
+    prompt_cell.Value2 = prompt_value2
+    prompt_cell.Text = prompt_text
+
+    def range_for(addr):
+        if isinstance(addr, str) and ":" in addr:
+            return rng
+        return prompt_cell
+
+    sheet = MagicMock()
+    sheet.Range.side_effect = range_for
+    workbook.Worksheets.return_value = sheet
     return workbook
 
 
@@ -234,3 +248,97 @@ def test_bbg_workbook_not_open_error_class_still_exists():
     from lme_daily.exceptions import BbgWorkbookNotOpenError
 
     assert issubclass(BbgWorkbookNotOpenError, Exception)
+
+
+def test_parse_bbg_prompt_date_value_excel_serial():
+    assert parse_bbg_prompt_date_value(46345) == "20261119"
+    assert parse_bbg_prompt_date_value(46345.0) == "20261119"
+    assert isinstance(parse_bbg_prompt_date_value(46345), str)
+
+
+def test_parse_bbg_prompt_date_value_na():
+    assert parse_bbg_prompt_date_value("N/A") is None
+    assert parse_bbg_prompt_date_value("#N/A Invalid Security") is None
+    assert parse_bbg_prompt_date_value("N/A Field Not Applicable") is None
+
+
+def test_parse_bbg_prompt_date_value_blank():
+    assert parse_bbg_prompt_date_value("") is None
+    assert parse_bbg_prompt_date_value("   ") is None
+    assert parse_bbg_prompt_date_value(None) is None
+
+
+def test_parse_bbg_prompt_date_value_text_and_datetime():
+    from datetime import date, datetime
+
+    assert parse_bbg_prompt_date_value("20261119") == "20261119"
+    assert parse_bbg_prompt_date_value("2026/11/19") == "20261119"
+    assert parse_bbg_prompt_date_value(datetime(2026, 11, 19)) == "20261119"
+    assert parse_bbg_prompt_date_value(date(2026, 12, 1)) == "20261201"
+
+
+def test_format_3m_date_for_vba():
+    assert format_3m_date_for_vba("20261119", "%Y/%m/%d") == "2026/11/19"
+    assert format_3m_date_for_vba("20261119", "%Y%m%d") == "20261119"
+
+
+def test_fetch_bbg_3m_prompt_date_from_value2_serial(tmp_path):
+    from unittest.mock import MagicMock
+
+    from lme_daily.config import load_config
+    from tests.test_excel_reuse import _write_config
+
+    config = load_config(_write_config(tmp_path))
+    assert config.bloomberg.prompt_date_cell == "B4"
+    workbook = _bbg_workbook_mock(prompt_value2=46345.0, prompt_text="n/a")
+    app = MagicMock()
+    app.Workbooks = MagicMock(return_value=workbook)
+    ymd = fetch_bbg_3m_prompt_date(app, config, fallback="19990101")
+    assert ymd == "20261119"
+    workbook.Worksheets.assert_called_with(config.bloomberg.bbg_sheet_name)
+    workbook.Worksheets.return_value.Range.assert_called_with("B4")
+
+
+def test_fetch_bbg_3m_prompt_date_na_falls_back(tmp_path, caplog):
+    from unittest.mock import MagicMock
+
+    from lme_daily.config import load_config
+    from tests.test_excel_reuse import _write_config
+
+    config = load_config(_write_config(tmp_path))
+    workbook = _bbg_workbook_mock(prompt_value2="N/A", prompt_text="#N/A Invalid Security")
+    app = MagicMock()
+    app.Workbooks = MagicMock(return_value=workbook)
+    with caplog.at_level("WARNING"):
+        ymd = fetch_bbg_3m_prompt_date(app, config, fallback="20261119")
+    assert ymd == "20261119"
+    assert "無法解析" in caplog.text
+
+
+def test_fetch_bbg_3m_prompt_date_blank_falls_back(tmp_path, caplog):
+    from unittest.mock import MagicMock
+
+    from lme_daily.config import load_config
+    from tests.test_excel_reuse import _write_config
+
+    config = load_config(_write_config(tmp_path))
+    workbook = _bbg_workbook_mock(prompt_value2=None, prompt_text="")
+    app = MagicMock()
+    app.Workbooks = MagicMock(return_value=workbook)
+    with caplog.at_level("WARNING"):
+        ymd = fetch_bbg_3m_prompt_date(app, config, fallback="20260818")
+    assert ymd == "20260818"
+    assert "無法解析" in caplog.text
+
+
+def test_fetch_bbg_3m_prompt_date_uses_text_when_value2_unusable(tmp_path):
+    from unittest.mock import MagicMock
+
+    from lme_daily.config import load_config
+    from tests.test_excel_reuse import _write_config
+
+    config = load_config(_write_config(tmp_path))
+    workbook = _bbg_workbook_mock(prompt_value2=None, prompt_text="2026/12/01")
+    app = MagicMock()
+    app.Workbooks = MagicMock(return_value=workbook)
+    assert fetch_bbg_3m_prompt_date(app, config, fallback="19990101") == "20261201"

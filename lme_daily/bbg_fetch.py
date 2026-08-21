@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 import re
 import time
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from lme_daily.config import AppConfig
@@ -29,6 +29,21 @@ logger = logging.getLogger(__name__)
 
 RangeValues = tuple[tuple[Any, ...], ...]
 RangeFormats = tuple[tuple[str, ...], ...]
+
+# Excel Value2 日期序列的 epoch（與 report_builder 相同）
+EXCEL_EPOCH = datetime(1899, 12, 30)
+_PROMPT_DATE_TEXT_FORMATS = (
+    "%Y%m%d",
+    "%Y/%m/%d",
+    "%Y-%m-%d",
+    "%d/%m/%Y",
+    "%m/%d/%Y",
+    "%d-%b-%y",
+    "%d-%b-%Y",
+    "%d/%b/%y",
+    "%d/%b/%Y",
+    "%b %d, %Y",
+)
 
 BDP_RE = re.compile(
     r'(?:WSS\.)?BDP\(\s*"([^"]+)"\s*,\s*"([^"]+)"',
@@ -89,6 +104,114 @@ def normalize_bbg_values(values: RangeValues) -> RangeValues:
     return tuple(tuple(normalize_bbg_cell(cell) for cell in row) for row in values)
 
 
+def parse_bbg_prompt_date_value(value: Any) -> str | None:
+    """把 LME_PROMPT_DT 儲存格值轉成 ``yyyymmdd``；N/A、空白、無法解析則 ``None``。"""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, datetime):
+        return value.date().strftime("%Y%m%d")
+    if isinstance(value, date):
+        return value.strftime("%Y%m%d")
+    if isinstance(value, (int, float)):
+        return _excel_serial_to_yyyymmdd(float(value))
+    if not isinstance(value, str):
+        return None
+    cleaned = value.replace("\xa0", " ").strip()
+    if cleaned == "":
+        return None
+    if cleaned.upper().startswith("N/A") or cleaned.startswith("#N/A"):
+        return None
+    try:
+        numeric = float(cleaned.replace(",", ""))
+    except ValueError:
+        numeric = None
+    if numeric is not None:
+        parsed = _excel_serial_to_yyyymmdd(numeric)
+        if parsed is not None:
+            return parsed
+    for fmt in _PROMPT_DATE_TEXT_FORMATS:
+        try:
+            return datetime.strptime(cleaned, fmt).strftime("%Y%m%d")
+        except ValueError:
+            continue
+    return None
+
+
+def _excel_serial_to_yyyymmdd(serial: float) -> str | None:
+    if serial != serial:  # NaN
+        return None
+    if not 20000 < serial < 80000:
+        return None
+    try:
+        return (EXCEL_EPOCH + timedelta(days=serial)).date().strftime("%Y%m%d")
+    except (OverflowError, ValueError, OSError):
+        return None
+
+
+def fetch_bbg_3m_prompt_date(
+    app: object,
+    config: AppConfig,
+    *,
+    fallback: str | None = None,
+    workbook: Any | None = None,
+) -> str | None:
+    """從 BBG 工作簿讀 ``bloomberg.prompt_date_cell``（LME_PROMPT_DT）成 yyyymmdd。
+
+    優先 ``Value2``（Excel 日期序列），再試 ``Text``。N/A / 空白 / 無法解析時
+    回傳 ``fallback``（Python ``calc_lme_dates`` 的 3M）並記 WARNING。
+    """
+    cell_addr = (config.bloomberg.prompt_date_cell or "B4").strip() or "B4"
+    sheet_name = config.bloomberg.bbg_sheet_name
+    raw_value2: Any = None
+    raw_text: Any = None
+    try:
+        workbook = workbook or _attach_open_bbg_workbook(app, config)
+        sheet = workbook.Worksheets(sheet_name)
+        cell = sheet.Range(cell_addr)
+        try:
+            raw_value2 = cell.Value2
+        except Exception:
+            raw_value2 = None
+        parsed = parse_bbg_prompt_date_value(raw_value2)
+        if parsed is None:
+            try:
+                raw_text = cell.Text
+            except Exception:
+                raw_text = None
+            parsed = parse_bbg_prompt_date_value(raw_text)
+    except Exception as exc:
+        logger.warning(
+            "讀取 BBG 3M Prompt Date（%s!%s）失敗：%s；改用 Python 計算的 3M date",
+            sheet_name,
+            cell_addr,
+            exc,
+        )
+        return fallback
+
+    if parsed is not None:
+        logger.info(
+            "BBG 3M Prompt Date（%s!%s LME_PROMPT_DT）= %s（Value2=%r Text=%r）",
+            sheet_name,
+            cell_addr,
+            parsed,
+            raw_value2,
+            raw_text,
+        )
+        return parsed
+
+    logger.warning(
+        "BBG 3M Prompt Date（%s!%s）無法解析（Value2=%r Text=%r）；改用 Python 計算的 3M date %s",
+        sheet_name,
+        cell_addr,
+        raw_value2,
+        raw_text,
+        fallback,
+    )
+    return fallback
+
+
 def parse_bdp_formula(cell: Any) -> tuple[str, str] | None:
     """從 ``=BDP("ticker","FIELD")`` 抽出 (security, field)。"""
     if not isinstance(cell, str):
@@ -102,17 +225,45 @@ def parse_bdp_formula(cell: Any) -> tuple[str, str] | None:
     return match.group(1).strip(), match.group(2).strip()
 
 
-def fetch_bloomberg_snapshot(config: AppConfig) -> tuple[RangeValues, RangeFormats]:
+def fetch_bloomberg_snapshot(
+    config: AppConfig,
+    *,
+    fallback_3m: str | None = None,
+) -> tuple[RangeValues, RangeFormats]:
+    values, formats, _bbg_3m = fetch_bloomberg_snapshot_and_3m(config, fallback_3m=fallback_3m)
+    return values, formats
+
+
+def fetch_bloomberg_snapshot_and_3m(
+    config: AppConfig,
+    *,
+    fallback_3m: str | None = None,
+) -> tuple[RangeValues, RangeFormats, str | None]:
+    """刷新並讀 copy_range，同時讀 LME_PROMPT_DT 成 yyyymmdd（失敗則 fallback）。"""
     source = config.bloomberg.source
     logger.info("Bloomberg 取數來源：%s", source)
+    bbg_3m: str | None = fallback_3m
     if source == "blpapi":
         from lme_daily.bbg_blpapi import fetch_bloomberg_snapshot_blpapi
 
         values, formats = fetch_bloomberg_snapshot_blpapi(config)
+        if fallback_3m:
+            logger.warning(
+                "blpapi 模式沒有 Excel LME_PROMPT_DT 儲存格，3M date 使用 Python 計算值 %s",
+                fallback_3m,
+            )
+        bbg_3m = fallback_3m
     else:
         refresh = source != "cached"
-        values, formats = _fetch_via_excel(config, refresh=refresh)
-    return normalize_bbg_values(values), formats
+        values, formats, bbg_3m = _fetch_via_excel(
+            config, refresh=refresh, fallback_3m=fallback_3m
+        )
+    return normalize_bbg_values(values), formats, bbg_3m
+
+
+def format_3m_date_for_vba(ymd: str, date_format: str) -> str:
+    """把 yyyymmdd 轉成巨集參數 / InputBox 所需格式。"""
+    return datetime.strptime(ymd, "%Y%m%d").strftime(date_format)
 
 
 def _attach_open_bbg_workbook(app: object, config: AppConfig) -> Any:
@@ -147,14 +298,20 @@ def _open_bbg_workbook(app: object, config: AppConfig) -> Any:
     return workbook
 
 
-def _fetch_via_excel(config: AppConfig, *, refresh: bool) -> tuple[RangeValues, RangeFormats]:
+def _fetch_via_excel(
+    config: AppConfig,
+    *,
+    refresh: bool,
+    fallback_3m: str | None = None,
+) -> tuple[RangeValues, RangeFormats, str | None]:
     sheet_name = config.bloomberg.bbg_sheet_name
     copy_range = config.bloomberg.copy_range
     wait = config.bloomberg.refresh_wait_seconds
     logger.info(
-        "Excel 讀取 BBG：sheet=%s range=%s refresh=%s wait=%ss",
+        "Excel 讀取 BBG：sheet=%s range=%s prompt_date_cell=%s refresh=%s wait=%ss",
         sheet_name,
         copy_range,
+        config.bloomberg.prompt_date_cell,
         refresh,
         wait,
     )
@@ -174,9 +331,12 @@ def _fetch_via_excel(config: AppConfig, *, refresh: bool) -> tuple[RangeValues, 
         else:
             logger.info("cached 模式：不呼叫 RefreshAll")
         values, formats = _read_range(workbook, sheet_name, copy_range)
+        bbg_3m = fetch_bbg_3m_prompt_date(
+            app, config, fallback=fallback_3m, workbook=workbook
+        )
 
     logger.info("已讀取 BBG 區間 %s!%s（%d 列）", sheet_name, copy_range, len(values))
-    return values, formats
+    return values, formats, bbg_3m
 
 
 def _refresh_bloomberg(app: object, workbook: object, config: AppConfig) -> None:

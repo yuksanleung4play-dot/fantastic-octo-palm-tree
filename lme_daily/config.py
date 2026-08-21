@@ -57,6 +57,7 @@ class ExcelUiConfig:
 class BloombergConfig:
     copy_range: str
     bbg_sheet_name: str
+    prompt_date_cell: str
     refresh_wait_seconds: float
     calculation_timeout_seconds: float
     source: str
@@ -427,6 +428,10 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         bloomberg=BloombergConfig(
             copy_range=str(_get(bbg_raw, "copy_range", context="bloomberg")),
             bbg_sheet_name=str(_get(bbg_raw, "bbg_sheet_name", context="bloomberg")),
+            prompt_date_cell=str(
+                _get(bbg_raw, "prompt_date_cell", context="bloomberg", default="B4")
+            ).strip()
+            or "B4",
             refresh_wait_seconds=float(_get(bbg_raw, "refresh_wait_seconds", context="bloomberg")),
             calculation_timeout_seconds=float(
                 _get(bbg_raw, "calculation_timeout_seconds", context="bloomberg", default=120)

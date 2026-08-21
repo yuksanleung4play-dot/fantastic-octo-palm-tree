@@ -48,6 +48,8 @@ bloomberg:
   copy_range: "B3:I10"
   # TODO: 請確認實際 sheet 名稱（目前為預設值）
   bbg_sheet_name: "Promt date"
+  # LME_PROMPT_DT（3M Prompt Date）所在儲存格，例如銅 =BDP(LM & CA & DS03 LME Comdty, LME_PROMPT_DT)
+  prompt_date_cell: "B4"
   refresh_wait_seconds: 15
   calculation_timeout_seconds: 120
 

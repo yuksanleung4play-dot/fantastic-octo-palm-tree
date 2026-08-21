@@ -15,7 +15,7 @@ import logging
 import shutil
 import threading
 import time
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from lme_daily.config import AppConfig
@@ -126,6 +126,13 @@ def resolve_existing_step2(config: AppConfig, as_of: date) -> Path | None:
     return None
 
 
+def _reformat_date_string(value: str, src_fmt: str, dst_fmt: str) -> str | None:
+    try:
+        return datetime.strptime(value, src_fmt).strftime(dst_fmt)
+    except (TypeError, ValueError):
+        return None
+
+
 def run_reference_macro(
     config: AppConfig,
     *,
@@ -144,11 +151,21 @@ def run_reference_macro(
     if expected.exists():
         logger.warning("輸出檔已存在，將覆寫：%s", expected)
 
-    ibox_prev, ibox_three = calc_lme_dates(
+    ibox_prev, ibox_three_python = calc_lme_dates(
         as_of,
         holiday_list=config.holidays,
         date_format=config.vba.inputbox_date_format,
     )
+    ibox_three = _reformat_date_string(
+        three_m_date, config.vba.date_format, config.vba.inputbox_date_format
+    )
+    if ibox_three is None:
+        ibox_three = ibox_three_python
+        logger.warning(
+            "無法把注入的 3M date %s 轉成 InputBox 格式，改用 Python 計算值 %s",
+            three_m_date,
+            ibox_three,
+        )
     logger.info(
         "VBA 模式：%s；巨集=%s；參數注入上日/3M=%s / %s；InputBox 上日/3M=%s / %s",
         "先嘗試參數注入，失敗則改填 InputBox"

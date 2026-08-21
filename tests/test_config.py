@@ -55,6 +55,7 @@ def test_load_config_combines_paths(tmp_path: Path):
     assert config.excel.quit_on_exit is False
     assert config.vba.auto_closes_workbook is True
     assert config.bloomberg.source == "excel"
+    assert config.bloomberg.prompt_date_cell == "B4"
     assert config.chart.forward_months == 27
     assert date(2026, 12, 25) in config.holidays
 

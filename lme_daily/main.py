@@ -1,6 +1,6 @@
 """LME 每日報價自動化進入點。
 
-流程：讀 config → 算日期 → 跑 VBA 產生 yyyymmdd.xlsx → 抓 BBG 數據 → 生成最終報告。
+流程：讀 config → 算上日日期 → 刷新 Bloomberg 並讀 3M Prompt Date → 跑 VBA 產生 yyyymmdd.xlsx → 生成最終報告。
 任一步失敗會印出明確錯誤並以非零狀態碼結束，不會靜默跳過。
 """
 
@@ -15,7 +15,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 from lme_daily.config import AppConfig, load_config, validate_required_files
-from lme_daily.dates import calc_lme_dates
+from lme_daily.dates import calc_lme_dates, lme_3m_date
 from lme_daily.excel_com import get_workbook_open_count, reset_workbook_open_count
 from lme_daily.exceptions import LMEAutomationError
 
@@ -152,28 +152,64 @@ def run(config: AppConfig, *, as_of: date, dry_run: bool, skip_vba: bool, skip_b
 
     attach_run_dir_log(run_dir)
 
-    with log_step("計算上日日期與 3M date"):
-        prev_date, three_m_date = calc_lme_dates(
+    with log_step("計算上日日期與 Python 3M date（後者僅作 BBG 失敗 fallback）"):
+        prev_date, _python_3m_unused = calc_lme_dates(
             as_of,
             holiday_list=config.holidays,
             date_format=config.vba.date_format,
         )
-        logger.info("as_of=%s  上日日期=%s  3M date=%s", as_of.isoformat(), prev_date, three_m_date)
-        ibox_prev, ibox_three = calc_lme_dates(
+        python_3m_d = lme_3m_date(as_of, config.holidays)
+        python_3m_param = python_3m_d.strftime(config.vba.date_format)
+        python_3m_ymd = python_3m_d.strftime("%Y%m%d")
+        ibox_prev, _ibox_3m_unused = calc_lme_dates(
             as_of,
             holiday_list=config.holidays,
             date_format=config.vba.inputbox_date_format,
         )
-        logger.info("InputBox 將填入 上日=%s  3M=%s（格式 %s）", ibox_prev, ibox_three, config.vba.inputbox_date_format)
-        logger.info("公休日筆數=%d（未列入者僅排除週末）", len(config.holidays))
+        logger.info(
+            "as_of=%s  上日日期=%s  Python 3M date=%s（yyyymmdd=%s，BBG 讀取失敗才用）",
+            as_of.isoformat(),
+            prev_date,
+            python_3m_param,
+            python_3m_ymd,
+        )
+        logger.info(
+            "InputBox 上日=%s（格式 %s）；3M 將優先用 BBG LME_PROMPT_DT",
+            ibox_prev,
+            config.vba.inputbox_date_format,
+        )
+        logger.info("公休日筆數=%d（未列入者僅排除週末；不驗證 BBG Prompt Date 交易日）", len(config.holidays))
 
     if dry_run:
         logger.info("dry-run：到此結束，不呼叫 Excel / Bloomberg")
+        logger.info("若實際執行：會先刷新 BBG 讀 LME_PROMPT_DT，再執行 VBA")
         logger.info("若實際執行：VBA 中繼檔 → %s", config.step2_workbook_path(as_of))
         logger.info("若實際執行：最終報告 → %s", config.output_workbook_path(as_of))
         return None
 
     reset_workbook_open_count()
+
+    three_m_date = python_3m_param
+    bbg_values: tuple[tuple[object, ...], ...] = ()
+    bbg_formats: tuple[tuple[str, ...], ...] = ()
+    if skip_bbg:
+        logger.warning("略過 Bloomberg 刷新（--skip-bbg），BBG快照將為空；3M date 使用 Python 計算值")
+    else:
+        from lme_daily.bbg_fetch import (
+            fetch_bloomberg_snapshot_and_3m,
+            format_3m_date_for_vba,
+        )
+
+        with log_step("刷新 Bloomberg 並讀取快照與 3M Prompt Date"):
+            bbg_values, bbg_formats, bbg_3m_date = fetch_bloomberg_snapshot_and_3m(
+                config, fallback_3m=python_3m_ymd
+            )
+            if bbg_3m_date:
+                three_m_date = format_3m_date_for_vba(bbg_3m_date, config.vba.date_format)
+                logger.info("VBA 將使用 BBG 3M date=%s（yyyymmdd=%s）", three_m_date, bbg_3m_date)
+            else:
+                three_m_date = python_3m_param
+                logger.warning("BBG 3M Prompt Date 空白，VBA 改用 Python 3M date=%s", three_m_date)
 
     step2_path = config.step2_workbook_path(as_of)
     if skip_vba:
@@ -209,16 +245,6 @@ def run(config: AppConfig, *, as_of: date, dry_run: bool, skip_vba: bool, skip_b
             f"找不到 VBA 中繼檔 {step2_path}。"
             "「遠期走勢圖」與「原始數據」只讀此檔，中斷而不產生缺資料報告。"
         )
-
-    if skip_bbg:
-        logger.warning("略過 Bloomberg 刷新（--skip-bbg），BBG快照將為空")
-        bbg_values: tuple[tuple[object, ...], ...] = ()
-        bbg_formats: tuple[tuple[str, ...], ...] = ()
-    else:
-        from lme_daily.bbg_fetch import fetch_bloomberg_snapshot
-
-        with log_step("刷新 Bloomberg 並讀取快照"):
-            bbg_values, bbg_formats = fetch_bloomberg_snapshot(config)
 
     from lme_daily.report_builder import build_report
 
