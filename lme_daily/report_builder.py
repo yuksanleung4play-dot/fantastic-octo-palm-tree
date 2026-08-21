@@ -294,28 +294,66 @@ def _autofit_width(max_len: int) -> float:
     return max(max_len + AUTOFIT_PADDING, AUTOFIT_MIN_WIDTH)
 
 
-def apply_autofit_columns(ws: Worksheet, *, padding: int = AUTOFIT_PADDING) -> None:
-    """依內容自動調整欄寬。必須在該 sheet 資料全部寫入後呼叫。"""
+def _merged_positions(ws: Worksheet) -> set[tuple[int, int]]:
+    positions: set[tuple[int, int]] = set()
+    for rng in ws.merged_cells.ranges:
+        positions.update(rng.cells)
+    return positions
+
+
+def apply_autofit_columns(
+    ws: Worksheet,
+    *,
+    padding: int = AUTOFIT_PADDING,
+    skip_empty: bool = False,
+    skip_merged: bool = True,
+) -> None:
+    """依內容自動調整欄寬。必須在該 sheet 資料全部寫入後呼叫。
+
+    合併儲存格（頁首／區塊標題／免責聲明）不列入寬度計算，避免把橫向標題
+    字串灌進每一欄。``skip_empty`` 時空白分隔欄不改寬度。
+    """
+    merged = _merged_positions(ws) if skip_merged else set()
     for col_cells in ws.columns:
         max_len = 0
         for cell in col_cells:
             if cell.value is None:
                 continue
+            if (cell.row, cell.column) in merged:
+                continue
             text = _cell_display_text(cell.value, number_format=cell.number_format)
             max_len = max(max_len, _visual_len(text))
         letter = get_column_letter(col_cells[0].column)
         if max_len <= 0:
+            if skip_empty:
+                continue
             ws.column_dimensions[letter].width = 8
-        else:
-            ws.column_dimensions[letter].width = max(max_len + padding, AUTOFIT_MIN_WIDTH)
+            continue
+        fitted = max(max_len + padding, AUTOFIT_MIN_WIDTH)
+        current = ws.column_dimensions[letter].width
+        if current:
+            fitted = max(fitted, float(current))
+        ws.column_dimensions[letter].width = fitted
 
 
-def apply_center_alignment(ws: Worksheet) -> None:
-    """水平＋垂直置中。必須在該 sheet 資料全部寫入後呼叫，只改 alignment。"""
+def apply_center_alignment(ws: Worksheet, *, skip_merged: bool = True) -> None:
+    """水平＋垂直置中。必須在該 sheet 資料全部寫入後呼叫，只改 alignment。
+
+    合併儲存格（頁首／紅底區塊標題／免責聲明）維持寫入時的對齊。
+    """
     center = Alignment(horizontal="center", vertical="center")
+    merged = _merged_positions(ws) if skip_merged else set()
     for row in ws.iter_rows():
         for cell in row:
+            if (cell.row, cell.column) in merged:
+                continue
             cell.alignment = center
+
+
+def apply_print_data_styles(ws: Worksheet) -> None:
+    """合併版面最後一步：數據區塊自動欄寬 + 置中，複用獨立 sheet 的同一組函式。"""
+    apply_autofit_columns(ws, skip_empty=True)
+    apply_center_alignment(ws)
 
 
 class _ColWidthAcc:
@@ -570,6 +608,7 @@ def _write_print_sheet_openpyxl(
     _set_print_area(ws, disc_row)
     ws.oddHeader.left.text = header_footer_run(COLOR_TITLE_DARK, COMPANY_ZH)
     ws.oddHeader.right.text = header_footer_run(COLOR_TITLE_DARK, as_of.strftime("%Y-%m-%d"))
+    apply_print_data_styles(ws)
 
 
 def _build_with_openpyxl(
@@ -774,6 +813,8 @@ def _write_bbg_rows_xlsxwriter(
     start_row: int = 0,
     header_fill_color: str = COLOR_NAVY,
     center_align: bool = False,
+    widths: _ColWidthAcc | None = None,
+    apply_widths: bool = True,
 ) -> int:
     align = {"align": "center", "valign": "vcenter"} if center_align else {}
     header_fmt = workbook.add_format(
@@ -787,7 +828,7 @@ def _write_bbg_rows_xlsxwriter(
     date_fmt = workbook.add_format({"num_format": "yyyy-mm-dd", **align})
     price_fmt = workbook.add_format({"num_format": NUMBER_FORMAT_2DP, **align})
     default_fmt = workbook.add_format(align) if center_align else None
-    widths = _ColWidthAcc()
+    acc = widths if widths is not None else _ColWidthAcc()
     last = start_row - 1
     for r_idx, row in enumerate(values):
         fmt_row = formats[r_idx] if r_idx < len(formats) else ()
@@ -808,8 +849,9 @@ def _write_bbg_rows_xlsxwriter(
             if cell_fmt is None:
                 cell_fmt = default_fmt
             ws.write(excel_row, c_idx, value, cell_fmt)
-            widths.add(c_idx, value, number_format=num_fmt)
-    widths.apply_xlsxwriter(ws)
+            acc.add(c_idx, value, number_format=num_fmt)
+    if apply_widths:
+        acc.apply_xlsxwriter(ws)
     return last
 
 
@@ -906,16 +948,23 @@ def _write_raw_sheet_xlsxwriter(
     header: str,
     worksheet: Any | None = None,
     start_row: int = 0,
+    center_align: bool = False,
+    widths: _ColWidthAcc | None = None,
+    apply_widths: bool | None = None,
 ) -> int:
     ws = worksheet or workbook.add_worksheet(SHEET_RAW)
     if worksheet is None:
         _apply_print_layout_xlsxwriter(ws, header=f"{header} · {SHEET_RAW}")
         ws.set_tab_color(_css(COLOR_MUTED))
-    header_fmt = workbook.add_format({"bold": True})
-    date_fmt = workbook.add_format({"num_format": "yyyy-mm-dd"})
-    price_fmt = workbook.add_format({"num_format": NUMBER_FORMAT_2DP})
-    widths = _ColWidthAcc()
+    align = {"align": "center", "valign": "vcenter"} if center_align else {}
+    header_fmt = workbook.add_format({"bold": True, **align})
+    date_fmt = workbook.add_format({"num_format": "yyyy-mm-dd", **align})
+    price_fmt = workbook.add_format({"num_format": NUMBER_FORMAT_2DP, **align})
+    default_fmt = workbook.add_format(align) if center_align else None
+    acc = widths if widths is not None else _ColWidthAcc()
     own_sheet = worksheet is None
+    if apply_widths is None:
+        apply_widths = own_sheet
     last = start_row - 1
     try:
         src_wb = load_workbook(step2_path, data_only=True)
@@ -931,7 +980,7 @@ def _write_raw_sheet_xlsxwriter(
                 is_header = cell.row == 1
                 if not is_header:
                     value = value_from_stored_number(value)
-                fmt = header_fmt if is_header else None
+                fmt = header_fmt if is_header else default_fmt
                 num_fmt: str | None = None
                 if isinstance(value, datetime):
                     ws.write_datetime(r, c, value, date_fmt)
@@ -944,17 +993,17 @@ def _write_raw_sheet_xlsxwriter(
                     num_fmt = NUMBER_FORMAT_2DP
                 else:
                     ws.write(r, c, value, fmt)
-                widths.add(c, value, number_format=num_fmt)
+                acc.add(c, value, number_format=num_fmt)
         src_wb.close()
-        if own_sheet:
-            widths.apply_xlsxwriter(ws)
+        if apply_widths:
+            acc.apply_xlsxwriter(ws)
         return last
     except Exception as exc:
         logger.warning("xlsxwriter 逐格複製原始數據失敗，改用 pandas：%s", exc)
 
     for c_idx, col_name in enumerate(curve_df.columns):
         ws.write(start_row, c_idx, col_name, header_fmt)
-        widths.add(c_idx, col_name)
+        acc.add(c_idx, col_name)
         last = start_row
     for r_idx, rec in curve_df.iterrows():
         excel_row = int(r_idx) + 1 + start_row
@@ -965,17 +1014,17 @@ def _write_raw_sheet_xlsxwriter(
                 continue
             if col_name == DATE_COL and isinstance(value, pd.Timestamp):
                 ws.write_datetime(excel_row, c_idx, value.to_pydatetime(), date_fmt)
-                widths.add(c_idx, value.to_pydatetime(), number_format="yyyy-mm-dd")
+                acc.add(c_idx, value.to_pydatetime(), number_format="yyyy-mm-dd")
             else:
                 value = value_from_stored_number(value)
                 if _is_number_like(value):
                     ws.write_number(excel_row, c_idx, float(value), price_fmt)
-                    widths.add(c_idx, value, number_format=NUMBER_FORMAT_2DP)
+                    acc.add(c_idx, value, number_format=NUMBER_FORMAT_2DP)
                 else:
-                    ws.write(excel_row, c_idx, value)
-                    widths.add(c_idx, value)
-    if own_sheet:
-        widths.apply_xlsxwriter(ws)
+                    ws.write(excel_row, c_idx, value, default_fmt)
+                    acc.add(c_idx, value)
+    if apply_widths:
+        acc.apply_xlsxwriter(ws)
     return last
 
 
@@ -1026,6 +1075,7 @@ def _write_print_sheet_xlsxwriter(
         }
     )
     last_col = 17
+    print_widths = _ColWidthAcc()
     ws.merge_range(0, 0, 0, last_col, f"{COMPANY_ZH}  /  {COMPANY_EN}", brick)
     ws.merge_range(1, 0, 1, last_col, REPORT_TITLE_ZH, brick)
     ws.merge_range(2, 0, 2, last_col, REPORT_TITLE_EN, sub)
@@ -1035,7 +1085,15 @@ def _write_print_sheet_xlsxwriter(
 
     ws.merge_range(5, 0, 5, last_col, f"{SHEET_BBG}  /  Bloomberg Snapshot", section)
     last = _write_bbg_rows_xlsxwriter(
-        ws, workbook, bbg_values, bbg_formats, start_row=6, header_fill_color=COLOR_BRICK
+        ws,
+        workbook,
+        bbg_values,
+        bbg_formats,
+        start_row=6,
+        header_fill_color=COLOR_BRICK,
+        center_align=True,
+        widths=print_widths,
+        apply_widths=False,
     )
 
     chart_heading = last + 2
@@ -1059,6 +1117,9 @@ def _write_print_sheet_xlsxwriter(
         header=header,
         worksheet=ws,
         start_row=raw_heading + 1,
+        center_align=True,
+        widths=print_widths,
+        apply_widths=False,
     )
     disc_row = max(last_raw, after_images) + 2
     disc_fmt = workbook.add_format(
@@ -1083,6 +1144,7 @@ def _write_print_sheet_xlsxwriter(
     ws.set_footer(f"&C{PRINT_FOOTER}")
     ws.set_tab_color(_css(COLOR_ACCENT))
     ws.print_area(0, 0, disc_row, last_col)
+    print_widths.apply_xlsxwriter(ws)
 
 
 def dataframe_preview_rows(df: pd.DataFrame, limit: int = 5) -> list[list[Any]]:

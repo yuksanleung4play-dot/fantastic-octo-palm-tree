@@ -508,6 +508,45 @@ def test_apply_center_alignment_preserves_other_styles():
     wb.close()
 
 
+def test_apply_autofit_columns_skips_merged_titles_and_empty_separators():
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.merge_cells("A1:R1")
+    ws["A1"] = "山證國際金融控股有限公司  /  Shanxi Securities International"
+    ws["A2"] = 16554.09
+    ws["A2"].number_format = NUMBER_FORMAT_2DP
+    ws["B2"] = 16554.09
+    ws["B2"].number_format = NUMBER_FORMAT_2DP
+    apply_autofit_columns(ws, skip_empty=True)
+    assert ws.column_dimensions["A"].width >= AUTOFIT_MIN_WIDTH
+    assert ws.column_dimensions["A"].width < 40
+    assert ws.column_dimensions["B"].width >= AUTOFIT_MIN_WIDTH
+    sep = ws.column_dimensions["I"].width
+    assert sep is None or float(sep) <= 15
+    wb.close()
+
+
+def test_apply_center_alignment_skips_merged_heading_cells():
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, PatternFill
+
+    wb = Workbook()
+    ws = wb.active
+    ws.merge_cells("A1:R1")
+    ws["A1"] = "BBG快照  /  Bloomberg Snapshot"
+    ws["A1"].fill = PatternFill("solid", fgColor="A63A2E")
+    ws["A1"].alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    ws["A2"] = "CA"
+    ws["B2"] = 16554.09
+    apply_center_alignment(ws)
+    assert ws["A1"].alignment.horizontal == "left"
+    assert _is_center_aligned(ws["A2"])
+    assert _is_center_aligned(ws["B2"])
+    wb.close()
+
+
 def _is_center_aligned(cell) -> bool:
     return cell.alignment.horizontal == "center" and cell.alignment.vertical == "center"
 
@@ -548,8 +587,8 @@ def test_bbg_snapshot_sheet_is_center_aligned(tmp_path: Path, engine: str):
 
     print_ws = wb[SHEET_PRINT]
     assert print_ws["A8"].value == "CA"
-    assert not _is_center_aligned(print_ws["A8"])
-    assert not _is_center_aligned(print_ws["B8"])
+    assert _is_center_aligned(print_ws["A8"])
+    assert _is_center_aligned(print_ws["B8"])
     wb.close()
 
 
@@ -610,6 +649,32 @@ def test_report_writes_display_rounded_values_and_autofits_columns(tmp_path: Pat
     if engine == "xlsxwriter" and SHEET_CHART_DATA in wb.sheetnames:
         chart_data = wb[SHEET_CHART_DATA]
         assert chart_data["B2"].value == 16554.09
+
+    print_ws = wb[SHEET_PRINT]
+    assert print_ws["B8"].value == 16554.09
+    assert _is_center_aligned(print_ws["A8"])
+    assert _is_center_aligned(print_ws["B8"])
+    assert print_ws.column_dimensions["B"].width >= AUTOFIT_MIN_WIDTH
+    heading = next(
+        cell
+        for row in print_ws.iter_rows()
+        for cell in row
+        if cell.value == PRINT_RAW_SECTION_TITLE
+    )
+    raw_header_row = heading.row + 1
+    raw_data_row = heading.row + 2
+    assert print_ws.cell(raw_header_row, 1).value == DATE_COL
+    assert print_ws.cell(raw_data_row, 2).value == 16554.09
+    assert _is_center_aligned(print_ws.cell(raw_header_row, 1))
+    assert _is_center_aligned(print_ws.cell(raw_data_row, 2))
+    assert print_ws.column_dimensions["E"].width >= AUTOFIT_MIN_WIDTH
+    sep_width = print_ws.column_dimensions["I"].width
+    assert sep_width is None or float(sep_width) <= 15
+    assert print_ws["A6"].alignment.horizontal == "left"
+    disc = _find_disclaimer_cell(print_ws)
+    assert disc is not None
+    assert disc.alignment.horizontal == "left"
+    assert disc.alignment.wrap_text is True
     wb.close()
 
 
