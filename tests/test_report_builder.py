@@ -20,6 +20,7 @@ from lme_daily.report_builder import (
     HF_FONT_SIZE,
     NUMBER_FORMAT_2DP,
     PRINT_DISCLAIMER_FULL,
+    PRINT_RAW_SECTION_TITLE,
     SHEET_BBG,
     SHEET_CHART,
     SHEET_CHART_DATA,
@@ -428,6 +429,41 @@ def test_print_sheet_full_disclaimer_only(tmp_path: Path, engine: str):
         assert "免責聲明" not in joined
         assert "本報告僅供參考" not in joined
         assert "投資附帶風險" not in joined
+    wb.close()
+
+
+@pytest.mark.parametrize("engine", ["matplotlib", "xlsxwriter"])
+def test_print_sheet_raw_section_title_is_prompt_date_settlement_price(tmp_path: Path, engine: str):
+    cfg_path = _write_min_config(tmp_path, engine)
+    config = load_config(cfg_path)
+    as_of = date(2026, 8, 19)
+    vba_dir = config.vba_dir(as_of)
+    vba_dir.mkdir(parents=True, exist_ok=True)
+    step2 = vba_dir / "20260819.xlsx"
+    _make_step2(step2)
+    dest = build_report(
+        config,
+        as_of=as_of,
+        step2_path=step2,
+        bbg_values=_bbg_sample()[0],
+        bbg_formats=_bbg_sample()[1],
+    )
+    wb = load_workbook(dest)
+    print_ws = wb[SHEET_PRINT]
+    texts = _cell_texts(print_ws)
+    assert PRINT_RAW_SECTION_TITLE in texts
+    assert PRINT_RAW_SECTION_TITLE == "Prompt date settlement price"
+    for text in texts:
+        assert "Underlying Data" not in text
+        assert "原始數據" not in text
+    heading = next(
+        cell
+        for row in print_ws.iter_rows()
+        for cell in row
+        if cell.value == PRINT_RAW_SECTION_TITLE
+    )
+    assert heading.fill.patternType == "solid"
+    assert heading.font.bold is True
     wb.close()
 
 

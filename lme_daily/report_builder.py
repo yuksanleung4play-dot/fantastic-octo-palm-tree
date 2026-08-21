@@ -48,6 +48,7 @@ SHEET_CHART = "遠期走勢圖"
 SHEET_RAW = "原始數據"
 SHEET_PRINT = "合併版面"
 SHEET_CHART_DATA = "_chart_data"
+PRINT_RAW_SECTION_TITLE = "Prompt date settlement price"
 
 # BBG快照 / 遠期走勢圖 sheet 仍用深藍，避免動到非合併版面頁。
 COLOR_NAVY = "0B2447"
@@ -486,11 +487,13 @@ def _write_report_banner_openpyxl(ws: Worksheet, as_of: date, *, last_col: int =
     return 6
 
 
-def _section_heading_openpyxl(ws: Worksheet, row: int, zh: str, en: str, *, last_col: int = 18) -> int:
+def _section_heading_openpyxl(
+    ws: Worksheet, row: int, zh: str, en: str | None = None, *, last_col: int = 18
+) -> int:
     end = get_column_letter(last_col)
     brick = PatternFill("solid", fgColor=COLOR_BRICK)
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=last_col)
-    cell = ws.cell(row=row, column=1, value=f"{zh}  /  {en}")
+    cell = ws.cell(row=row, column=1, value=f"{zh}  /  {en}" if en else zh)
     cell.font = Font(color=COLOR_CREAM, bold=True, size=12)
     cell.fill = brick
     cell.alignment = Alignment(horizontal="left", vertical="center", indent=1)
@@ -553,7 +556,7 @@ def _write_print_sheet_openpyxl(
     after_images = _place_chart_images(ws, chart_images, config, start_row=chart_heading + 2)
 
     raw_heading = after_images + 1
-    _section_heading_openpyxl(ws, raw_heading, SHEET_RAW, "Underlying Data")
+    _section_heading_openpyxl(ws, raw_heading, PRINT_RAW_SECTION_TITLE)
     last_raw = _copy_raw_sheet(step2_path, ws, start_row=raw_heading + 1)
 
     disc_row = _write_print_disclaimer_openpyxl(ws, after_row=max(last_raw, after_images))
@@ -1048,7 +1051,7 @@ def _write_print_sheet_xlsxwriter(
     after_images = img_start + 3 * CHART_ROW_STRIDE
 
     raw_heading = after_images
-    ws.merge_range(raw_heading, 0, raw_heading, last_col, f"{SHEET_RAW}  /  Underlying Data", section)
+    ws.merge_range(raw_heading, 0, raw_heading, last_col, PRINT_RAW_SECTION_TITLE, section)
     last_raw = _write_raw_sheet_xlsxwriter(
         workbook,
         step2_path,
