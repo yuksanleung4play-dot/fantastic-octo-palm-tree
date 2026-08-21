@@ -28,6 +28,7 @@ from lme_daily.report_builder import (
     SIX_SERIES,
     SOURCE_LABEL,
     apply_autofit_columns,
+    apply_center_alignment,
     build_report,
     excel_absolute_external_formula,
     header_footer_run,
@@ -444,6 +445,75 @@ def test_apply_autofit_columns_covers_five_digit_prices():
     apply_autofit_columns(ws)
     assert ws.column_dimensions["A"].width >= AUTOFIT_MIN_WIDTH
     assert ws.column_dimensions["B"].width >= AUTOFIT_MIN_WIDTH
+    wb.close()
+
+
+def test_apply_center_alignment_preserves_other_styles():
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+
+    wb = Workbook()
+    ws = wb.active
+    ws["A1"] = "Tenors"
+    ws["A1"].fill = PatternFill("solid", fgColor="0B2447")
+    ws["A1"].font = Font(color="FFFFFF", bold=True)
+    ws["B2"] = 16554.09
+    ws["B2"].number_format = NUMBER_FORMAT_2DP
+    apply_center_alignment(ws)
+    assert ws["A1"].alignment.horizontal == "center"
+    assert ws["A1"].alignment.vertical == "center"
+    assert ws["B2"].alignment.horizontal == "center"
+    assert ws["B2"].alignment.vertical == "center"
+    assert ws["A1"].font.bold is True
+    assert "FFFFFF" in str(ws["A1"].font.color.rgb)
+    assert ws["A1"].fill.patternType == "solid"
+    assert "0B2447" in str(ws["A1"].fill.fgColor.rgb)
+    assert ws["B2"].number_format == NUMBER_FORMAT_2DP
+    wb.close()
+
+
+def _is_center_aligned(cell) -> bool:
+    return cell.alignment.horizontal == "center" and cell.alignment.vertical == "center"
+
+
+@pytest.mark.parametrize("engine", ["matplotlib", "xlsxwriter"])
+def test_bbg_snapshot_sheet_is_center_aligned(tmp_path: Path, engine: str):
+    cfg_path = _write_min_config(tmp_path, engine)
+    config = load_config(cfg_path)
+    as_of = date(2026, 8, 19)
+    vba_dir = config.vba_dir(as_of)
+    vba_dir.mkdir(parents=True, exist_ok=True)
+    step2 = vba_dir / "20260819.xlsx"
+    _make_step2(step2)
+    values, formats = _bbg_sample()
+    dest = build_report(
+        config,
+        as_of=as_of,
+        step2_path=step2,
+        bbg_values=values,
+        bbg_formats=formats,
+    )
+    wb = load_workbook(dest)
+    bbg = wb[SHEET_BBG]
+    used = 0
+    for row in bbg.iter_rows():
+        for cell in row:
+            if cell.value is None:
+                continue
+            used += 1
+            assert _is_center_aligned(cell), cell.coordinate
+    assert used >= 10
+    assert bbg["A1"].font.bold is True
+    assert "0.00" in (bbg["B2"].number_format or "")
+
+    raw = wb[SHEET_RAW]
+    assert not _is_center_aligned(raw["A1"])
+    assert not _is_center_aligned(raw["B2"])
+
+    print_ws = wb[SHEET_PRINT]
+    assert print_ws["A8"].value == "CA"
+    assert not _is_center_aligned(print_ws["A8"])
+    assert not _is_center_aligned(print_ws["B8"])
     wb.close()
 
 

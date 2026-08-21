@@ -309,6 +309,14 @@ def apply_autofit_columns(ws: Worksheet, *, padding: int = AUTOFIT_PADDING) -> N
             ws.column_dimensions[letter].width = max(max_len + padding, AUTOFIT_MIN_WIDTH)
 
 
+def apply_center_alignment(ws: Worksheet) -> None:
+    """水平＋垂直置中。必須在該 sheet 資料全部寫入後呼叫，只改 alignment。"""
+    center = Alignment(horizontal="center", vertical="center")
+    for row in ws.iter_rows():
+        for cell in row:
+            cell.alignment = center
+
+
 class _ColWidthAcc:
     """xlsxwriter 無法回讀儲存格，寫入時累計各欄顯示寬度。"""
 
@@ -576,6 +584,7 @@ def _build_with_openpyxl(
     ws_bbg.title = SHEET_BBG
     _write_bbg_sheet_openpyxl(ws_bbg, bbg_values, bbg_formats)
     apply_autofit_columns(ws_bbg)
+    apply_center_alignment(ws_bbg)
     _apply_print_layout_openpyxl(ws_bbg, header=f"{header} · {SHEET_BBG}", tab_color=COLOR_NAVY)
 
     tmp_dir, images = _render_matplotlib_pngs(plot_df, config)
@@ -761,12 +770,20 @@ def _write_bbg_rows_xlsxwriter(
     *,
     start_row: int = 0,
     header_fill_color: str = COLOR_NAVY,
+    center_align: bool = False,
 ) -> int:
+    align = {"align": "center", "valign": "vcenter"} if center_align else {}
     header_fmt = workbook.add_format(
-        {"bold": True, "bg_color": _css(header_fill_color), "font_color": _css(COLOR_WHITE)}
+        {
+            "bold": True,
+            "bg_color": _css(header_fill_color),
+            "font_color": _css(COLOR_WHITE),
+            **align,
+        }
     )
-    date_fmt = workbook.add_format({"num_format": "yyyy-mm-dd"})
-    price_fmt = workbook.add_format({"num_format": NUMBER_FORMAT_2DP})
+    date_fmt = workbook.add_format({"num_format": "yyyy-mm-dd", **align})
+    price_fmt = workbook.add_format({"num_format": NUMBER_FORMAT_2DP, **align})
+    default_fmt = workbook.add_format(align) if center_align else None
     widths = _ColWidthAcc()
     last = start_row - 1
     for r_idx, row in enumerate(values):
@@ -785,6 +802,8 @@ def _write_bbg_rows_xlsxwriter(
                 cell_fmt = price_fmt
             if isinstance(value, date) and not isinstance(value, datetime) and r_idx != 0:
                 value = datetime(value.year, value.month, value.day)
+            if cell_fmt is None:
+                cell_fmt = default_fmt
             ws.write(excel_row, c_idx, value, cell_fmt)
             widths.add(c_idx, value, number_format=num_fmt)
     widths.apply_xlsxwriter(ws)
@@ -801,7 +820,9 @@ def _write_bbg_sheet_xlsxwriter(
     ws = workbook.add_worksheet(SHEET_BBG)
     _apply_print_layout_xlsxwriter(ws, header=f"{header} · {SHEET_BBG}")
     ws.set_tab_color(_css(COLOR_NAVY))
-    _write_bbg_rows_xlsxwriter(ws, workbook, values, formats, start_row=0)
+    _write_bbg_rows_xlsxwriter(
+        ws, workbook, values, formats, start_row=0, center_align=True
+    )
 
 
 def _write_xlsxwriter_charts(
