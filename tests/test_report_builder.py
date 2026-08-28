@@ -161,8 +161,8 @@ def test_build_report_three_sheets(tmp_path: Path, engine: str):
             assert not text.startswith("="), cell.coordinate
             assert ".xlsx" not in text.lower()
     print_ws = wb[SHEET_PRINT]
-    assert "LME每日報價" in str(print_ws["A2"].value)
-    assert "LME Daily Quotation" in str(print_ws["A3"].value)
+    assert "LME每日報價" in str(print_ws["A3"].value)
+    assert "LME Daily Quotation" in str(print_ws["A4"].value)
     assert "第 &P 頁，共 &N 頁" in (print_ws.oddFooter.center.text or "")
     assert "免責聲明" not in (print_ws.oddFooter.left.text or "")
     assert print_ws.page_setup.orientation == "landscape"
@@ -586,9 +586,10 @@ def test_bbg_snapshot_sheet_is_center_aligned(tmp_path: Path, engine: str):
     assert not _is_center_aligned(raw["B2"])
 
     print_ws = wb[SHEET_PRINT]
-    assert print_ws["A8"].value == "CA"
-    assert _is_center_aligned(print_ws["A8"])
-    assert _is_center_aligned(print_ws["B8"])
+    assert print_ws["A8"].value == "Metal"
+    assert print_ws["A9"].value == "CA"
+    assert _is_center_aligned(print_ws["A9"])
+    assert _is_center_aligned(print_ws["B9"])
     wb.close()
 
 
@@ -651,9 +652,9 @@ def test_report_writes_display_rounded_values_and_autofits_columns(tmp_path: Pat
         assert chart_data["B2"].value == 16554.09
 
     print_ws = wb[SHEET_PRINT]
-    assert print_ws["B8"].value == 16554.09
-    assert _is_center_aligned(print_ws["A8"])
-    assert _is_center_aligned(print_ws["B8"])
+    assert print_ws["B9"].value == 16554.09
+    assert _is_center_aligned(print_ws["A9"])
+    assert _is_center_aligned(print_ws["B9"])
     assert print_ws.column_dimensions["B"].width >= AUTOFIT_MIN_WIDTH
     heading = next(
         cell
@@ -670,7 +671,7 @@ def test_report_writes_display_rounded_values_and_autofits_columns(tmp_path: Pat
     assert print_ws.column_dimensions["E"].width >= AUTOFIT_MIN_WIDTH
     sep_width = print_ws.column_dimensions["I"].width
     assert sep_width is None or float(sep_width) <= 15
-    assert print_ws["A6"].alignment.horizontal == "left"
+    assert print_ws["A7"].alignment.horizontal == "left"
     disc = _find_disclaimer_cell(print_ws)
     assert disc is not None
     assert disc.alignment.horizontal == "left"

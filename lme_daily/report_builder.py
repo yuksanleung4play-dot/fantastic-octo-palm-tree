@@ -50,7 +50,7 @@ SHEET_PRINT = "合併版面"
 SHEET_CHART_DATA = "_chart_data"
 PRINT_RAW_SECTION_TITLE = "Prompt date settlement price"
 
-# BBG快照 / 遠期走勢圖 sheet 仍用深藍，避免動到非合併版面頁。
+# BBG快照 / 遠期走勢圖 / 原始數據 sheet 仍用深藍金，避免動到非合併版面頁。
 COLOR_NAVY = "0B2447"
 COLOR_GOLD = "C5A059"
 COLOR_GRAY = "F2F4F7"
@@ -58,12 +58,28 @@ COLOR_LINE = "D6D9DE"
 COLOR_MUTED = "6B7280"
 COLOR_INK = "1F2937"
 COLOR_WHITE = "FFFFFF"
-# 合併版面：山證國際官網暖色（磚紅／橙漸層替代），白底。
-COLOR_BRICK = "A63A2E"
-COLOR_CREAM = "FFF5E8"
-COLOR_ACCENT = "C9683A"  # #B5502C→#F2CDA8 橫向漸層的實色替代
-COLOR_ALERT = "D9291C"
-COLOR_TITLE_DARK = "2B2B2B"
+
+# 合併版面樣式（量測自 Fu-Ben-LMEMei-Ri-Bao-Jia-20260827-2.xlsx，勿另行發明數值）
+COLOR_ACCENT = "B6895F"  # 主色：標題列/區塊標題列/表頭列底色
+COLOR_TEXT_CREAM = "FFF5E8"  # 深色底上的標題文字色
+COLOR_TEXT_WHITE = "FFFFFF"  # 表頭代碼列（C8:H8）文字色
+COLOR_DATE_BG = "F2F4F7"  # 日期資訊列底色
+COLOR_DATE_TEXT = "2B2B2B"  # 日期資訊列文字色
+COLOR_DISCLAIMER_TEXT = "1F2937"  # 免責聲明文字色
+FONT_NAME = "宋体"
+COLUMN_WIDTHS = {"A": 18, "B": 13, "D": 20, "E": 13}
+# C、F、G、H 維持 Excel 預設寬度（約 8.43），不特別設定
+PRINT_LAST_COL = 8  # A:H
+PRINT_CHART_ROW_STRIDE = 13
+PRINT_CHART_WIDTH_EMU = 3683635
+PRINT_CHART_HEIGHT_EMU = 2402205
+EMU_PER_PIXEL = 9525
+PRINT_LOGO_ROW_HEIGHT = 34
+PRINT_TITLE_ROW_HEIGHT = 34
+PRINT_SUBTITLE_ROW_HEIGHT = 16
+PRINT_DATE_ROW_HEIGHT = 18
+PRINT_SPACER_ROW_HEIGHT = 1
+PRINT_SECTION_ROW_HEIGHT = 18
 
 PRINT_FOOTER = "第 &P 頁，共 &N 頁"
 PRINT_DISCLAIMER_FULL = (
@@ -78,8 +94,8 @@ PRINT_DISCLAIMER_FULL = (
     "而引致之損失或損害，本公司概不負責（不論是民事侵權行為責任或合約責任或其他）。"
 )
 DISCLAIMER_FONT_SIZE = 8
-DISCLAIMER_ROW_HEIGHT = 96
-CHART_ROW_STRIDE = 19
+DISCLAIMER_ROW_HEIGHT = 78
+CHART_ROW_STRIDE = 19  # 獨立「遠期走勢圖」sheet；合併版面用 PRINT_CHART_ROW_STRIDE
 PAPERSIZE_A3 = 8
 PAPERSIZE_A4 = 9
 # Excel 頁首/頁尾 ``&nn`` 必須兩位數字。``&8`` 接 ``2026-08-20`` 會變成 ``&82``（82pt）。
@@ -96,6 +112,96 @@ NUMBER_FORMAT_2DP = "#,##0.00"
 AUTOFIT_PADDING = 3
 # 下限：容納 5 位數 + 小數點 + 2 位小數（如 16554.08 / 16,554.08）；不是上限。
 AUTOFIT_MIN_WIDTH = 10
+
+PRINT_BBG_METAL_CODES = ("CA", "AH", "PB", "NI", "SN", "ZS")
+
+
+class MergedLayoutStyle:
+    """合併版面唯一樣式來源。數值量測自手動美化檔，所有 print-sheet 寫入都從這裡讀。"""
+
+    accent = COLOR_ACCENT
+    text_cream = COLOR_TEXT_CREAM
+    text_white = COLOR_TEXT_WHITE
+    date_bg = COLOR_DATE_BG
+    date_text = COLOR_DATE_TEXT
+    disclaimer_text = COLOR_DISCLAIMER_TEXT
+    font_name = FONT_NAME
+    last_col = PRINT_LAST_COL
+    column_widths = COLUMN_WIDTHS
+    chart_row_stride = PRINT_CHART_ROW_STRIDE
+    chart_width_emu = PRINT_CHART_WIDTH_EMU
+    chart_height_emu = PRINT_CHART_HEIGHT_EMU
+    disclaimer_font_size = DISCLAIMER_FONT_SIZE
+    disclaimer_row_height = DISCLAIMER_ROW_HEIGHT
+    row_logo_height = PRINT_LOGO_ROW_HEIGHT
+    row_title_height = PRINT_TITLE_ROW_HEIGHT
+    row_subtitle_height = PRINT_SUBTITLE_ROW_HEIGHT
+    row_date_height = PRINT_DATE_ROW_HEIGHT
+    row_spacer_height = PRINT_SPACER_ROW_HEIGHT
+    row_section_height = PRINT_SECTION_ROW_HEIGHT
+    size_company = 11
+    size_title = 20
+    size_subtitle = 11
+    size_date = 11
+    size_section = 12
+    size_code_header = 11
+    size_body = 11
+    size_disclaimer = DISCLAIMER_FONT_SIZE
+
+    @classmethod
+    def font(cls, *, size: float, bold: bool = False, color: str | None = None) -> Font:
+        kwargs: dict[str, Any] = {"name": cls.font_name, "size": size, "bold": bold}
+        if color:
+            kwargs["color"] = color
+        return Font(**kwargs)
+
+    @classmethod
+    def fill(cls, color: str) -> PatternFill:
+        return PatternFill("solid", fgColor=color)
+
+    @classmethod
+    def thin_border(cls) -> Border:
+        side = Side(style="thin", color=COLOR_LINE)
+        return Border(left=side, right=side, top=side, bottom=side)
+
+    @classmethod
+    def bottom_border(cls) -> Border:
+        side = Side(style="thin", color=COLOR_LINE)
+        return Border(bottom=side)
+
+    @classmethod
+    def center(cls) -> Alignment:
+        return Alignment(horizontal="center", vertical="center")
+
+    @classmethod
+    def last_col_letter(cls) -> str:
+        return get_column_letter(cls.last_col)
+
+    @classmethod
+    def chart_width_px(cls) -> int:
+        return round(cls.chart_width_emu / EMU_PER_PIXEL)
+
+    @classmethod
+    def chart_height_px(cls) -> int:
+        return round(cls.chart_height_emu / EMU_PER_PIXEL)
+
+    @classmethod
+    def apply_column_widths(cls, ws: Worksheet) -> None:
+        for letter, width in cls.column_widths.items():
+            ws.column_dimensions[letter].width = width
+
+    @classmethod
+    def chart_anchors(cls, start_row: int) -> list[str]:
+        anchors: list[str] = []
+        for pair in range(3):
+            row = start_row + pair * cls.chart_row_stride
+            anchors.extend((f"A{row}", f"D{row}"))
+        return anchors
+
+    @classmethod
+    def xw_format(cls, workbook: Any, **extra: Any) -> Any:
+        payload = {"font_name": cls.font_name, **extra}
+        return workbook.add_format(payload)
 
 
 def _css(color: str) -> str:
@@ -351,9 +457,9 @@ def apply_center_alignment(ws: Worksheet, *, skip_merged: bool = True) -> None:
 
 
 def apply_print_data_styles(ws: Worksheet) -> None:
-    """合併版面最後一步：數據區塊自動欄寬 + 置中，複用獨立 sheet 的同一組函式。"""
-    apply_autofit_columns(ws, skip_empty=True)
+    """合併版面最後一步：數據區塊置中；欄寬用定案值，不再 autofit 以免蓋掉 COLUMN_WIDTHS。"""
     apply_center_alignment(ws)
+    MergedLayoutStyle.apply_column_widths(ws)
 
 
 class _ColWidthAcc:
@@ -466,80 +572,107 @@ def _apply_print_layout_openpyxl(
         ws.sheet_properties.tabColor = tab_color
 
 
-def _set_print_area(ws: Worksheet, last_row: int, last_col: int = 18) -> None:
+def _set_print_area(ws: Worksheet, last_row: int, last_col: int = PRINT_LAST_COL) -> None:
     if last_row < 1:
         return
     ws.print_area = f"A1:{get_column_letter(last_col)}{last_row}"
 
 
-def _write_print_disclaimer_openpyxl(ws: Worksheet, *, after_row: int, last_col: int = 18) -> int:
+def _print_fill_range(ws: Worksheet, row: int, last_col: int, fill: PatternFill) -> None:
+    for col in range(1, last_col + 1):
+        ws.cell(row=row, column=col).fill = fill
+
+
+def _find_print_logo() -> Path | None:
+    here = Path(__file__).resolve().parent
+    for candidate in (
+        here / "assets" / "logo.png",
+        here.parent / "assets" / "logo.png",
+        here.parent / "logo.png",
+    ):
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _write_print_disclaimer_openpyxl(
+    ws: Worksheet, *, after_row: int, last_col: int = PRINT_LAST_COL
+) -> int:
     """合併版面最下方：完整兩段免責聲明，自動換行、深灰小字。"""
+    style = MergedLayoutStyle
     row = after_row + 2
     end = get_column_letter(last_col)
     ws.merge_cells(f"A{row}:{end}{row}")
     cell = ws.cell(row=row, column=1, value=PRINT_DISCLAIMER_FULL)
-    cell.font = Font(size=DISCLAIMER_FONT_SIZE, color=COLOR_INK)
+    cell.font = style.font(size=style.size_disclaimer, color=style.disclaimer_text)
     cell.alignment = Alignment(wrap_text=True, vertical="top", horizontal="left")
-    ws.row_dimensions[row].height = DISCLAIMER_ROW_HEIGHT
+    ws.row_dimensions[row].height = style.disclaimer_row_height
     return row
 
 
-def _write_report_banner_openpyxl(ws: Worksheet, as_of: date, *, last_col: int = 18) -> int:
-    """頁首：公司名 + 中英雙語報表標題 + 日期（磚紅底、米白字）。"""
+def _write_report_banner_openpyxl(
+    ws: Worksheet, as_of: date, *, last_col: int = PRINT_LAST_COL
+) -> int:
+    """頁首：公司名 / Logo / 主標題 / 英文副標 / 日期 / 空白分隔列。"""
+    style = MergedLayoutStyle
     end = get_column_letter(last_col)
-    brick = PatternFill("solid", fgColor=COLOR_BRICK)
-    accent = PatternFill("solid", fgColor=COLOR_ACCENT)
-    center = Alignment(horizontal="center", vertical="center")
+    center = style.center()
+    accent = style.fill(style.accent)
+    date_fill = style.fill(style.date_bg)
 
     ws.merge_cells(f"A1:{end}1")
     ws["A1"] = f"{COMPANY_ZH}  /  {COMPANY_EN}"
-    ws["A1"].font = Font(color=COLOR_CREAM, size=11, bold=True)
-    ws["A1"].fill = brick
-    ws["A1"].alignment = center
-    ws.row_dimensions[1].height = 18
+    ws["A1"].font = style.font(size=style.size_company, bold=True)
+    ws["A1"].alignment = Alignment(horizontal="left", vertical="center")
 
     ws.merge_cells(f"A2:{end}2")
-    ws["A2"] = REPORT_TITLE_ZH
-    ws["A2"].font = Font(color=COLOR_CREAM, size=18, bold=True)
-    ws["A2"].fill = brick
-    ws["A2"].alignment = center
-    ws.row_dimensions[2].height = 24
+    ws["A2"].font = style.font(size=style.size_body)
+    ws.row_dimensions[2].height = style.row_logo_height
+    logo = _find_print_logo()
+    if logo is not None:
+        img = XLImage(str(logo))
+        ws.add_image(img, "A2")
 
     ws.merge_cells(f"A3:{end}3")
-    ws["A3"] = REPORT_TITLE_EN
-    ws["A3"].font = Font(color=COLOR_CREAM, size=11)
-    ws["A3"].fill = brick
+    ws["A3"] = REPORT_TITLE_ZH
+    ws["A3"].font = style.font(size=style.size_title, bold=True, color=style.text_cream)
     ws["A3"].alignment = center
-    ws.row_dimensions[3].height = 16
+    _print_fill_range(ws, 3, last_col, accent)
+    ws.row_dimensions[3].height = style.row_title_height
 
     ws.merge_cells(f"A4:{end}4")
-    ws["A4"] = f"報價日期 / As of  {as_of.strftime('%Y-%m-%d')}"
-    ws["A4"].font = Font(color=COLOR_TITLE_DARK, size=11, bold=True)
-    ws["A4"].fill = PatternFill("solid", fgColor=COLOR_GRAY)
+    ws["A4"] = REPORT_TITLE_EN
+    ws["A4"].font = style.font(size=style.size_subtitle, color=style.text_cream)
     ws["A4"].alignment = center
-    ws.row_dimensions[4].height = 18
+    _print_fill_range(ws, 4, last_col, accent)
+    ws.row_dimensions[4].height = style.row_subtitle_height
 
     ws.merge_cells(f"A5:{end}5")
-    ws["A5"].fill = accent
-    ws.row_dimensions[5].height = 4
-    return 6
+    ws["A5"] = f"報價日期 / As of {as_of.strftime('%Y-%m-%d')}"
+    ws["A5"].font = style.font(size=style.size_date, bold=True, color=style.date_text)
+    ws["A5"].alignment = center
+    _print_fill_range(ws, 5, last_col, date_fill)
+    ws.row_dimensions[5].height = style.row_date_height
+
+    ws.row_dimensions[6].height = style.row_spacer_height
+    ws["A6"].font = style.font(size=style.size_body)
+    return 7
 
 
 def _section_heading_openpyxl(
-    ws: Worksheet, row: int, zh: str, en: str | None = None, *, last_col: int = 18
+    ws: Worksheet, row: int, zh: str, en: str | None = None, *, last_col: int = PRINT_LAST_COL
 ) -> int:
+    style = MergedLayoutStyle
     end = get_column_letter(last_col)
-    brick = PatternFill("solid", fgColor=COLOR_BRICK)
+    accent = style.fill(style.accent)
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=last_col)
-    cell = ws.cell(row=row, column=1, value=f"{zh}  /  {en}" if en else zh)
-    cell.font = Font(color=COLOR_CREAM, bold=True, size=12)
-    cell.fill = brick
+    cell = ws.cell(row=row, column=1, value=f"{zh} / {en}" if en else zh)
+    cell.font = style.font(size=style.size_section, bold=True, color=style.text_cream)
     cell.alignment = Alignment(horizontal="left", vertical="center", indent=1)
-    ws.row_dimensions[row].height = 18
-    for col in range(1, last_col + 1):
-        ws.cell(row=row, column=col).fill = brick
-    ws[f"A{row}"].fill = brick
-    ws[f"{end}{row}"].fill = brick
+    ws.row_dimensions[row].height = style.row_section_height
+    _print_fill_range(ws, row, last_col, accent)
+    ws[f"A{row}"].fill = accent
+    ws[f"{end}{row}"].fill = accent
     return row + 1
 
 
@@ -558,6 +691,7 @@ def _place_chart_images(
     *,
     start_row: int,
 ) -> int:
+    """獨立「遠期走勢圖」sheet：2 欄（A / J）× 3 列。"""
     anchors = _chart_image_anchors(start_row)
     for img_path, anchor in zip(images, anchors, strict=True):
         img = XLImage(str(img_path))
@@ -567,6 +701,107 @@ def _place_chart_images(
     ws.column_dimensions["A"].width = max(ws.column_dimensions["A"].width or 0, 18)
     ws.column_dimensions["J"].width = max(ws.column_dimensions["J"].width or 0, 18)
     return start_row + 3 * CHART_ROW_STRIDE
+
+
+def _place_print_chart_images(ws: Worksheet, images: list[Path], *, start_row: int) -> int:
+    """合併版面走勢圖：2 欄（A / D）× 3 列，定案尺寸約 4吋 × 2.6吋。"""
+    style = MergedLayoutStyle
+    width = style.chart_width_px()
+    height = style.chart_height_px()
+    for img_path, anchor in zip(images, style.chart_anchors(start_row), strict=True):
+        img = XLImage(str(img_path))
+        img.width = width
+        img.height = height
+        ws.add_image(img, anchor)
+    return start_row + 3 * style.chart_row_stride
+
+
+def _print_bbg_row_kind(values: tuple[tuple[Any, ...], ...], r_idx: int) -> str:
+    if r_idx == 0:
+        return "code"
+    if not values:
+        return "data"
+    codes = {str(v).strip().upper() for v in values[0][2:8] if v is not None and str(v).strip()}
+    if codes & set(PRINT_BBG_METAL_CODES) and r_idx == 1:
+        return "sub"
+    return "data"
+
+
+def _style_print_bbg_cell(cell: Any, *, kind: str, excel_col: int) -> None:
+    style = MergedLayoutStyle
+    if kind == "code" and excel_col >= 3:
+        cell.fill = style.fill(style.accent)
+        cell.font = style.font(size=style.size_code_header, bold=True, color=style.text_white)
+        cell.alignment = style.center()
+        cell.border = style.thin_border()
+        return
+    if kind == "code":
+        cell.font = style.font(size=style.size_body)
+        return
+    if kind == "sub":
+        cell.font = style.font(size=style.size_body)
+        cell.border = style.bottom_border()
+        cell.alignment = style.center()
+        return
+    cell.font = style.font(size=style.size_body)
+    cell.border = style.thin_border()
+    cell.alignment = style.center()
+
+
+def _write_print_bbg_openpyxl(
+    ws: Worksheet,
+    values: tuple[tuple[Any, ...], ...],
+    formats: tuple[tuple[str, ...], ...],
+    *,
+    start_row: int,
+) -> int:
+    """合併版面 BBG 區塊：沿用既有資料列，套用定案表頭/子表頭/數據列樣式。"""
+    last_row = start_row - 1
+    for r_idx, row in enumerate(values):
+        fmt_row = formats[r_idx] if r_idx < len(formats) else ()
+        excel_row = start_row + r_idx
+        last_row = excel_row
+        kind = _print_bbg_row_kind(values, r_idx)
+        for c_idx, raw in enumerate(row):
+            fmt = fmt_row[c_idx] if c_idx < len(fmt_row) else None
+            value, num_fmt = _prepare_written_value(raw, fmt, is_header=(r_idx == 0))
+            cell = ws.cell(row=excel_row, column=c_idx + 1, value=value)
+            if num_fmt:
+                cell.number_format = num_fmt
+            elif isinstance(value, datetime):
+                cell.number_format = "YYYY-MM-DD"
+            elif isinstance(value, date):
+                cell.number_format = "YYYY-MM-DD"
+            _style_print_bbg_cell(cell, kind=kind, excel_col=c_idx + 1)
+    return last_row
+
+
+def _used_last_col(ws: Worksheet, start_row: int, last_row: int) -> int:
+    last_col = 1
+    for row in ws.iter_rows(min_row=start_row, max_row=max(last_row, start_row)):
+        for cell in row:
+            if cell.value is not None:
+                last_col = max(last_col, cell.column)
+    return last_col
+
+
+def _style_print_raw_block_openpyxl(ws: Worksheet, start_row: int, last_row: int) -> None:
+    """原始數據區塊：子表頭 + 數據列（置中、細框線、宋体 11pt）。"""
+    if last_row < start_row:
+        return
+    style = MergedLayoutStyle
+    last_col = _used_last_col(ws, start_row, last_row)
+    for r in range(start_row, last_row + 1):
+        is_header = r == start_row
+        for c in range(1, last_col + 1):
+            cell = ws.cell(row=r, column=c)
+            if is_header:
+                cell.font = style.font(size=style.size_body)
+                cell.border = style.bottom_border()
+            else:
+                cell.font = style.font(size=style.size_body)
+                cell.border = style.thin_border()
+            cell.alignment = style.center()
 
 
 def _write_print_sheet_openpyxl(
@@ -579,35 +814,39 @@ def _write_print_sheet_openpyxl(
     config: AppConfig,
     chart_images: list[Path],
 ) -> None:
+    del config  # 合併版面圖尺寸用 MergedLayoutStyle，不跟獨立 sheet 的 chart.image_* 走
+    style = MergedLayoutStyle
     ws = wb.create_sheet(SHEET_PRINT)
-    _write_report_banner_openpyxl(ws, as_of)
+    next_row = _write_report_banner_openpyxl(ws, as_of)
     header = f"{REPORT_TITLE_ZH} / {REPORT_TITLE_EN}  {as_of.strftime('%Y-%m-%d')}"
 
-    bbg_heading = 6
-    _section_heading_openpyxl(ws, bbg_heading, SHEET_BBG, "Bloomberg Snapshot")
-    last = _write_bbg_sheet_openpyxl(
-        ws, bbg_values, bbg_formats, start_row=bbg_heading + 1, header_fill_color=COLOR_BRICK
+    _section_heading_openpyxl(ws, next_row, SHEET_BBG, "Bloomberg Snapshot")
+    last = _write_print_bbg_openpyxl(
+        ws, bbg_values, bbg_formats, start_row=next_row + 1
     )
+    if last < next_row + 1:
+        last = next_row
 
     chart_heading = last + 2
     _section_heading_openpyxl(ws, chart_heading, SHEET_CHART, "Forward Curve")
-    after_images = _place_chart_images(ws, chart_images, config, start_row=chart_heading + 2)
+    after_images = _place_print_chart_images(ws, chart_images, start_row=chart_heading + 2)
 
     raw_heading = after_images + 1
     _section_heading_openpyxl(ws, raw_heading, PRINT_RAW_SECTION_TITLE)
     last_raw = _copy_raw_sheet(step2_path, ws, start_row=raw_heading + 1)
+    _style_print_raw_block_openpyxl(ws, raw_heading + 1, last_raw)
 
     disc_row = _write_print_disclaimer_openpyxl(ws, after_row=max(last_raw, after_images))
     _apply_print_layout_openpyxl(
         ws,
         header=header,
-        tab_color=COLOR_ACCENT,
+        tab_color=style.accent,
         paper_size=PAPERSIZE_A3,
-        header_color=COLOR_TITLE_DARK,
+        header_color=style.date_text,
     )
-    _set_print_area(ws, disc_row)
-    ws.oddHeader.left.text = header_footer_run(COLOR_TITLE_DARK, COMPANY_ZH)
-    ws.oddHeader.right.text = header_footer_run(COLOR_TITLE_DARK, as_of.strftime("%Y-%m-%d"))
+    _set_print_area(ws, disc_row, last_col=style.last_col)
+    ws.oddHeader.left.text = header_footer_run(style.date_text, COMPANY_ZH)
+    ws.oddHeader.right.text = header_footer_run(style.date_text, as_of.strftime("%Y-%m-%d"))
     apply_print_data_styles(ws)
 
 
@@ -951,16 +1190,30 @@ def _write_raw_sheet_xlsxwriter(
     center_align: bool = False,
     widths: _ColWidthAcc | None = None,
     apply_widths: bool | None = None,
+    print_style: bool = False,
 ) -> int:
     ws = worksheet or workbook.add_worksheet(SHEET_RAW)
     if worksheet is None:
         _apply_print_layout_xlsxwriter(ws, header=f"{header} · {SHEET_RAW}")
         ws.set_tab_color(_css(COLOR_MUTED))
-    align = {"align": "center", "valign": "vcenter"} if center_align else {}
-    header_fmt = workbook.add_format({"bold": True, **align})
-    date_fmt = workbook.add_format({"num_format": "yyyy-mm-dd", **align})
-    price_fmt = workbook.add_format({"num_format": NUMBER_FORMAT_2DP, **align})
-    default_fmt = workbook.add_format(align) if center_align else None
+    style = MergedLayoutStyle
+    if print_style:
+        base = {
+            "font_name": style.font_name,
+            "font_size": style.size_body,
+            "align": "center",
+            "valign": "vcenter",
+        }
+        header_fmt = workbook.add_format({**base, "bottom": 1})
+        date_fmt = workbook.add_format({**base, "num_format": "yyyy-mm-dd", "border": 1})
+        price_fmt = workbook.add_format({**base, "num_format": NUMBER_FORMAT_2DP, "border": 1})
+        default_fmt = workbook.add_format({**base, "border": 1})
+    else:
+        align = {"align": "center", "valign": "vcenter"} if center_align else {}
+        header_fmt = workbook.add_format({"bold": True, **align})
+        date_fmt = workbook.add_format({"num_format": "yyyy-mm-dd", **align})
+        price_fmt = workbook.add_format({"num_format": NUMBER_FORMAT_2DP, **align})
+        default_fmt = workbook.add_format(align) if center_align else None
     acc = widths if widths is not None else _ColWidthAcc()
     own_sheet = worksheet is None
     if apply_widths is None:
@@ -1028,6 +1281,70 @@ def _write_raw_sheet_xlsxwriter(
     return last
 
 
+def _write_print_bbg_xlsxwriter(
+    ws: Any,
+    workbook: Any,
+    values: tuple[tuple[Any, ...], ...],
+    formats: tuple[tuple[str, ...], ...],
+    *,
+    start_row: int,
+) -> int:
+    style = MergedLayoutStyle
+    body = {
+        "font_name": style.font_name,
+        "font_size": style.size_body,
+        "align": "center",
+        "valign": "vcenter",
+    }
+    code_fmt = style.xw_format(
+        workbook,
+        bold=True,
+        font_size=style.size_code_header,
+        font_color=_css(style.text_white),
+        bg_color=_css(style.accent),
+        align="center",
+        valign="vcenter",
+        border=1,
+    )
+    code_plain = style.xw_format(workbook, font_size=style.size_body)
+    sub_fmt = style.xw_format(workbook, **body, bottom=1)
+    data_fmt = style.xw_format(workbook, **body, border=1)
+    date_fmt = style.xw_format(workbook, **body, border=1, num_format="yyyy-mm-dd")
+    price_fmt = style.xw_format(workbook, **body, border=1, num_format=NUMBER_FORMAT_2DP)
+    last = start_row - 1
+    for r_idx, row in enumerate(values):
+        fmt_row = formats[r_idx] if r_idx < len(formats) else ()
+        excel_row = start_row + r_idx
+        last = excel_row
+        kind = _print_bbg_row_kind(values, r_idx)
+        for c_idx, raw in enumerate(row):
+            fmt = fmt_row[c_idx] if c_idx < len(fmt_row) else None
+            value, num_fmt = _prepare_written_value(raw, fmt, is_header=(r_idx == 0))
+            if kind == "code":
+                cell_fmt = code_fmt if c_idx + 1 >= 3 else code_plain
+            elif kind == "sub":
+                cell_fmt = sub_fmt
+            elif num_fmt == "YYYY-MM-DD":
+                cell_fmt = date_fmt
+                if isinstance(value, date) and not isinstance(value, datetime):
+                    value = datetime(value.year, value.month, value.day)
+            elif num_fmt == NUMBER_FORMAT_2DP:
+                cell_fmt = price_fmt
+            else:
+                cell_fmt = data_fmt
+            if isinstance(value, date) and not isinstance(value, datetime) and kind == "data":
+                value = datetime(value.year, value.month, value.day)
+            ws.write(excel_row, c_idx, value, cell_fmt)
+    return last
+
+
+def _apply_merged_layout_column_widths_xlsxwriter(ws: Any) -> None:
+    letters = {letter: idx for idx, letter in enumerate("ABCDEFGH")}
+    for letter, width in COLUMN_WIDTHS.items():
+        col = letters[letter]
+        ws.set_column(col, col, width)
+
+
 def _write_print_sheet_xlsxwriter(
     workbook: Any,
     *,
@@ -1040,76 +1357,93 @@ def _write_print_sheet_xlsxwriter(
     chart_images: list[Path],
     header: str,
 ) -> None:
+    del config
+    style = MergedLayoutStyle
     ws = workbook.add_worksheet(SHEET_PRINT)
-    brick = workbook.add_format(
-        {
-            "bold": True,
-            "font_color": _css(COLOR_CREAM),
-            "bg_color": _css(COLOR_BRICK),
-            "align": "center",
-            "valign": "vcenter",
-        }
+    last_col = style.last_col - 1
+    company = style.xw_format(
+        workbook, bold=True, font_size=style.size_company, align="left", valign="vcenter"
     )
-    sub = workbook.add_format(
-        {
-            "font_color": _css(COLOR_CREAM),
-            "bg_color": _css(COLOR_BRICK),
-            "align": "center",
-        }
-    )
-    date_fmt = workbook.add_format(
-        {
-            "bold": True,
-            "font_color": _css(COLOR_TITLE_DARK),
-            "bg_color": _css(COLOR_GRAY),
-            "align": "center",
-        }
-    )
-    accent = workbook.add_format({"bg_color": _css(COLOR_ACCENT)})
-    section = workbook.add_format(
-        {
-            "bold": True,
-            "font_color": _css(COLOR_CREAM),
-            "bg_color": _css(COLOR_BRICK),
-            "align": "left",
-        }
-    )
-    last_col = 17
-    print_widths = _ColWidthAcc()
-    ws.merge_range(0, 0, 0, last_col, f"{COMPANY_ZH}  /  {COMPANY_EN}", brick)
-    ws.merge_range(1, 0, 1, last_col, REPORT_TITLE_ZH, brick)
-    ws.merge_range(2, 0, 2, last_col, REPORT_TITLE_EN, sub)
-    ws.merge_range(3, 0, 3, last_col, f"報價日期 / As of  {as_of.strftime('%Y-%m-%d')}", date_fmt)
-    ws.merge_range(4, 0, 4, last_col, "", accent)
-    ws.set_row(1, 22)
-
-    ws.merge_range(5, 0, 5, last_col, f"{SHEET_BBG}  /  Bloomberg Snapshot", section)
-    last = _write_bbg_rows_xlsxwriter(
-        ws,
+    title = style.xw_format(
         workbook,
-        bbg_values,
-        bbg_formats,
-        start_row=6,
-        header_fill_color=COLOR_BRICK,
-        center_align=True,
-        widths=print_widths,
-        apply_widths=False,
+        bold=True,
+        font_size=style.size_title,
+        font_color=_css(style.text_cream),
+        bg_color=_css(style.accent),
+        align="center",
+        valign="vcenter",
     )
+    subtitle = style.xw_format(
+        workbook,
+        font_size=style.size_subtitle,
+        font_color=_css(style.text_cream),
+        bg_color=_css(style.accent),
+        align="center",
+        valign="vcenter",
+    )
+    date_fmt = style.xw_format(
+        workbook,
+        bold=True,
+        font_size=style.size_date,
+        font_color=_css(style.date_text),
+        bg_color=_css(style.date_bg),
+        align="center",
+        valign="vcenter",
+    )
+    blank = style.xw_format(workbook)
+    section = style.xw_format(
+        workbook,
+        bold=True,
+        font_size=style.size_section,
+        font_color=_css(style.text_cream),
+        bg_color=_css(style.accent),
+        align="left",
+        valign="vcenter",
+    )
+
+    ws.merge_range(0, 0, 0, last_col, f"{COMPANY_ZH}  /  {COMPANY_EN}", company)
+    ws.merge_range(1, 0, 1, last_col, "", blank)
+    ws.set_row(1, style.row_logo_height)
+    logo = _find_print_logo()
+    if logo is not None:
+        ws.insert_image(1, 0, str(logo))
+    ws.merge_range(2, 0, 2, last_col, REPORT_TITLE_ZH, title)
+    ws.set_row(2, style.row_title_height)
+    ws.merge_range(3, 0, 3, last_col, REPORT_TITLE_EN, subtitle)
+    ws.set_row(3, style.row_subtitle_height)
+    ws.merge_range(
+        4, 0, 4, last_col, f"報價日期 / As of {as_of.strftime('%Y-%m-%d')}", date_fmt
+    )
+    ws.set_row(4, style.row_date_height)
+    ws.set_row(5, style.row_spacer_height)
+
+    bbg_heading = 6
+    ws.merge_range(bbg_heading, 0, bbg_heading, last_col, f"{SHEET_BBG} / Bloomberg Snapshot", section)
+    ws.set_row(bbg_heading, style.row_section_height)
+    last = _write_print_bbg_xlsxwriter(
+        ws, workbook, bbg_values, bbg_formats, start_row=bbg_heading + 1
+    )
+    if last < bbg_heading + 1:
+        last = bbg_heading
 
     chart_heading = last + 2
-    ws.merge_range(chart_heading, 0, chart_heading, last_col, f"{SHEET_CHART}  /  Forward Curve", section)
+    ws.merge_range(
+        chart_heading, 0, chart_heading, last_col, f"{SHEET_CHART} / Forward Curve", section
+    )
+    ws.set_row(chart_heading, style.row_section_height)
     img_start = chart_heading + 2
     native_w = 6.4 * 120
     native_h = 3.6 * 120
-    x_scale = config.chart.image_width / native_w
-    y_scale = config.chart.image_height / native_h
-    anchors = _chart_image_anchors(img_start + 1)
+    x_scale = style.chart_width_px() / native_w
+    y_scale = style.chart_height_px() / native_h
+    anchors = style.chart_anchors(img_start + 1)
     for img_path, anchor in zip(chart_images, anchors, strict=True):
         ws.insert_image(anchor, str(img_path), {"x_scale": x_scale, "y_scale": y_scale})
-    after_images = img_start + 3 * CHART_ROW_STRIDE
+    after_images = img_start + 3 * style.chart_row_stride
 
-    raw_heading = after_images
+    raw_heading = after_images + 1
     ws.merge_range(raw_heading, 0, raw_heading, last_col, PRINT_RAW_SECTION_TITLE, section)
+    ws.set_row(raw_heading, style.row_section_height)
     last_raw = _write_raw_sheet_xlsxwriter(
         workbook,
         step2_path,
@@ -1118,33 +1452,44 @@ def _write_print_sheet_xlsxwriter(
         worksheet=ws,
         start_row=raw_heading + 1,
         center_align=True,
-        widths=print_widths,
         apply_widths=False,
+        print_style=True,
     )
     disc_row = max(last_raw, after_images) + 2
-    disc_fmt = workbook.add_format(
-        {
-            "font_size": DISCLAIMER_FONT_SIZE,
-            "font_color": _css(COLOR_INK),
-            "text_wrap": True,
-            "valign": "top",
-            "align": "left",
-        }
+    disc_fmt = style.xw_format(
+        workbook,
+        font_size=style.size_disclaimer,
+        font_color=_css(style.disclaimer_text),
+        text_wrap=True,
+        valign="top",
+        align="left",
     )
     ws.merge_range(disc_row, 0, disc_row, last_col, PRINT_DISCLAIMER_FULL, disc_fmt)
-    ws.set_row(disc_row, DISCLAIMER_ROW_HEIGHT)
+    ws.set_row(disc_row, style.disclaimer_row_height)
     _apply_print_layout_xlsxwriter(
-        ws, header=header, paper=PAPERSIZE_A3, header_color=COLOR_TITLE_DARK
+        ws, header=header, paper=PAPERSIZE_A3, header_color=style.date_text
     )
     ws.set_header(
-        f"&L{header_footer_run(COLOR_TITLE_DARK, COMPANY_ZH)}"
-        f"&C{header_footer_run(COLOR_TITLE_DARK, header)}"
-        f"&R{header_footer_run(COLOR_TITLE_DARK, as_of.strftime('%Y-%m-%d'))}"
+        f"&L{header_footer_run(style.date_text, COMPANY_ZH)}"
+        f"&C{header_footer_run(style.date_text, header)}"
+        f"&R{header_footer_run(style.date_text, as_of.strftime('%Y-%m-%d'))}"
     )
     ws.set_footer(f"&C{PRINT_FOOTER}")
-    ws.set_tab_color(_css(COLOR_ACCENT))
+    ws.set_tab_color(_css(style.accent))
     ws.print_area(0, 0, disc_row, last_col)
-    print_widths.apply_xlsxwriter(ws)
+    _apply_merged_layout_column_widths_xlsxwriter(ws)
+
+
+def merged_layout_disclaimer_row(*, bbg_rows: int, raw_rows: int) -> int:
+    """合併版面免責聲明列號（1-based）。bbg_rows / raw_rows 含表頭。"""
+    bbg_heading = 7
+    bbg_end = bbg_heading + bbg_rows
+    chart_heading = bbg_end + 2
+    img_start = chart_heading + 2
+    after_images = img_start + 3 * PRINT_CHART_ROW_STRIDE
+    raw_heading = after_images + 1
+    last_raw = raw_heading + raw_rows
+    return last_raw + 2
 
 
 def dataframe_preview_rows(df: pd.DataFrame, limit: int = 5) -> list[list[Any]]:
