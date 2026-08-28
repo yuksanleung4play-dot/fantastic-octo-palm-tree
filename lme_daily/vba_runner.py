@@ -24,6 +24,8 @@ from lme_daily.excel_com import (
     excel_app,
     is_rpc_disconnected,
     open_workbook,
+    rewrite_workbook_p_drive_to_unc,
+    run_p_drive_visibility_macro,
     wait_for_any_file,
 )
 from lme_daily.exceptions import ExcelComError, MacroOutputError
@@ -192,6 +194,8 @@ def run_reference_macro(
             workbook.Activate()
         except Exception:
             logger.debug("Workbook.Activate 失敗，繼續")
+        run_p_drive_visibility_macro(app, workbook)
+        rewrite_workbook_p_drive_to_unc(workbook)
         try:
             _execute_macro(
                 app,

@@ -129,6 +129,40 @@ def test_excel_app_does_not_wrap_caller_errors(monkeypatch: pytest.MonkeyPatch):
             raise RuntimeError("macro boom")
 
 
+def test_excel_app_logs_reuse_not_new_process(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+):
+    import logging
+
+    app = MagicMock()
+    app.Hwnd = 4242
+    app.Caption = "Microsoft Excel"
+
+    class Client:
+        def GetActiveObject(self, _name: str) -> object:
+            return app
+
+        def DispatchEx(self, _name: str) -> object:
+            raise AssertionError("DispatchEx must not be called")
+
+        def Dispatch(self, _name: str) -> object:
+            raise AssertionError("Dispatch must not be called")
+
+    monkeypatch.setattr(
+        "lme_daily.excel_com.import_win32com",
+        lambda: (Client(), _FakePythoncom()),
+    )
+    app.ExecuteExcel4Macro.side_effect = RuntimeError("P: not mapped")
+    with caplog.at_level(logging.INFO):
+        with excel_app():
+            pass
+    assert "沿用已開啟的 Excel.Application（GetActiveObject）" in caplog.text
+    assert "沒有 Dispatch/DispatchEx fallback" in caplog.text
+    assert "Excel 進程" in caplog.text
+    assert "Hwnd=4242" in caplog.text
+    assert any("看不到 P:" in rec.message for rec in caplog.records)
+
+
 def test_excel_app_rejects_new_instance(monkeypatch: pytest.MonkeyPatch):
     class Client:
         def GetActiveObject(self, _name: str) -> object:

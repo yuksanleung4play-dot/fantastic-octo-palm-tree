@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 import time
 from collections.abc import Iterator
@@ -15,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from lme_daily.exceptions import ExcelComError
+from lme_daily.unc_paths import rewrite_p_drive_to_unc
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +94,8 @@ def excel_app(
             raise
         except Exception as exc:
             raise ExcelComError(f"啟動 Excel 失敗：{exc}") from exc
+        _log_attached_excel_process(app)
+        _probe_p_drive_in_excel(app)
         app.Visible = visible
         app.DisplayAlerts = display_alerts
         try:
@@ -124,8 +128,206 @@ def _acquire_running_excel(win32com_client: Any, *, new_instance: bool) -> Any:
             "並手動打開「LME BBG WORKBOOK.xlsx」後再執行。"
             f" 原始錯誤：{exc}"
         ) from exc
-    logger.info("沿用已開啟的 Excel.Application（GetActiveObject）")
+    logger.info("沿用已開啟的 Excel.Application（GetActiveObject）；沒有 Dispatch/DispatchEx fallback")
     return app
+
+
+def _log_attached_excel_process(app: Any) -> None:
+    """確認腳本連到的是使用者手動開著的那個 Excel 進程。"""
+    caption = "<unknown>"
+    hwnd: int | None = None
+    pid: int | None = None
+    try:
+        caption = str(app.Caption)
+    except Exception as exc:
+        logger.debug("讀取 Excel Caption 失敗：%s", exc)
+    try:
+        hwnd = int(app.Hwnd)
+    except Exception as exc:
+        logger.debug("讀取 Excel Hwnd 失敗：%s", exc)
+    if hwnd is not None:
+        try:
+            import win32process  # type: ignore
+
+            _, pid = win32process.GetWindowThreadProcessId(hwnd)
+        except Exception as exc:
+            logger.debug("GetWindowThreadProcessId 失敗：%s", exc)
+    logger.info(
+        "Excel 進程 PID=%s, Hwnd=%s, Caption=%s；Python PID=%s",
+        pid,
+        hwnd,
+        caption,
+        os.getpid(),
+    )
+
+
+def _probe_p_drive_in_excel(app: Any) -> None:
+    """在 Excel 進程內探測 P:（Excel 4.0 FILES），不依賴自訂 VBA。"""
+    try:
+        result = app.ExecuteExcel4Macro('FILES("P:\\*")')
+    except Exception as exc:
+        logger.warning("這個 Excel 進程似乎看不到 P: 磁碟機：%s", exc)
+        return
+    if not isinstance(result, (str, bool, int, float, type(None))):
+        logger.debug("P: FILES 探測回傳非純量（%s），略過解讀", type(result).__name__)
+        return
+    if result in (False, None, "", 0):
+        logger.warning("這個 Excel 進程似乎看不到 P: 磁碟機：FILES 回傳 %r", result)
+        return
+    logger.info("這個 Excel 進程看得到 P:，FILES 樣本：%s", result)
+
+
+P_DRIVE_TEST_MACRO = "TestPDriveVisible"
+
+
+def run_p_drive_visibility_macro(app: Any, workbook: Any) -> str | None:
+    """執行參考工作簿的 TestPDriveVisible；沒有該函式則略過。"""
+    wb_name = str(getattr(workbook, "Name", "") or "")
+    names: list[str] = []
+    if wb_name:
+        names.append(f"'{wb_name}'!{P_DRIVE_TEST_MACRO}")
+    names.append(P_DRIVE_TEST_MACRO)
+    last_exc: BaseException | None = None
+    for name in names:
+        try:
+            result = app.Run(name)
+            logger.info("P: 磁碟機可見性測試結果：%s", result)
+            return str(result)
+        except Exception as exc:
+            last_exc = exc
+            logger.debug("Run(%s) 失敗：%s", name, exc)
+    logger.warning(
+        "無法執行 TestPDriveVisible（請把 examples/TestPDriveVisible.bas 匯入參考工作簿）。"
+        "最後錯誤：%s",
+        last_exc,
+    )
+    return None
+
+
+def _iter_com_collection(coll: Any) -> Iterator[Any]:
+    try:
+        count = int(coll.Count)
+    except Exception:
+        return
+    for index in range(1, count + 1):
+        try:
+            yield coll.Item(index)
+        except Exception:
+            try:
+                yield coll(index)
+            except Exception:
+                continue
+
+
+def _rewrite_string_attr(obj: Any, attr: str) -> bool:
+    try:
+        current = getattr(obj, attr)
+    except Exception:
+        return False
+    if not isinstance(current, str) or not current:
+        return False
+    updated = rewrite_p_drive_to_unc(current)
+    if updated == current:
+        return False
+    try:
+        setattr(obj, attr, updated)
+    except Exception as exc:
+        logger.warning("無法改寫 %s.%s（%s）", type(obj).__name__, attr, exc)
+        return False
+    logger.info("已把 %s 從 P: 改成 UNC：%s", attr, updated)
+    return True
+
+
+def rewrite_workbook_p_drive_to_unc(workbook: Any) -> int:
+    """把已開啟工作簿的 QueryTable / 連線 / VBA 原始碼裡的 P: 改成 UNC。
+
+    記憶體改寫、不存檔。QueryTables.Refresh 的 1004 多半是 Connection 仍指向 P:。
+    """
+    changed = 0
+    try:
+        sheets = workbook.Worksheets
+    except Exception as exc:
+        logger.debug("無法列舉 Worksheets：%s", exc)
+        sheets = None
+    if sheets is not None:
+        for ws in _iter_com_collection(sheets):
+            for coll_name in ("QueryTables", "ListObjects"):
+                try:
+                    coll = getattr(ws, coll_name)
+                except Exception:
+                    continue
+                for item in _iter_com_collection(coll):
+                    target = item
+                    if coll_name == "ListObjects":
+                        try:
+                            target = item.QueryTable
+                        except Exception:
+                            continue
+                    if _rewrite_string_attr(target, "Connection"):
+                        changed += 1
+                    if _rewrite_string_attr(target, "CommandText"):
+                        changed += 1
+    try:
+        connections = workbook.Connections
+    except Exception:
+        connections = None
+    if connections is not None:
+        for conn in _iter_com_collection(connections):
+            for sub_name in ("OLEDBConnection", "ODBCConnection", "TextConnection"):
+                try:
+                    sub = getattr(conn, sub_name)
+                except Exception:
+                    continue
+                if _rewrite_string_attr(sub, "Connection"):
+                    changed += 1
+                if _rewrite_string_attr(sub, "CommandText"):
+                    changed += 1
+    changed += _rewrite_vba_p_drive_to_unc(workbook)
+    if changed:
+        logger.info("已把參考工作簿內 %d 處 P: 路徑改成 UNC（未存檔）", changed)
+    else:
+        logger.info("參考工作簿未發現可改寫的 P: 路徑（或 VBProject 無法存取）")
+    return changed
+
+
+def _rewrite_vba_p_drive_to_unc(workbook: Any) -> int:
+    try:
+        vbproj = workbook.VBProject
+        components = vbproj.VBComponents
+    except Exception as exc:
+        logger.warning(
+            "無法讀取 VBProject 以改寫 P: 路徑。請在 Excel 啟用"
+            "「信任存取 VBA 專案物件模型」，或手動把 P:\\Dealing Department - New\\"
+            " 全部取代成 \\\\192.168.89.167\\Dealing\\Dealing Department - New\\。"
+            " 錯誤：%s",
+            exc,
+        )
+        return 0
+    changed = 0
+    for comp in _iter_com_collection(components):
+        try:
+            module = comp.CodeModule
+            n_lines = int(module.CountOfLines)
+        except Exception:
+            continue
+        if n_lines <= 0:
+            continue
+        try:
+            original = str(module.Lines(1, n_lines))
+        except Exception:
+            continue
+        updated = rewrite_p_drive_to_unc(original)
+        if updated == original:
+            continue
+        try:
+            module.DeleteLines(1, n_lines)
+            module.AddFromString(updated)
+        except Exception as exc:
+            logger.warning("無法改寫 VBA 模組 %s：%s", getattr(comp, "Name", "?"), exc)
+            continue
+        changed += 1
+        logger.info("已把 VBA 模組 %s 的 P: 路徑改成 UNC", getattr(comp, "Name", "?"))
+    return changed
 
 
 def find_open_workbook(app: Any, path: Path) -> Any | None:

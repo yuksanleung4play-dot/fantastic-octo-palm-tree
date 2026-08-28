@@ -27,6 +27,8 @@ Before running:
      waits bloomberg.refresh_wait_seconds, then reads it and leaves it open.
      Then run the bat. The script attaches to that Excel and does not Quit it.
      It never starts a new Excel process (no DispatchEx).
+     Logs: "reusing Excel.Application (GetActiveObject)" plus PID/Hwnd.
+     QueryTables P:\\ paths are rewritten to UNC before the macro runs.
      It cannot auto-unlock Bloomberg (policy).
      Optional config bloomberg.source:
        excel   = RefreshAll in the reused Excel (default)
