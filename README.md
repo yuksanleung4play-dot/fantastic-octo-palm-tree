@@ -145,7 +145,9 @@ Application.Run("RunDailyLME", 上日日期, 3M date)
 
 巨集完成後必須產生 `yyyymmdd.xlsx`。程式會先在 `working_dir\yyyymmdd\`（`vba_dir`）等檔；若巨集仍寫到 `working_dir` 根目錄，會自動搬進 `vba_dir`。最終報告**不會**把這份中繼檔跟著 `output_dir` 搬走。
 
-Excel 連線只走 `GetActiveObject`（沿用你手動開著的 Excel），**沒有** `Dispatch` / `DispatchEx` 開新進程的 fallback。日誌會寫 `Excel 進程 PID=... Hwnd=... Caption=...` 以及 `P: 磁碟機可見性測試結果`。跑巨集前會把參考工作簿裡 QueryTable / VBA 的 `P:\Dealing Department - New\` 改成 UNC `\\192.168.89.167\Dealing\Dealing Department - New\`（記憶體、不存檔），避免 `QueryTables.Refresh` 1004。請把 `examples/TestPDriveVisible.bas` 匯入參考工作簿，方便對照手動執行與腳本執行是不是同一個 Excel。
+Excel 連線只走 `GetActiveObject`（沿用你手動開著的 Excel），**沒有** `Dispatch` / `DispatchEx` 開新進程的 fallback。日誌會寫 `Excel 進程 PID=... Hwnd=... Caption=...` 以及 `P: 磁碟機可見性測試結果`。
+
+**不要**把 QueryTable 的 `TEXT;P:\...\LME SPAN\lme.yyyymmdd.dat` 改成 UNC。Excel 的 TEXT 連線對 `\\server\share` 常直接 1004「找不到檔案」，即使 Python / 檔案總管都看得到同一個 `.dat`。上一版在跑巨集前把 P: 改成 UNC，就是修改後找不到 dat 的原因。現在預設會把誤改的 UNC **改回 P:**（記憶體、不存檔）。`paths.span_dat_dir` 留空則檢查 `working_dir` 同一層的 `LME SPAN\lme.{上日}.dat`。請把 `examples/TestPDriveVisible.bas` 匯入參考工作簿；**不要**按 `ReplacePDriveWithUnc.bas` 去永久取代 P: 路徑。
 
 ## 報告內容
 

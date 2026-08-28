@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from lme_daily.exceptions import ExcelComError
-from lme_daily.unc_paths import rewrite_p_drive_to_unc
+from lme_daily.unc_paths import rewrite_p_drive_to_unc, rewrite_unc_to_p_drive
 
 logger = logging.getLogger(__name__)
 
@@ -162,19 +162,29 @@ def _log_attached_excel_process(app: Any) -> None:
 
 
 def _probe_p_drive_in_excel(app: Any) -> None:
-    """在 Excel 進程內探測 P:（Excel 4.0 FILES），不依賴自訂 VBA。"""
+    """Excel 4.0 FILES 只是輔助；現代 Excel 常關掉 Excel 4.0 巨集，失敗不代表沒有 P:。
+
+    準確測試請看 ``TestPDriveVisible``（Dir）。GetActiveObject 沿用的就是你 Alt+F8
+    那個 Excel，P: 通常看得到；不要因為 FILES 失敗就把 QueryTable 改成 UNC。
+    """
     try:
         result = app.ExecuteExcel4Macro('FILES("P:\\*")')
     except Exception as exc:
-        logger.warning("這個 Excel 進程似乎看不到 P: 磁碟機：%s", exc)
+        logger.info(
+            "Excel 4.0 FILES 探測失敗（此 API 常被安全性關掉，不代表 P: 真的看不到）：%s",
+            exc,
+        )
         return
     if not isinstance(result, (str, bool, int, float, type(None))):
         logger.debug("P: FILES 探測回傳非純量（%s），略過解讀", type(result).__name__)
         return
     if result in (False, None, "", 0):
-        logger.warning("這個 Excel 進程似乎看不到 P: 磁碟機：FILES 回傳 %r", result)
+        logger.info(
+            "Excel 4.0 FILES 回傳 %r（不代表 P: 看不到；請看 TestPDriveVisible）",
+            result,
+        )
         return
-    logger.info("這個 Excel 進程看得到 P:，FILES 樣本：%s", result)
+    logger.info("Excel 4.0 FILES 看得到 P:，樣本：%s", result)
 
 
 P_DRIVE_TEST_MACRO = "TestPDriveVisible"
@@ -219,14 +229,17 @@ def _iter_com_collection(coll: Any) -> Iterator[Any]:
                 continue
 
 
-def _rewrite_string_attr(obj: Any, attr: str) -> bool:
+_QT_PATH_ATTRS = ("Connection", "CommandText", "TextFileName")
+
+
+def _rewrite_string_attr(obj: Any, attr: str, transform, *, from_label: str, to_label: str) -> bool:
     try:
         current = getattr(obj, attr)
     except Exception:
         return False
     if not isinstance(current, str) or not current:
         return False
-    updated = rewrite_p_drive_to_unc(current)
+    updated = transform(current)
     if updated == current:
         return False
     try:
@@ -234,16 +247,11 @@ def _rewrite_string_attr(obj: Any, attr: str) -> bool:
     except Exception as exc:
         logger.warning("無法改寫 %s.%s（%s）", type(obj).__name__, attr, exc)
         return False
-    logger.info("已把 %s 從 P: 改成 UNC：%s", attr, updated)
+    logger.info("已把 %s 從 %s 改成 %s：%s", attr, from_label, to_label, updated)
     return True
 
 
-def rewrite_workbook_p_drive_to_unc(workbook: Any) -> int:
-    """把已開啟工作簿的 QueryTable / 連線 / VBA 原始碼裡的 P: 改成 UNC。
-
-    記憶體改寫、不存檔。QueryTables.Refresh 的 1004 多半是 Connection 仍指向 P:。
-    """
-    changed = 0
+def _iter_query_targets(workbook: Any) -> Iterator[Any]:
     try:
         sheets = workbook.Worksheets
     except Exception as exc:
@@ -263,43 +271,105 @@ def rewrite_workbook_p_drive_to_unc(workbook: Any) -> int:
                             target = item.QueryTable
                         except Exception:
                             continue
-                    if _rewrite_string_attr(target, "Connection"):
-                        changed += 1
-                    if _rewrite_string_attr(target, "CommandText"):
-                        changed += 1
+                    yield target
     try:
         connections = workbook.Connections
     except Exception:
-        connections = None
-    if connections is not None:
-        for conn in _iter_com_collection(connections):
-            for sub_name in ("OLEDBConnection", "ODBCConnection", "TextConnection"):
-                try:
-                    sub = getattr(conn, sub_name)
-                except Exception:
-                    continue
-                if _rewrite_string_attr(sub, "Connection"):
-                    changed += 1
-                if _rewrite_string_attr(sub, "CommandText"):
-                    changed += 1
-    changed += _rewrite_vba_p_drive_to_unc(workbook)
+        return
+    for conn in _iter_com_collection(connections):
+        for sub_name in ("OLEDBConnection", "ODBCConnection", "TextConnection"):
+            try:
+                yield getattr(conn, sub_name)
+            except Exception:
+                continue
+
+
+def log_workbook_query_paths(workbook: Any) -> list[str]:
+    """跑巨集前把 QueryTable / 連線路徑打到 log，方便對照 1004 找不到 dat。"""
+    logged: list[str] = []
+    for target in _iter_query_targets(workbook):
+        for attr in _QT_PATH_ATTRS:
+            try:
+                value = getattr(target, attr)
+            except Exception:
+                continue
+            if isinstance(value, str) and value:
+                line = f"{type(target).__name__}.{attr}={value}"
+                logged.append(line)
+                logger.info("Query 路徑 %s", line)
+    if not logged:
+        logger.info("工作簿目前沒有可讀的 QueryTable Connection / TextFileName")
+    return logged
+
+
+def apply_path_transform_to_workbook(
+    workbook: Any,
+    transform,
+    *,
+    from_label: str,
+    to_label: str,
+) -> int:
+    """記憶體改寫 QueryTable / 連線 / VBA，不存檔。"""
+    changed = 0
+    for target in _iter_query_targets(workbook):
+        for attr in _QT_PATH_ATTRS:
+            if _rewrite_string_attr(
+                target, attr, transform, from_label=from_label, to_label=to_label
+            ):
+                changed += 1
+    changed += _rewrite_vba_paths(
+        workbook, transform, from_label=from_label, to_label=to_label
+    )
     if changed:
-        logger.info("已把參考工作簿內 %d 處 P: 路徑改成 UNC（未存檔）", changed)
+        logger.info(
+            "已把參考工作簿內 %d 處路徑從 %s 改成 %s（未存檔）",
+            changed,
+            from_label,
+            to_label,
+        )
     else:
-        logger.info("參考工作簿未發現可改寫的 P: 路徑（或 VBProject 無法存取）")
+        logger.info(
+            "參考工作簿未發現可從 %s 改成 %s 的路徑（或 VBProject 無法存取）",
+            from_label,
+            to_label,
+        )
     return changed
 
 
-def _rewrite_vba_p_drive_to_unc(workbook: Any) -> int:
+def rewrite_workbook_p_drive_to_unc(workbook: Any) -> int:
+    """可選：把 P: 改成 UNC。TEXT QueryTable 對 UNC 常 1004，預設不要用。"""
+    logger.warning(
+        "正在把 QueryTable/VBA 的 P: 改成 UNC。Excel TEXT 連線對 UNC 常回報找不到 .dat；"
+        "若巨集 1004，請把 vba.rewrite_p_drive_to_unc 改回 false。"
+    )
+    return apply_path_transform_to_workbook(
+        workbook,
+        rewrite_p_drive_to_unc,
+        from_label="P:",
+        to_label="UNC",
+    )
+
+
+def rewrite_workbook_unc_to_p_drive(workbook: Any) -> int:
+    """把上一版改成 UNC 的 TEXT 連線改回 P:，讓 QueryTables.Refresh 找得到 .dat。"""
+    return apply_path_transform_to_workbook(
+        workbook,
+        rewrite_unc_to_p_drive,
+        from_label="UNC",
+        to_label="P:",
+    )
+
+
+def _rewrite_vba_paths(workbook: Any, transform, *, from_label: str, to_label: str) -> int:
     try:
         vbproj = workbook.VBProject
         components = vbproj.VBComponents
     except Exception as exc:
         logger.warning(
-            "無法讀取 VBProject 以改寫 P: 路徑。請在 Excel 啟用"
-            "「信任存取 VBA 專案物件模型」，或手動把 P:\\Dealing Department - New\\"
-            " 全部取代成 \\\\192.168.89.167\\Dealing\\Dealing Department - New\\。"
-            " 錯誤：%s",
+            "無法讀取 VBProject 以改寫路徑（%s → %s）。請在 Excel 啟用"
+            "「信任存取 VBA 專案物件模型」。錯誤：%s",
+            from_label,
+            to_label,
             exc,
         )
         return 0
@@ -316,7 +386,7 @@ def _rewrite_vba_p_drive_to_unc(workbook: Any) -> int:
             original = str(module.Lines(1, n_lines))
         except Exception:
             continue
-        updated = rewrite_p_drive_to_unc(original)
+        updated = transform(original)
         if updated == original:
             continue
         try:
@@ -326,7 +396,12 @@ def _rewrite_vba_p_drive_to_unc(workbook: Any) -> int:
             logger.warning("無法改寫 VBA 模組 %s：%s", getattr(comp, "Name", "?"), exc)
             continue
         changed += 1
-        logger.info("已把 VBA 模組 %s 的 P: 路徑改成 UNC", getattr(comp, "Name", "?"))
+        logger.info(
+            "已把 VBA 模組 %s 的路徑從 %s 改成 %s",
+            getattr(comp, "Name", "?"),
+            from_label,
+            to_label,
+        )
     return changed
 
 

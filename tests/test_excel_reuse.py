@@ -160,7 +160,7 @@ def test_excel_app_logs_reuse_not_new_process(
     assert "沒有 Dispatch/DispatchEx fallback" in caplog.text
     assert "Excel 進程" in caplog.text
     assert "Hwnd=4242" in caplog.text
-    assert any("看不到 P:" in rec.message for rec in caplog.records)
+    assert "Excel 4.0 FILES 探測失敗" in caplog.text
 
 
 def test_excel_app_rejects_new_instance(monkeypatch: pytest.MonkeyPatch):
@@ -273,3 +273,63 @@ def test_run_reference_macro_survives_disconnected_workbook(
     assert ready == dest
     with pytest.raises(FakeComError):
         _ = wb.Name
+
+
+def test_run_reference_macro_restores_unc_to_p_by_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    from lme_daily.config import load_config
+
+    cfg = _write_config(tmp_path)
+    config = load_config(cfg)
+    as_of = date(2026, 8, 20)
+    dest = config.step2_workbook_path(as_of)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(b"curve")
+    called = {"unc_to_p": 0, "p_to_unc": 0}
+
+    @contextmanager
+    def fake_excel_app(**_kwargs: object):
+        yield MagicMock()
+
+    monkeypatch.setattr("lme_daily.vba_runner.excel_app", fake_excel_app)
+    monkeypatch.setattr("lme_daily.vba_runner.open_workbook", lambda *_a, **_k: (MagicMock(), True))
+    monkeypatch.setattr("lme_daily.vba_runner._execute_macro", lambda *_a, **_k: None)
+    monkeypatch.setattr("lme_daily.vba_runner.wait_for_any_file", lambda *_a, **_k: dest)
+    monkeypatch.setattr(
+        "lme_daily.vba_runner.rewrite_workbook_unc_to_p_drive",
+        lambda _wb: called.__setitem__("unc_to_p", called["unc_to_p"] + 1) or 1,
+    )
+    monkeypatch.setattr(
+        "lme_daily.vba_runner.rewrite_workbook_p_drive_to_unc",
+        lambda _wb: called.__setitem__("p_to_unc", called["p_to_unc"] + 1) or 1,
+    )
+
+    run_reference_macro(config, as_of=as_of, prev_date="2026/08/19", three_m_date="2026/11/20")
+    assert called["unc_to_p"] == 1
+    assert called["p_to_unc"] == 0
+
+
+def test_preflight_span_dat_raises_when_folder_exists_but_file_missing(tmp_path: Path):
+    from lme_daily.config import load_config
+    from lme_daily.vba_runner import preflight_span_dat
+
+    cfg = _write_config(tmp_path)
+    config = load_config(cfg)
+    config.span_dat_dir().mkdir(parents=True)
+    with pytest.raises(ExcelComError, match="lme.yyyymmdd.dat"):
+        preflight_span_dat(config, as_of=date(2026, 8, 28), prev_ymd="20260827")
+
+
+def test_preflight_span_dat_accepts_prev_file(tmp_path: Path):
+    from lme_daily.config import load_config
+    from lme_daily.vba_runner import preflight_span_dat
+
+    cfg = _write_config(tmp_path)
+    config = load_config(cfg)
+    span = config.span_dat_dir()
+    span.mkdir(parents=True)
+    dat = span / "lme.20260827.dat"
+    dat.write_bytes(b"span-data")
+    found = preflight_span_dat(config, as_of=date(2026, 8, 28), prev_ymd="20260827")
+    assert found == dat

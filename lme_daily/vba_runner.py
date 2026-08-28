@@ -23,12 +23,18 @@ from lme_daily.dates import calc_lme_dates
 from lme_daily.excel_com import (
     excel_app,
     is_rpc_disconnected,
+    log_workbook_query_paths,
     open_workbook,
     rewrite_workbook_p_drive_to_unc,
+    rewrite_workbook_unc_to_p_drive,
     run_p_drive_visibility_macro,
     wait_for_any_file,
 )
 from lme_daily.exceptions import ExcelComError, MacroOutputError
+from lme_daily.unc_paths import (
+    span_dat_candidates,
+    working_dir_has_padded_numbered_folders,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +124,62 @@ def relocate_step2_workbook(found: Path, dest: Path) -> Path:
         return dest
 
 
+def preflight_span_dat(config: AppConfig, *, as_of: date, prev_ymd: str) -> Path | None:
+    """確認 LME SPAN ``lme.yyyymmdd.dat`` 在 Python 端看得到，避免 Excel 1004 才發現。
+
+    巨集 QueryTables.Refresh 用上日（InputBox yyyymmdd）組檔名；也檢查執行日檔名。
+    目錄不存在只警告（資料夾名可能不同）；目錄在但檔都不在則中斷。
+    """
+    span_dir = config.span_dat_dir()
+    candidates = span_dat_candidates(span_dir, (prev_ymd, as_of.strftime("%Y%m%d")))
+    logger.info("LME SPAN 目錄：%s", span_dir)
+    try:
+        dir_ok = span_dir.is_dir()
+    except OSError as exc:
+        logger.warning("無法存取 LME SPAN 目錄 %s：%s", span_dir, exc)
+        return None
+    if not dir_ok:
+        logger.warning(
+            "找不到 LME SPAN 目錄 %s。巨集 Refresh 仍會去找 lme.yyyymmdd.dat。"
+            "請確認路徑，或在 config.yaml 設 paths.span_dat_dir。",
+            span_dir,
+        )
+        return None
+
+    found: list[Path] = []
+    for path in candidates:
+        try:
+            exists = path.is_file() and path.stat().st_size > 0
+        except OSError:
+            exists = False
+        if exists:
+            found.append(path)
+            logger.info("找到 SPAN dat：%s（%d bytes）", path, path.stat().st_size)
+        else:
+            logger.warning("SPAN dat 不存在：%s", path)
+
+    if not found:
+        listed = " ； ".join(str(p) for p in candidates)
+        raise ExcelComError(
+            "VBA QueryTables.Refresh 會讀 LME SPAN 的 lme.yyyymmdd.dat，但檔案不在。"
+            f"已檢查：{listed}。"
+            "請把當日/上日 dat 放到該資料夾，或設定 paths.span_dat_dir。"
+        )
+
+    primary = span_dir / f"lme.{prev_ymd}.dat"
+    if primary not in found:
+        logger.warning(
+            "上日 %s 的 dat 不在，但找到了其他日期。巨集若用上日檔名仍會 1004。",
+            prev_ymd,
+        )
+    else:
+        logger.info(
+            "SPAN dat 在 Python 端看得到。若 Excel 仍說找不到，是 QueryTable 路徑格式"
+            "（TEXT;UNC 常 1004；請維持 TEXT;P:\\...），不是檔案真的不在。"
+        )
+    return found[0]
+
+
 def resolve_existing_step2(config: AppConfig, as_of: date) -> Path | None:
     for path in step2_search_paths(config, as_of):
         try:
@@ -180,6 +242,13 @@ def run_reference_macro(
         ibox_three,
     )
     logger.info("VBA 中繼檔預期位置（vba_dir）：%s", expected)
+    logger.info("working_dir repr=%r", str(config.paths.working_dir))
+    if working_dir_has_padded_numbered_folders(config.paths.working_dir):
+        logger.warning(
+            "working_dir 在「數字.」後面有多個空白（例如 1.      交易部）。"
+            "若實際資料夾是「1. 交易部…」只有一個空白，LME SPAN 會找錯目錄。"
+            "請對照檔案總管路徑，不要為了對齊註解而補空白。"
+        )
 
     ready = expected
     with excel_app(
@@ -195,7 +264,15 @@ def run_reference_macro(
         except Exception:
             logger.debug("Workbook.Activate 失敗，繼續")
         run_p_drive_visibility_macro(app, workbook)
-        rewrite_workbook_p_drive_to_unc(workbook)
+        log_workbook_query_paths(workbook)
+        preflight_span_dat(config, as_of=as_of, prev_ymd=ibox_prev)
+        if config.vba.rewrite_p_drive_to_unc:
+            rewrite_workbook_p_drive_to_unc(workbook)
+        else:
+            # 上一版把 TEXT;P:\... 改成 UNC，Excel QueryTables.Refresh 會 1004 找不到 dat。
+            # 預設改回 P:（記憶體、不存檔）。巨集若執行期再組 P: 路徑，維持原樣即可。
+            rewrite_workbook_unc_to_p_drive(workbook)
+        log_workbook_query_paths(workbook)
         try:
             _execute_macro(
                 app,

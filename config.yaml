@@ -5,6 +5,7 @@ paths:
   # Windows 路徑請用單引號（雙引號裡 \Dealing 會被 YAML 當成非法跳脫）
   # UNC 範例：working_dir: '\\192.168.89.167\Dealing\資料夾'
   working_dir: '\\192.168.89.167\Dealing\Dealing Department - New\1. 交易部日常工作分類\2. 期貨\LME --Form & Sheet' # 來源工作簿 + VBA 中繼檔
+  # 「1.」「2.」後面只留一個空白，不要為了對齊註解補空格，否則 LME SPAN 會找錯目錄
   ref_workbook_name: "早班_LME_reference_2024.xlsm" # 含 VBA 巨集（.xlsm / .xlsb）
   bbg_workbook_name: "LME BBG WORKBOOK.xlsx"
   output_prefix: "LME每日報價"
@@ -12,6 +13,8 @@ paths:
   # 最終報告只有 LME每日報價yyyymmdd.xlsx（不匯出 PDF）
   # VBA 中繼檔 yyyymmdd.xlsx 永遠在 working_dir\yyyymmdd\，不受此欄影響
   output_dir: ''
+  # LME SPAN 的 lme.yyyymmdd.dat（巨集 QueryTables.Refresh 會讀）。留空 = working_dir 同一層的「LME SPAN」
+  span_dat_dir: ''
   # 公休日清單檔（相對於本 config 所在目錄；也可填絕對路徑）
   holidays_file: "holidays.yaml"
 
@@ -31,6 +34,8 @@ vba:
   inputbox_timeout_seconds: 60
   # true = 巨集會自己關閉 reference 工作簿；Python 不要再 Close（避免 RPC_E_DISCONNECTED）
   auto_closes_workbook: true
+  # TEXT QueryTable 對 UNC 常 1004 找不到 .dat；請維持 P:\ 路徑。true = 上一版行為（不建議）
+  rewrite_p_drive_to_unc: false
 
 excel:
   visible: true # true 方便除錯；排程時可改 false

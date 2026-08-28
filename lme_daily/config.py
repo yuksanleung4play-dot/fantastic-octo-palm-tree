@@ -26,6 +26,7 @@ class PathsConfig:
     bbg_workbook: Path
     output_prefix: str
     holidays_file: Path | None
+    span_dat_dir: Path | None
 
     @property
     def bbg_workbook_name(self) -> str:
@@ -42,6 +43,7 @@ class VbaConfig:
     poll_interval_seconds: float
     inputbox_timeout_seconds: float
     auto_closes_workbook: bool
+    rewrite_p_drive_to_unc: bool
 
 
 @dataclass(frozen=True)
@@ -131,6 +133,14 @@ class AppConfig:
     def run_log_path(self, as_of: date) -> Path:
         return self.run_dir(as_of) / "lme_daily.log"
 
+    def span_dat_dir(self) -> Path:
+        """LME SPAN ``lme.yyyymmdd.dat`` 目錄；未設定則為 working_dir 同一層的 ``LME SPAN``。"""
+        from lme_daily.unc_paths import default_span_dat_dir
+
+        if self.paths.span_dat_dir is not None:
+            return self.paths.span_dat_dir
+        return default_span_dat_dir(self.paths.working_dir)
+
 
 def discover_config_path(explicit: str | Path | None = None) -> Path:
     """尋找 config.yaml。
@@ -196,6 +206,7 @@ _YAML_PATH_KEYS = (
     "bbg_workbook_name",
     "file",
     "logo_path",
+    "span_dat_dir",
 )
 
 
@@ -370,6 +381,11 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         base=working_dir,
         context="paths.output_dir",
     )
+    span_dat_dir = _finalize_optional_dir(
+        paths_raw.get("span_dat_dir"),
+        base=working_dir,
+        context="paths.span_dat_dir",
+    )
 
     logo_path: Path | None = None
     logo_value = branding_raw.get("logo_path")
@@ -390,6 +406,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         bbg_workbook=working_dir / bbg_name,
         output_prefix=output_prefix,
         holidays_file=holidays_file,
+        span_dat_dir=span_dat_dir,
     )
 
     engine = str(_get(chart_raw, "engine", context="chart", default="matplotlib")).strip().lower()
@@ -424,6 +441,15 @@ def load_config(path: str | Path | None = None) -> AppConfig:
             auto_closes_workbook=_as_bool(
                 _get(vba_raw, "auto_closes_workbook", context="vba", default=True),
                 "vba.auto_closes_workbook",
+            ),
+            rewrite_p_drive_to_unc=_as_bool(
+                _get(
+                    vba_raw,
+                    "rewrite_p_drive_to_unc",
+                    context="vba",
+                    default=False,
+                ),
+                "vba.rewrite_p_drive_to_unc",
             ),
         ),
         excel=ExcelUiConfig(

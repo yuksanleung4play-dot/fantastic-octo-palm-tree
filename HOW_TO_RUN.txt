@@ -28,7 +28,10 @@ Before running:
      Then run the bat. The script attaches to that Excel and does not Quit it.
      It never starts a new Excel process (no DispatchEx).
      Logs: "reusing Excel.Application (GetActiveObject)" plus PID/Hwnd.
-     QueryTables P:\\ paths are rewritten to UNC before the macro runs.
+     QueryTables must keep TEXT;P:\\... drive-letter paths. Rewriting them
+     to UNC makes Excel Refresh fail with 1004 (cannot find lme.yyyymmdd.dat)
+     even when the file exists. The script now restores UNC connections
+     back to P: and checks that LME SPAN\\lme.yyyymmdd.dat exists first.
      It cannot auto-unlock Bloomberg (policy).
      Optional config bloomberg.source:
        excel   = RefreshAll in the reused Excel (default)

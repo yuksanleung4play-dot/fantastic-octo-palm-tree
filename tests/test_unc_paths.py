@@ -10,11 +10,20 @@ import pytest
 
 from lme_daily.excel_com import (
     _acquire_running_excel,
+    log_workbook_query_paths,
     rewrite_workbook_p_drive_to_unc,
+    rewrite_workbook_unc_to_p_drive,
     run_p_drive_visibility_macro,
 )
 from lme_daily.exceptions import ExcelComError
-from lme_daily.unc_paths import P_DRIVE_UNC_ROOT, rewrite_p_drive_to_unc
+from lme_daily.unc_paths import (
+    P_DRIVE_UNC_ROOT,
+    default_span_dat_dir,
+    rewrite_p_drive_to_unc,
+    rewrite_unc_to_p_drive,
+    span_dat_candidates,
+    working_dir_has_padded_numbered_folders,
+)
 
 
 def test_rewrite_p_drive_to_unc_span_dat():
@@ -55,6 +64,7 @@ class _QueryTable:
     def __init__(self, connection: str) -> None:
         self.Connection = connection
         self.CommandText = ""
+        self.TextFileName = ""
 
 
 class _Sheet:
@@ -129,3 +139,59 @@ def test_excel_com_source_has_no_dispatch_call():
     assert "win32com_client.Dispatch" not in src
     assert ".DispatchEx(" not in src
     assert ".Dispatch(" not in src
+
+
+def test_rewrite_unc_to_p_drive_inverts_span_dat():
+    src = r"TEXT;P:\Dealing Department - New\1. 交易部日常工作分類\2. 期貨\LME SPAN\lme.20260827.dat"
+    unc = rewrite_p_drive_to_unc(src)
+    back = rewrite_unc_to_p_drive(unc)
+    assert back == src
+    assert rewrite_unc_to_p_drive(src) == src
+
+
+def test_rewrite_unc_forward_slash_root():
+    src = "//192.168.89.167/Dealing/Dealing Department - New/LME SPAN/lme.dat"
+    out = rewrite_unc_to_p_drive(src)
+    assert out.startswith("P:")
+    assert "192.168.89.167" not in out
+
+
+def test_rewrite_workbook_restores_unc_connection_to_p_drive():
+    qt = _QueryTable(
+        "TEXT;" + P_DRIVE_UNC_ROOT + r"\Dealing Department - New\LME SPAN\lme.20260827.dat"
+    )
+    qt.TextFileName = P_DRIVE_UNC_ROOT + r"\Dealing Department - New\LME SPAN\lme.20260827.dat"
+    changed = rewrite_workbook_unc_to_p_drive(_Workbook(qt))
+    assert changed >= 1
+    assert qt.Connection.startswith("TEXT;P:\\")
+    assert qt.Connection.startswith("TEXT;P:")
+    assert P_DRIVE_UNC_ROOT not in qt.Connection
+    assert qt.TextFileName.startswith("P:")
+
+
+def test_log_workbook_query_paths_includes_connection():
+    qt = _QueryTable(r"TEXT;P:\LME SPAN\lme.20260827.dat")
+    lines = log_workbook_query_paths(_Workbook(qt))
+    assert any("TEXT;P:\\LME SPAN\\lme.20260827.dat" in line for line in lines)
+
+
+def test_default_span_dat_dir_is_sibling_of_form_sheet():
+    work = Path(r"\\192.168.89.167\Dealing\Dealing Department - New\1. 交易部日常工作分類\2. 期貨\LME --Form & Sheet")
+    assert default_span_dat_dir(work) == work.parent / "LME SPAN"
+
+
+def test_span_dat_candidates_prev_then_as_of():
+    span = Path("/tmp/LME SPAN")
+    paths = span_dat_candidates(span, ("20260827", "20260828", "20260827"))
+    assert [p.name for p in paths] == ["lme.20260827.dat", "lme.20260828.dat"]
+
+
+def test_padded_numbered_folder_detection():
+    padded = Path(
+        r"\\192.168.89.167\Dealing\Dealing Department - New\1.      交易部日常工作分類\2.     期貨\LME --Form & Sheet"
+    )
+    normal = Path(
+        r"\\192.168.89.167\Dealing\Dealing Department - New\1. 交易部日常工作分類\2. 期貨\LME --Form & Sheet"
+    )
+    assert working_dir_has_padded_numbered_folders(padded) is True
+    assert working_dir_has_padded_numbered_folders(normal) is False

@@ -54,6 +54,9 @@ def test_load_config_combines_paths(tmp_path: Path):
     assert config.excel.reuse_running is True
     assert config.excel.quit_on_exit is False
     assert config.vba.auto_closes_workbook is True
+    assert config.vba.rewrite_p_drive_to_unc is False
+    assert config.paths.span_dat_dir is None
+    assert config.span_dat_dir() == config.paths.working_dir.parent / "LME SPAN"
     assert config.bloomberg.source == "excel"
     assert config.bloomberg.prompt_date_cell == "B4"
     assert config.chart.forward_months == 27
@@ -187,3 +190,51 @@ def test_branding_logo_path_optional_and_relative(tmp_path: Path):
     config = load_config(cfg_missing)
     assert config.branding.logo_path == missing.resolve()
     assert not config.branding.logo_path.is_file()
+
+
+def test_span_dat_dir_override_and_rewrite_flag(tmp_path: Path):
+    (tmp_path / "work").mkdir()
+    span = tmp_path / "custom-span"
+    cfg = _write_config(
+        tmp_path,
+        paths={"span_dat_dir": str(span)},
+        vba={"macro_name": "lme_main", "use_param_injection": True, "rewrite_p_drive_to_unc": True},
+    )
+    config = load_config(cfg)
+    assert config.paths.span_dat_dir == span.resolve()
+    assert config.span_dat_dir() == span.resolve()
+    assert config.vba.rewrite_p_drive_to_unc is True
+
+
+def test_working_dir_preserves_padded_spaces(tmp_path: Path):
+    """Uploaded config had extra spaces after 1. / 2.; YAML must not collapse them."""
+    work = tmp_path / "1.      交易部日常工作分類" / "2.     期貨" / "LME --Form & Sheet"
+    work.mkdir(parents=True)
+    body = "\n".join(
+        [
+            "paths:",
+            f"  working_dir: '{work}'",
+            "  ref_workbook_name: ref.xlsm",
+            "  bbg_workbook_name: bbg.xlsx",
+            "  output_prefix: LME每日報價",
+            "vba:",
+            "  macro_name: lme_main",
+            "  use_param_injection: true",
+            "bloomberg:",
+            "  copy_range: B3:I10",
+            "  bbg_sheet_name: Promt date",
+            "  refresh_wait_seconds: 1",
+            "chart:",
+            "  forward_months: 27",
+            "  engine: matplotlib",
+            "logging:",
+            '  level: INFO',
+            '  file: ""',
+        ]
+    )
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text(body + "\n", encoding="utf-8")
+    config = load_config(cfg)
+    assert "1.      交易部日常工作分類" in str(config.paths.working_dir)
+    assert "2.     期貨" in str(config.paths.working_dir)
+    assert config.span_dat_dir() == config.paths.working_dir.parent / "LME SPAN"
