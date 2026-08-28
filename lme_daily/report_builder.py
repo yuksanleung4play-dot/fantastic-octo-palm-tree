@@ -22,8 +22,16 @@ from dateutil.relativedelta import relativedelta
 from openpyxl import Workbook, load_workbook
 from openpyxl.drawing.image import Image as XLImage
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-from openpyxl.utils import get_column_letter
+from openpyxl.drawing.spreadsheet_drawing import AnchorMarker, OneCellAnchor
+from openpyxl.drawing.xdr import XDRPositiveSize2D
+from openpyxl.utils import get_column_letter, range_boundaries
 from openpyxl.utils.dataframe import dataframe_to_rows
+from openpyxl.utils.units import (
+    DEFAULT_ROW_HEIGHT,
+    EMU_to_pixels,
+    pixels_to_EMU,
+    points_to_pixels,
+)
 from openpyxl.worksheet.page import PageMargins
 from openpyxl.worksheet.worksheet import Worksheet
 
@@ -67,9 +75,12 @@ COLOR_DATE_BG = "F2F4F7"  # 日期資訊列底色
 COLOR_DATE_TEXT = "2B2B2B"  # 日期資訊列文字色
 COLOR_DISCLAIMER_TEXT = "1F2937"  # 免責聲明文字色
 FONT_NAME = "宋体"
-COLUMN_WIDTHS = {"A": 18, "B": 13, "D": 20, "E": 13}
-# C、F、G、H 維持 Excel 預設寬度（約 8.43），不特別設定
+# Excel 預設字型（Calibri 11 / 96 DPI）欄寬字元 → 像素：MDW=7、左右邊界+格線=5
+EXCEL_MAX_DIGIT_WIDTH_PX = 7
+EXCEL_COLUMN_PADDING_PX = 5
+EXCEL_DEFAULT_COLUMN_WIDTH = 8.43
 PRINT_LAST_COL = 8  # A:H
+PRINT_LOGO_MERGE_RANGE = "A2:H2"
 PRINT_CHART_ROW_STRIDE = 13
 PRINT_CHART_WIDTH_EMU = 3683635
 PRINT_CHART_HEIGHT_EMU = 2402205
@@ -130,7 +141,6 @@ class MergedLayoutStyle:
     disclaimer_text = COLOR_DISCLAIMER_TEXT
     font_name = FONT_NAME
     last_col = PRINT_LAST_COL
-    column_widths = COLUMN_WIDTHS
     chart_row_stride = PRINT_CHART_ROW_STRIDE
     chart_width_emu = PRINT_CHART_WIDTH_EMU
     chart_height_emu = PRINT_CHART_HEIGHT_EMU
@@ -187,11 +197,6 @@ class MergedLayoutStyle:
     @classmethod
     def chart_height_px(cls) -> int:
         return round(cls.chart_height_emu / EMU_PER_PIXEL)
-
-    @classmethod
-    def apply_column_widths(cls, ws: Worksheet) -> None:
-        for letter, width in cls.column_widths.items():
-            ws.column_dimensions[letter].width = width
 
     @classmethod
     def chart_anchors(cls, start_row: int) -> list[str]:
@@ -416,14 +421,23 @@ def apply_autofit_columns(
     padding: int = AUTOFIT_PADDING,
     skip_empty: bool = False,
     skip_merged: bool = True,
+    min_col: int | None = None,
+    max_col: int | None = None,
 ) -> None:
     """依內容自動調整欄寬。必須在該 sheet 資料全部寫入後呼叫。
 
     合併儲存格（頁首／區塊標題／免責聲明）不列入寬度計算，避免把橫向標題
     字串灌進每一欄。``skip_empty`` 時空白分隔欄不改寬度。
+    ``min_col`` / ``max_col`` 為 1-based，用來限定例如合併版面 A:H。
     """
     merged = _merged_positions(ws) if skip_merged else set()
-    for col_cells in ws.columns:
+    iter_kw: dict[str, int] = {}
+    if min_col is not None:
+        iter_kw["min_col"] = min_col
+    if max_col is not None:
+        iter_kw["max_col"] = max_col
+    columns = ws.iter_cols(**iter_kw) if iter_kw else ws.columns
+    for col_cells in columns:
         max_len = 0
         for cell in col_cells:
             if cell.value is None:
@@ -460,9 +474,109 @@ def apply_center_alignment(ws: Worksheet, *, skip_merged: bool = True) -> None:
 
 
 def apply_print_data_styles(ws: Worksheet) -> None:
-    """合併版面最後一步：數據區塊置中；欄寬用定案值，不再 autofit 以免蓋掉 COLUMN_WIDTHS。"""
+    """合併版面最後一步：數據區塊置中；A:H 一律自動欄寬（含 C/F/G/H 金屬欄）。"""
     apply_center_alignment(ws)
-    MergedLayoutStyle.apply_column_widths(ws)
+    apply_autofit_columns(
+        ws, skip_empty=True, min_col=1, max_col=PRINT_LAST_COL
+    )
+
+
+def column_width_to_pixels(width_chars: float) -> int:
+    """Excel 欄寬（字元）→ 像素。MDW=7、padding=5，再用 ``pixels_to_EMU``。"""
+    return int(float(width_chars) * EXCEL_MAX_DIGIT_WIDTH_PX + EXCEL_COLUMN_PADDING_PX)
+
+
+def column_width_to_emu(width_chars: float) -> int:
+    return pixels_to_EMU(column_width_to_pixels(width_chars))
+
+
+def row_height_to_emu(height_points: float) -> int:
+    return pixels_to_EMU(points_to_pixels(float(height_points)))
+
+
+def worksheet_column_width_chars(ws: Worksheet, col_idx: int) -> float:
+    letter = get_column_letter(col_idx)
+    width = ws.column_dimensions[letter].width
+    if width:
+        return float(width)
+    default = getattr(ws.sheet_format, "defaultColWidth", None)
+    if default:
+        return float(default)
+    return EXCEL_DEFAULT_COLUMN_WIDTH
+
+
+def worksheet_row_height_points(ws: Worksheet, row_idx: int) -> float:
+    height = ws.row_dimensions[row_idx].height
+    if height:
+        return float(height)
+    default = getattr(ws.sheet_format, "defaultRowHeight", None)
+    if default:
+        return float(default)
+    return float(DEFAULT_ROW_HEIGHT)
+
+
+def _offset_within_span(sizes_emu: list[int], offset_emu: int) -> tuple[int, int]:
+    """把總偏移量拆成（從第幾格開始, 該格內的 colOff/rowOff）。避免全部塞進第一格溢位。"""
+    remaining = max(0, int(offset_emu))
+    if not sizes_emu:
+        return 0, remaining
+    for index, size in enumerate(sizes_emu):
+        size = max(0, int(size))
+        if index == len(sizes_emu) - 1 or remaining < size:
+            return index, remaining
+        remaining -= size
+    return len(sizes_emu) - 1, remaining
+
+
+def compute_center_anchor_in_range(
+    *,
+    col_widths_chars: list[float],
+    row_heights_pt: list[float],
+    image_width_px: int,
+    image_height_px: int,
+    start_col_0: int,
+    start_row_0: int,
+) -> tuple[int, int, int, int]:
+    """回傳置中後的 ``(col_0, colOff_EMU, row_0, rowOff_EMU)``。"""
+    col_emus = [column_width_to_emu(width) for width in col_widths_chars]
+    row_emus = [row_height_to_emu(height) for height in row_heights_pt]
+    total_w = sum(col_emus)
+    total_h = sum(row_emus)
+    img_w = pixels_to_EMU(max(0, int(image_width_px)))
+    img_h = pixels_to_EMU(max(0, int(image_height_px)))
+    x_off = max(0, (total_w - img_w) // 2)
+    y_off = max(0, (total_h - img_h) // 2)
+    col_i, col_off = _offset_within_span(col_emus, x_off)
+    row_i, row_off = _offset_within_span(row_emus, y_off)
+    return start_col_0 + col_i, col_off, start_row_0 + row_i, row_off
+
+
+def center_image_in_merged_range(ws: Worksheet, image: XLImage, merge_range: str) -> None:
+    """把已設好寬高的浮動圖片置中於合併範圍（OneCellAnchor + EMU 偏移）。"""
+    min_col, min_row, max_col, max_row = range_boundaries(merge_range)
+    col_widths = [worksheet_column_width_chars(ws, col) for col in range(min_col, max_col + 1)]
+    row_heights = [worksheet_row_height_points(ws, row) for row in range(min_row, max_row + 1)]
+    img_w = max(1, int(image.width or 1))
+    img_h = max(1, int(image.height or 1))
+    col_0, col_off, row_0, row_off = compute_center_anchor_in_range(
+        col_widths_chars=col_widths,
+        row_heights_pt=row_heights,
+        image_width_px=img_w,
+        image_height_px=img_h,
+        start_col_0=min_col - 1,
+        start_row_0=min_row - 1,
+    )
+    marker = AnchorMarker(col=col_0, colOff=int(col_off), row=row_0, rowOff=int(row_off))
+    image.anchor = OneCellAnchor(
+        _from=marker,
+        ext=XDRPositiveSize2D(cx=pixels_to_EMU(img_w), cy=pixels_to_EMU(img_h)),
+    )
+    ws.add_image(image)
+
+
+def disclaimer_row_after(last_content_row: int) -> int:
+    """最後一筆內容列之後空一行再放免責聲明（1-based）。"""
+    return int(last_content_row) + 2
 
 
 class _ColWidthAcc:
@@ -477,9 +591,23 @@ class _ColWidthAcc:
             return
         self._max[col] = max(self._max.get(col, 0), _visual_len(text))
 
-    def apply_xlsxwriter(self, ws: Any) -> None:
-        for col, max_len in self._max.items():
-            ws.set_column(col, col, _autofit_width(max_len))
+    def fitted_width(self, col: int) -> float | None:
+        max_len = self._max.get(col, 0)
+        if max_len <= 0:
+            return None
+        return _autofit_width(max_len)
+
+    def apply_xlsxwriter(self, ws: Any, *, min_col: int | None = None, max_col: int | None = None) -> None:
+        cols = sorted(self._max)
+        if min_col is not None or max_col is not None:
+            lo = min_col if min_col is not None else 0
+            hi = max_col if max_col is not None else max(cols, default=-1)
+            cols = [col for col in range(lo, hi + 1) if col in self._max]
+        for col in cols:
+            width = self.fitted_width(col)
+            if width is None:
+                continue
+            ws.set_column(col, col, width)
 
 
 def _write_bbg_sheet_openpyxl(
@@ -529,12 +657,14 @@ def _copy_raw_sheet(
         src_ws = src_wb.active
         for row in src_ws.iter_rows():
             for cell in row:
-                target_row = cell.row + start_row - 1
-                last_row = max(last_row, target_row)
                 value = cell.value
                 if _is_excel_formula(value):
                     logger.debug("原始數據略過公式儲存格 %s", cell.coordinate)
                     continue
+                if value is None:
+                    continue
+                target_row = cell.row + start_row - 1
+                last_row = max(last_row, target_row)
                 is_header = cell.row == 1
                 if not is_header:
                     value = value_from_stored_number(value)
@@ -613,8 +743,13 @@ def _logo_pixel_size(image_path: Path, *, row_height_pt: float) -> tuple[int, in
     return target_w, target_h
 
 
-def _place_print_logo(ws: Worksheet, logo_path: Path | None, *, anchor: str = PRINT_LOGO_ANCHOR) -> None:
-    """合併版面 A2 浮動 Logo。路徑未設或檔案不存在時只記 WARNING，不中斷報告。"""
+def _place_print_logo(
+    ws: Worksheet,
+    logo_path: Path | None,
+    *,
+    merge_range: str = PRINT_LOGO_MERGE_RANGE,
+) -> None:
+    """合併版面 A2:H2 浮動 Logo，置中於合併範圍。路徑未設或檔案不存在時只記 WARNING。"""
     if logo_path is None:
         logger.warning("未設定 Logo 路徑，略過插入")
         return
@@ -627,13 +762,24 @@ def _place_print_logo(ws: Worksheet, logo_path: Path | None, *, anchor: str = PR
         return
     try:
         width, height = _logo_pixel_size(logo_path, row_height_pt=PRINT_LOGO_ROW_HEIGHT)
-        _add_anchored_image(ws, logo_path, anchor=anchor, width=width, height=height)
-        logger.info("已插入合併版面 Logo：%s（%dx%d）", logo_path, width, height)
+        img = XLImage(str(logo_path))
+        img.width = width
+        img.height = height
+        center_image_in_merged_range(ws, img, merge_range)
+        logger.info("已插入合併版面 Logo：%s（%dx%d，置中 %s）", logo_path, width, height, merge_range)
     except Exception as exc:
         logger.warning("無法插入 Logo（%s），略過插入：%s", logo_path, exc)
 
 
-def _place_print_logo_xlsxwriter(ws: Any, logo_path: Path | None, *, row: int = 1, col: int = 0) -> None:
+def _place_print_logo_xlsxwriter(
+    ws: Any,
+    logo_path: Path | None,
+    *,
+    col_widths_chars: list[float],
+    row_height_pt: float = PRINT_LOGO_ROW_HEIGHT,
+    start_col_0: int = 0,
+    start_row_0: int = 1,
+) -> None:
     if logo_path is None:
         logger.warning("未設定 Logo 路徑，略過插入")
         return
@@ -646,21 +792,39 @@ def _place_print_logo_xlsxwriter(ws: Any, logo_path: Path | None, *, row: int = 
         return
     try:
         probe = XLImage(str(logo_path))
+        native_w = max(1, int(probe.width or 1))
         native_h = max(1, int(probe.height or 1))
-        target_h = max(1, round(PRINT_LOGO_ROW_HEIGHT * PRINT_LOGO_PX_PER_POINT))
-        scale = target_h / native_h
-        ws.insert_image(row, col, str(logo_path), {"x_scale": scale, "y_scale": scale})
+        width, height = _logo_pixel_size(logo_path, row_height_pt=row_height_pt)
+        col_0, col_off, row_0, row_off = compute_center_anchor_in_range(
+            col_widths_chars=col_widths_chars,
+            row_heights_pt=[row_height_pt],
+            image_width_px=width,
+            image_height_px=height,
+            start_col_0=start_col_0,
+            start_row_0=start_row_0,
+        )
+        ws.insert_image(
+            row_0,
+            col_0,
+            str(logo_path),
+            {
+                "x_scale": width / native_w,
+                "y_scale": height / native_h,
+                "x_offset": EMU_to_pixels(col_off),
+                "y_offset": EMU_to_pixels(row_off),
+            },
+        )
         logger.info("已插入合併版面 Logo：%s", logo_path)
     except Exception as exc:
         logger.warning("無法插入 Logo（%s），略過插入：%s", logo_path, exc)
 
 
 def _write_print_disclaimer_openpyxl(
-    ws: Worksheet, *, after_row: int, last_col: int = PRINT_LAST_COL
+    ws: Worksheet, *, last_content_row: int, last_col: int = PRINT_LAST_COL
 ) -> int:
     """合併版面最下方：完整兩段免責聲明，自動換行、深灰小字。"""
     style = MergedLayoutStyle
-    row = after_row + 2
+    row = disclaimer_row_after(last_content_row)
     end = get_column_letter(last_col)
     ws.merge_cells(f"A{row}:{end}{row}")
     cell = ws.cell(row=row, column=1, value=PRINT_DISCLAIMER_FULL)
@@ -675,9 +839,8 @@ def _write_report_banner_openpyxl(
     as_of: date,
     *,
     last_col: int = PRINT_LAST_COL,
-    logo_path: Path | None = None,
 ) -> int:
-    """頁首：公司名 / Logo / 主標題 / 英文副標 / 日期 / 空白分隔列。"""
+    """頁首：公司名 / Logo 列 / 主標題 / 英文副標 / 日期 / 空白分隔列。Logo 圖片稍後置中插入。"""
     style = MergedLayoutStyle
     end = get_column_letter(last_col)
     center = style.center()
@@ -692,7 +855,6 @@ def _write_report_banner_openpyxl(
     ws.merge_cells(f"A2:{end}2")
     ws["A2"].font = style.font(size=style.size_body)
     ws.row_dimensions[2].height = style.row_logo_height
-    _place_print_logo(ws, logo_path, anchor=PRINT_LOGO_ANCHOR)
 
     ws.merge_cells(f"A3:{end}3")
     ws["A3"] = REPORT_TITLE_ZH
@@ -877,7 +1039,7 @@ def _write_print_sheet_openpyxl(
 ) -> None:
     style = MergedLayoutStyle
     ws = wb.create_sheet(SHEET_PRINT)
-    next_row = _write_report_banner_openpyxl(ws, as_of, logo_path=config.branding.logo_path)
+    next_row = _write_report_banner_openpyxl(ws, as_of)
     header = f"{REPORT_TITLE_ZH} / {REPORT_TITLE_EN}  {as_of.strftime('%Y-%m-%d')}"
 
     _section_heading_openpyxl(ws, next_row, SHEET_BBG, "Bloomberg Snapshot")
@@ -886,17 +1048,22 @@ def _write_print_sheet_openpyxl(
     )
     if last < next_row + 1:
         last = next_row
+    last_content_row = last
 
     chart_heading = last + 2
     _section_heading_openpyxl(ws, chart_heading, SHEET_CHART, "Forward Curve")
+    last_content_row = max(last_content_row, chart_heading)
     after_images = _place_print_chart_images(ws, chart_images, start_row=chart_heading + 2)
+    last_content_row = max(last_content_row, after_images - 1)
 
     raw_heading = after_images + 1
     _section_heading_openpyxl(ws, raw_heading, PRINT_RAW_SECTION_TITLE)
+    last_content_row = max(last_content_row, raw_heading)
     last_raw = _copy_raw_sheet(step2_path, ws, start_row=raw_heading + 1)
     _style_print_raw_block_openpyxl(ws, raw_heading + 1, last_raw)
+    last_content_row = max(last_content_row, last_raw)
 
-    disc_row = _write_print_disclaimer_openpyxl(ws, after_row=max(last_raw, after_images))
+    disc_row = _write_print_disclaimer_openpyxl(ws, last_content_row=last_content_row)
     _apply_print_layout_openpyxl(
         ws,
         header=header,
@@ -908,6 +1075,7 @@ def _write_print_sheet_openpyxl(
     ws.oddHeader.left.text = header_footer_run(style.date_text, COMPANY_ZH)
     ws.oddHeader.right.text = header_footer_run(style.date_text, as_of.strftime("%Y-%m-%d"))
     apply_print_data_styles(ws)
+    _place_print_logo(ws, config.branding.logo_path, merge_range=PRINT_LOGO_MERGE_RANGE)
 
 
 def _build_with_openpyxl(
@@ -1284,12 +1452,14 @@ def _write_raw_sheet_xlsxwriter(
         src_ws = src_wb.active
         for row in src_ws.iter_rows():
             for cell in row:
-                r, c = cell.row - 1 + start_row, cell.column - 1
-                last = max(last, r)
                 value = cell.value
                 if _is_excel_formula(value):
                     logger.debug("原始數據略過公式儲存格 %s", cell.coordinate)
                     continue
+                if value is None:
+                    continue
+                r, c = cell.row - 1 + start_row, cell.column - 1
+                last = max(last, r)
                 is_header = cell.row == 1
                 if not is_header:
                     value = value_from_stored_number(value)
@@ -1348,6 +1518,7 @@ def _write_print_bbg_xlsxwriter(
     formats: tuple[tuple[str, ...], ...],
     *,
     start_row: int,
+    widths: _ColWidthAcc | None = None,
 ) -> int:
     style = MergedLayoutStyle
     body = {
@@ -1371,6 +1542,7 @@ def _write_print_bbg_xlsxwriter(
     data_fmt = style.xw_format(workbook, **body, border=1)
     date_fmt = style.xw_format(workbook, **body, border=1, num_format="yyyy-mm-dd")
     price_fmt = style.xw_format(workbook, **body, border=1, num_format=NUMBER_FORMAT_2DP)
+    acc = widths if widths is not None else _ColWidthAcc()
     last = start_row - 1
     for r_idx, row in enumerate(values):
         fmt_row = formats[r_idx] if r_idx < len(formats) else ()
@@ -1395,14 +1567,21 @@ def _write_print_bbg_xlsxwriter(
             if isinstance(value, date) and not isinstance(value, datetime) and kind == "data":
                 value = datetime(value.year, value.month, value.day)
             ws.write(excel_row, c_idx, value, cell_fmt)
+            acc.add(c_idx, value, number_format=num_fmt)
     return last
 
 
-def _apply_merged_layout_column_widths_xlsxwriter(ws: Any) -> None:
-    letters = {letter: idx for idx, letter in enumerate("ABCDEFGH")}
-    for letter, width in COLUMN_WIDTHS.items():
-        col = letters[letter]
-        ws.set_column(col, col, width)
+def _apply_merged_layout_autofit_xlsxwriter(ws: Any, acc: _ColWidthAcc) -> list[float]:
+    """A:H 一律自動欄寬，回傳各欄字元寬（供 Logo 置中）。"""
+    widths: list[float] = []
+    for col in range(PRINT_LAST_COL):
+        fitted = acc.fitted_width(col)
+        if fitted is None:
+            widths.append(EXCEL_DEFAULT_COLUMN_WIDTH)
+            continue
+        ws.set_column(col, col, fitted)
+        widths.append(fitted)
+    return widths
 
 
 def _write_print_sheet_xlsxwriter(
@@ -1463,7 +1642,6 @@ def _write_print_sheet_xlsxwriter(
     ws.merge_range(0, 0, 0, last_col, f"{COMPANY_ZH}  /  {COMPANY_EN}", company)
     ws.merge_range(1, 0, 1, last_col, "", blank)
     ws.set_row(1, style.row_logo_height)
-    _place_print_logo_xlsxwriter(ws, config.branding.logo_path, row=1, col=0)
     ws.merge_range(2, 0, 2, last_col, REPORT_TITLE_ZH, title)
     ws.set_row(2, style.row_title_height)
     ws.merge_range(3, 0, 3, last_col, REPORT_TITLE_EN, subtitle)
@@ -1474,20 +1652,23 @@ def _write_print_sheet_xlsxwriter(
     ws.set_row(4, style.row_date_height)
     ws.set_row(5, style.row_spacer_height)
 
+    print_widths = _ColWidthAcc()
     bbg_heading = 6
     ws.merge_range(bbg_heading, 0, bbg_heading, last_col, f"{SHEET_BBG} / Bloomberg Snapshot", section)
     ws.set_row(bbg_heading, style.row_section_height)
     last = _write_print_bbg_xlsxwriter(
-        ws, workbook, bbg_values, bbg_formats, start_row=bbg_heading + 1
+        ws, workbook, bbg_values, bbg_formats, start_row=bbg_heading + 1, widths=print_widths
     )
     if last < bbg_heading + 1:
         last = bbg_heading
+    last_content_row = last
 
     chart_heading = last + 2
     ws.merge_range(
         chart_heading, 0, chart_heading, last_col, f"{SHEET_CHART} / Forward Curve", section
     )
     ws.set_row(chart_heading, style.row_section_height)
+    last_content_row = max(last_content_row, chart_heading)
     img_start = chart_heading + 2
     native_w = 6.4 * 120
     native_h = 3.6 * 120
@@ -1497,10 +1678,12 @@ def _write_print_sheet_xlsxwriter(
     for img_path, anchor in zip(chart_images, anchors, strict=True):
         ws.insert_image(anchor, str(img_path), {"x_scale": x_scale, "y_scale": y_scale})
     after_images = img_start + 3 * style.chart_row_stride
+    last_content_row = max(last_content_row, after_images - 1)
 
     raw_heading = after_images + 1
     ws.merge_range(raw_heading, 0, raw_heading, last_col, PRINT_RAW_SECTION_TITLE, section)
     ws.set_row(raw_heading, style.row_section_height)
+    last_content_row = max(last_content_row, raw_heading)
     last_raw = _write_raw_sheet_xlsxwriter(
         workbook,
         step2_path,
@@ -1509,10 +1692,12 @@ def _write_print_sheet_xlsxwriter(
         worksheet=ws,
         start_row=raw_heading + 1,
         center_align=True,
+        widths=print_widths,
         apply_widths=False,
         print_style=True,
     )
-    disc_row = max(last_raw, after_images) + 2
+    last_content_row = max(last_content_row, last_raw)
+    disc_row = disclaimer_row_after(last_content_row)
     disc_fmt = style.xw_format(
         workbook,
         font_size=style.size_disclaimer,
@@ -1534,7 +1719,8 @@ def _write_print_sheet_xlsxwriter(
     ws.set_footer(f"&C{PRINT_FOOTER}")
     ws.set_tab_color(_css(style.accent))
     ws.print_area(0, 0, disc_row, last_col)
-    _apply_merged_layout_column_widths_xlsxwriter(ws)
+    col_widths = _apply_merged_layout_autofit_xlsxwriter(ws, print_widths)
+    _place_print_logo_xlsxwriter(ws, config.branding.logo_path, col_widths_chars=col_widths)
 
 
 def merged_layout_disclaimer_row(*, bbg_rows: int, raw_rows: int) -> int:
@@ -1546,7 +1732,8 @@ def merged_layout_disclaimer_row(*, bbg_rows: int, raw_rows: int) -> int:
     after_images = img_start + 3 * PRINT_CHART_ROW_STRIDE
     raw_heading = after_images + 1
     last_raw = raw_heading + raw_rows
-    return last_raw + 2
+    last_content_row = max(after_images - 1, raw_heading, last_raw)
+    return disclaimer_row_after(last_content_row)
 
 
 def dataframe_preview_rows(df: pd.DataFrame, limit: int = 5) -> list[list[Any]]:

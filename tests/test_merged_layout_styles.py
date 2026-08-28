@@ -11,6 +11,7 @@ from openpyxl import load_workbook
 
 from lme_daily.config import load_config
 from lme_daily.report_builder import (
+    AUTOFIT_MIN_WIDTH,
     COLOR_ACCENT,
     COLOR_DATE_BG,
     COLOR_DATE_TEXT,
@@ -18,13 +19,18 @@ from lme_daily.report_builder import (
     COLOR_NAVY,
     COLOR_TEXT_CREAM,
     COLOR_TEXT_WHITE,
-    COLUMN_WIDTHS,
     DATE_COL,
     FONT_NAME,
     PRINT_DISCLAIMER_FULL,
+    PRINT_LAST_COL,
     SHEET_BBG,
     SHEET_PRINT,
     build_report,
+    center_image_in_merged_range,
+    column_width_to_emu,
+    column_width_to_pixels,
+    compute_center_anchor_in_range,
+    disclaimer_row_after,
     merged_layout_disclaimer_row,
 )
 
@@ -192,10 +198,8 @@ def test_merged_layout_frozen_styles_a3_c8_a271(tmp_path: Path, engine: str):
         assert value is not None
         return float(value)
 
-    assert _width("A") == pytest.approx(COLUMN_WIDTHS["A"], abs=1)
-    assert _width("B") == pytest.approx(COLUMN_WIDTHS["B"], abs=1)
-    assert _width("D") == pytest.approx(COLUMN_WIDTHS["D"], abs=1)
-    assert _width("E") == pytest.approx(COLUMN_WIDTHS["E"], abs=1)
+    for letter in "ABCDEFGH":
+        assert _width(letter) >= AUTOFIT_MIN_WIDTH, letter
 
     bbg = wb[SHEET_BBG]
     assert fill_hex(bbg["A1"]) == COLOR_NAVY
@@ -210,13 +214,13 @@ def _write_logo_png(path: Path, *, width: int = 80, height: int = 40) -> Path:
     return path
 
 
-def _image_anchored_at_a2(ws) -> bool:
+def _image_in_logo_row(ws) -> bool:
     for img in ws._images:
         anchor = img.anchor
-        if isinstance(anchor, str) and anchor.upper() == "A2":
+        if isinstance(anchor, str) and str(anchor).upper().startswith("A2"):
             return True
         origin = getattr(anchor, "_from", None)
-        if origin is not None and int(origin.col) == 0 and int(origin.row) == 1:
+        if origin is not None and int(origin.row) == 1 and 0 <= int(origin.col) <= 7:
             return True
     return False
 
@@ -259,7 +263,7 @@ def test_print_sheet_embeds_floating_logo_at_a2(tmp_path: Path, engine: str):
     assert all("DISPIMG" not in text and "_xlfn.DISPIMG" not in text for text in texts)
     assert "A2:H2" in {str(rng) for rng in ws.merged_cells.ranges}
     assert float(ws.row_dimensions[2].height) == 34
-    assert _image_anchored_at_a2(ws)
+    assert _image_in_logo_row(ws)
     wb.close()
 
 
@@ -273,7 +277,7 @@ def test_print_sheet_skips_logo_when_unset(tmp_path: Path, engine: str, caplog):
     assert any("未設定 Logo 路徑，略過插入" in rec.message for rec in caplog.records)
     wb = load_workbook(dest)
     ws = wb[SHEET_PRINT]
-    assert not _image_anchored_at_a2(ws)
+    assert not _image_in_logo_row(ws)
     wb.close()
 
 
@@ -287,5 +291,105 @@ def test_print_sheet_skips_logo_when_file_missing(tmp_path: Path, engine: str, c
     assert dest.is_file()
     assert any("找不到 Logo 檔案，略過插入" in rec.message for rec in caplog.records)
     wb = load_workbook(dest)
-    assert not _image_anchored_at_a2(wb[SHEET_PRINT])
+    assert not _image_in_logo_row(wb[SHEET_PRINT])
     wb.close()
+
+
+def test_column_width_to_emu_uses_openpyxl_pixels_to_emu():
+    from openpyxl.utils.units import pixels_to_EMU
+
+    assert column_width_to_pixels(10) == 10 * 7 + 5
+    assert column_width_to_emu(10) == pixels_to_EMU(10 * 7 + 5)
+
+
+def test_center_image_in_merged_range_spans_columns_when_offset_exceeds_first(tmp_path: Path):
+    from openpyxl import Workbook
+    from openpyxl.drawing.image import Image as XLImage
+    from openpyxl.drawing.spreadsheet_drawing import OneCellAnchor
+    from openpyxl.utils.units import pixels_to_EMU
+
+    logo = _write_logo_png(tmp_path / "logo.png", width=80, height=40)
+    wb = Workbook()
+    ws = wb.active
+    for letter in "ABCDEFGH":
+        ws.column_dimensions[letter].width = 10
+    ws.row_dimensions[2].height = 34
+    ws.merge_cells("A2:H2")
+    img = XLImage(str(logo))
+    img.width = 90
+    img.height = 45
+    center_image_in_merged_range(ws, img, "A2:H2")
+    assert isinstance(img.anchor, OneCellAnchor)
+    col_0, col_off, row_0, row_off = compute_center_anchor_in_range(
+        col_widths_chars=[10] * 8,
+        row_heights_pt=[34],
+        image_width_px=90,
+        image_height_px=45,
+        start_col_0=0,
+        start_row_0=1,
+    )
+    assert img.anchor._from.col == col_0
+    assert int(img.anchor._from.colOff) == col_off
+    assert img.anchor._from.row == row_0 == 1
+    assert int(img.anchor._from.rowOff) == row_off
+    assert col_0 > 0
+    assert col_off < column_width_to_emu(10)
+    assert img.anchor.ext.cx == pixels_to_EMU(90)
+    assert img.anchor.ext.cy == pixels_to_EMU(45)
+    assert img in ws._images
+    wb.close()
+
+
+def _last_raw_content_row(ws) -> int:
+    from lme_daily.report_builder import PRINT_RAW_SECTION_TITLE
+
+    heading = next(
+        cell
+        for row in ws.iter_rows()
+        for cell in row
+        if cell.value == PRINT_RAW_SECTION_TITLE
+    )
+    last = heading.row
+    for row in ws.iter_rows(min_row=heading.row + 1, max_col=PRINT_LAST_COL):
+        values = [cell.value for cell in row]
+        if any(isinstance(v, str) and "免責聲明" in v for v in values if v is not None):
+            break
+        if any(v is not None for v in values):
+            last = row[0].row
+    return last
+
+
+@pytest.mark.parametrize("engine", ["matplotlib", "xlsxwriter"])
+@pytest.mark.parametrize("n_data", [100, 300])
+def test_disclaimer_follows_raw_content_length(tmp_path: Path, engine: str, n_data: int):
+    cfg_path = _write_min_config(tmp_path, engine)
+    config = load_config(cfg_path)
+    as_of = date(2026, 8, 27)
+    vba_dir = config.vba_dir(as_of)
+    vba_dir.mkdir(parents=True, exist_ok=True)
+    step2 = vba_dir / "20260827.xlsx"
+    _make_step2_rows(step2, n_data)
+    values, formats = _bbg_tenor_sample()
+    dest = build_report(
+        config,
+        as_of=as_of,
+        step2_path=step2,
+        bbg_values=values,
+        bbg_formats=formats,
+    )
+    wb = load_workbook(dest)
+    ws = wb[SHEET_PRINT]
+    disc = next(
+        cell
+        for row in ws.iter_rows()
+        for cell in row
+        if cell.value == PRINT_DISCLAIMER_FULL
+    )
+    last_raw = _last_raw_content_row(ws)
+    assert disc.row == last_raw + 2
+    expected = merged_layout_disclaimer_row(bbg_rows=len(values), raw_rows=n_data + 1)
+    assert disc.row == expected
+    assert disc.row == disclaimer_row_after(last_raw)
+    assert disc.row != 271
+    wb.close()
+

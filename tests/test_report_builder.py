@@ -669,6 +669,9 @@ def test_report_writes_display_rounded_values_and_autofits_columns(tmp_path: Pat
     assert _is_center_aligned(print_ws.cell(raw_header_row, 1))
     assert _is_center_aligned(print_ws.cell(raw_data_row, 2))
     assert print_ws.column_dimensions["E"].width >= AUTOFIT_MIN_WIDTH
+    for letter in "CFGH":
+        width = print_ws.column_dimensions[letter].width
+        assert width is not None and float(width) >= AUTOFIT_MIN_WIDTH, letter
     sep_width = print_ws.column_dimensions["I"].width
     assert sep_width is None or float(sep_width) <= 15
     assert print_ws["A7"].alignment.horizontal == "left"
