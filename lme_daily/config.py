@@ -76,6 +76,11 @@ class ChartConfig:
 
 
 @dataclass(frozen=True)
+class BrandingConfig:
+    logo_path: Path | None
+
+
+@dataclass(frozen=True)
 class LoggingConfig:
     level: str
     file: str | None
@@ -89,6 +94,7 @@ class AppConfig:
     excel: ExcelUiConfig
     bloomberg: BloombergConfig
     chart: ChartConfig
+    branding: BrandingConfig
     holidays: frozenset[date]
     logging: LoggingConfig
 
@@ -189,6 +195,7 @@ _YAML_PATH_KEYS = (
     "ref_workbook_name",
     "bbg_workbook_name",
     "file",
+    "logo_path",
 )
 
 
@@ -342,6 +349,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
     excel_raw = _require_mapping(raw.get("excel") or {}, "excel")
     holidays_raw = _require_mapping(raw.get("holidays") or {}, "holidays")
     logging_raw = _require_mapping(raw.get("logging") or {}, "logging")
+    branding_raw = _require_mapping(raw.get("branding") or {}, "branding")
 
     working_dir = _as_path(_get(paths_raw, "working_dir", context="paths"), "paths.working_dir")
     working_dir = _finalize_working_dir(working_dir, config_parent=config_path.parent)
@@ -362,6 +370,18 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         base=working_dir,
         context="paths.output_dir",
     )
+
+    logo_path: Path | None = None
+    logo_value = branding_raw.get("logo_path")
+    if logo_value is not None and str(logo_value).strip():
+        logo_path = _as_path(logo_value, "branding.logo_path")
+        if not logo_path.is_absolute():
+            logo_path = (config_path.parent / logo_path).resolve()
+        else:
+            try:
+                logo_path = logo_path.expanduser().resolve()
+            except OSError:
+                logo_path = Path(str(logo_path))
 
     paths = PathsConfig(
         working_dir=working_dir,
@@ -461,6 +481,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
             image_width=int(_get(chart_raw, "image_width", context="chart", default=480)),
             image_height=int(_get(chart_raw, "image_height", context="chart", default=280)),
         ),
+        branding=BrandingConfig(logo_path=logo_path),
         holidays=load_holidays(holidays_raw.get("dates") or [], holidays_file),
         logging=LoggingConfig(
             level=str(_get(logging_raw, "level", context="logging", default="INFO")),

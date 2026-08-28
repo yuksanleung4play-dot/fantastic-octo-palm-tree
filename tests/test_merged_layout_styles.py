@@ -29,7 +29,7 @@ from lme_daily.report_builder import (
 )
 
 
-def _write_min_config(tmp_path: Path, engine: str) -> Path:
+def _write_min_config(tmp_path: Path, engine: str, **extra) -> Path:
     import yaml
 
     work = tmp_path / "work"
@@ -51,6 +51,7 @@ def _write_min_config(tmp_path: Path, engine: str) -> Path:
         "chart": {"forward_months": 27, "engine": engine},
         "logging": {"level": "INFO", "file": ""},
     }
+    payload.update(extra)
     path = tmp_path / "config.yaml"
     path.write_text(yaml.safe_dump(payload, allow_unicode=True), encoding="utf-8")
     return path
@@ -199,4 +200,92 @@ def test_merged_layout_frozen_styles_a3_c8_a271(tmp_path: Path, engine: str):
     bbg = wb[SHEET_BBG]
     assert fill_hex(bbg["A1"]) == COLOR_NAVY
     assert font_hex(bbg["A1"]) == COLOR_TEXT_WHITE
+    wb.close()
+
+
+def _write_logo_png(path: Path, *, width: int = 80, height: int = 40) -> Path:
+    from PIL import Image
+
+    Image.new("RGB", (width, height), (182, 137, 95)).save(path)
+    return path
+
+
+def _image_anchored_at_a2(ws) -> bool:
+    for img in ws._images:
+        anchor = img.anchor
+        if isinstance(anchor, str) and anchor.upper() == "A2":
+            return True
+        origin = getattr(anchor, "_from", None)
+        if origin is not None and int(origin.col) == 0 and int(origin.row) == 1:
+            return True
+    return False
+
+
+def test_logo_pixel_size_keeps_aspect_ratio(tmp_path: Path):
+    from lme_daily.report_builder import PRINT_LOGO_ROW_HEIGHT, _logo_pixel_size
+
+    logo = _write_logo_png(tmp_path / "logo.png", width=80, height=40)
+    width, height = _logo_pixel_size(logo, row_height_pt=PRINT_LOGO_ROW_HEIGHT)
+    assert height == round(PRINT_LOGO_ROW_HEIGHT * 96 / 72)
+    assert width == round(80 * height / 40)
+
+
+def _build_small_report(tmp_path: Path, engine: str, **config_extra):
+    cfg_path = _write_min_config(tmp_path, engine, **config_extra)
+    config = load_config(cfg_path)
+    as_of = date(2026, 8, 27)
+    vba_dir = config.vba_dir(as_of)
+    vba_dir.mkdir(parents=True, exist_ok=True)
+    step2 = vba_dir / "20260827.xlsx"
+    _make_step2_rows(step2, 5)
+    values, formats = _bbg_tenor_sample()
+    dest = build_report(
+        config,
+        as_of=as_of,
+        step2_path=step2,
+        bbg_values=values,
+        bbg_formats=formats,
+    )
+    return dest
+
+
+@pytest.mark.parametrize("engine", ["matplotlib", "xlsxwriter"])
+def test_print_sheet_embeds_floating_logo_at_a2(tmp_path: Path, engine: str):
+    logo = _write_logo_png(tmp_path / "company-logo.png")
+    dest = _build_small_report(tmp_path, engine, branding={"logo_path": str(logo)})
+    wb = load_workbook(dest)
+    ws = wb[SHEET_PRINT]
+    texts = [str(cell.value or "") for row in ws.iter_rows() for cell in row]
+    assert all("DISPIMG" not in text and "_xlfn.DISPIMG" not in text for text in texts)
+    assert "A2:H2" in {str(rng) for rng in ws.merged_cells.ranges}
+    assert float(ws.row_dimensions[2].height) == 34
+    assert _image_anchored_at_a2(ws)
+    wb.close()
+
+
+@pytest.mark.parametrize("engine", ["matplotlib", "xlsxwriter"])
+def test_print_sheet_skips_logo_when_unset(tmp_path: Path, engine: str, caplog):
+    import logging
+
+    with caplog.at_level(logging.WARNING, logger="lme_daily.report_builder"):
+        dest = _build_small_report(tmp_path, engine)
+    assert dest.is_file()
+    assert any("未設定 Logo 路徑，略過插入" in rec.message for rec in caplog.records)
+    wb = load_workbook(dest)
+    ws = wb[SHEET_PRINT]
+    assert not _image_anchored_at_a2(ws)
+    wb.close()
+
+
+@pytest.mark.parametrize("engine", ["matplotlib", "xlsxwriter"])
+def test_print_sheet_skips_logo_when_file_missing(tmp_path: Path, engine: str, caplog):
+    import logging
+
+    missing = tmp_path / "no-such-logo.png"
+    with caplog.at_level(logging.WARNING, logger="lme_daily.report_builder"):
+        dest = _build_small_report(tmp_path, engine, branding={"logo_path": str(missing)})
+    assert dest.is_file()
+    assert any("找不到 Logo 檔案，略過插入" in rec.message for rec in caplog.records)
+    wb = load_workbook(dest)
+    assert not _image_anchored_at_a2(wb[SHEET_PRINT])
     wb.close()

@@ -60,6 +60,11 @@ chart:
   image_width: 480
   image_height: 280
 
+branding:
+  # 合併版面第 2 列浮動 Logo（PNG/JPG）。留空 = 略過插入，不中斷報告
+  # Windows 路徑請用單引號：logo_path: '\\192.168.89.167\Dealing\...\logo.png'
+  logo_path: ''
+
 # 可在此直接列出公休日（YYYY-MM-DD），會與 holidays_file 合併
 holidays:
   dates: []

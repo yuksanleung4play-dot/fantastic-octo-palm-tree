@@ -150,7 +150,7 @@ Application.Run("RunDailyLME", 上日日期, 3M date)
 1. **BBG快照** — 腳本會自動開啟 `LME BBG WORKBOOK.xlsx`（若尚未開啟），開啟後等待設定秒數再讀 `copy_range`（預設 `B3:I10`）的 `.Text`（Excel 套用格式後的顯示文字，例如 `16,554.09`），再轉回數值，讀取後不會關閉。這樣報告上的兩位小數與 Bloomberg 工作簿畫面一致（標準四捨五入）。`#N/A` / 以 `N/A` 開頭的顯示字串會變成純 `N/A`；空白維持空值。寫入時數值儲存格套用 `#,##0.00`。
 2. **遠期走勢圖** — 以 cash date 起 `chart.forward_months`（預設 27）個月為視窗，六個品種各一張圖。資料來自 `vba_dir\yyyymmdd.xlsx`。價格依來源畫面兩位小數（四捨五入）寫入圖表資料。`NI` / `SN` 空值會 `dropna`，**不會填 0**
 3. **原始數據** — 把 `vba_dir\yyyymmdd.xlsx` 的儲存格**值**貼進此 sheet（含 27 個月以後）；不使用外部連結，來源檔關閉或移動後也不會變成 `#REF!`。數值同樣依畫面兩位小數四捨五入，與來源工作簿顯示一致
-4. **合併版面** — 把上述三塊排在同一橫向 A3 版面（金棕 `B6895F` 標題列、宋体、中英雙語標題、頁碼「第 n 頁，共 N 頁」），底部為完整兩段免責聲明。不匯出 PDF。樣式常數集中在 `report_builder.MergedLayoutStyle`。
+4. **合併版面** — 把上述三塊排在同一橫向 A3 版面（金棕 `B6895F` 標題列、宋体、中英雙語標題、頁碼「第 n 頁，共 N 頁」），底部為完整兩段免責聲明。不匯出 PDF。樣式常數集中在 `report_builder.MergedLayoutStyle`。第 2 列（合併 A2:H2）用 openpyxl `add_image` 嵌入 `branding.logo_path` 的浮動圖片（高度對齊列高 34、寬度等比縮放）；未設定或檔案不存在只記 WARNING，不中斷。不要用 Excel 365 的 `DISPIMG` 公式。
 
 `chart.engine`：
 

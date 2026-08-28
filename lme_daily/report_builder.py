@@ -75,6 +75,9 @@ PRINT_CHART_WIDTH_EMU = 3683635
 PRINT_CHART_HEIGHT_EMU = 2402205
 EMU_PER_PIXEL = 9525
 PRINT_LOGO_ROW_HEIGHT = 34
+PRINT_LOGO_ANCHOR = "A2"
+# Excel 列高為 point；openpyxl Image 寬高為 pixel（96 DPI）
+PRINT_LOGO_PX_PER_POINT = 96 / 72
 PRINT_TITLE_ROW_HEIGHT = 34
 PRINT_SUBTITLE_ROW_HEIGHT = 16
 PRINT_DATE_ROW_HEIGHT = 18
@@ -583,16 +586,73 @@ def _print_fill_range(ws: Worksheet, row: int, last_col: int, fill: PatternFill)
         ws.cell(row=row, column=col).fill = fill
 
 
-def _find_print_logo() -> Path | None:
-    here = Path(__file__).resolve().parent
-    for candidate in (
-        here / "assets" / "logo.png",
-        here.parent / "assets" / "logo.png",
-        here.parent / "logo.png",
-    ):
-        if candidate.is_file():
-            return candidate
-    return None
+def _add_anchored_image(
+    ws: Worksheet,
+    image_path: Path,
+    *,
+    anchor: str,
+    width: int | None = None,
+    height: int | None = None,
+) -> None:
+    """浮動圖片：``XLImage`` + 可選寬高 + ``add_image(anchor)``。走勢圖與 Logo 共用。"""
+    img = XLImage(str(image_path))
+    if width is not None:
+        img.width = width
+    if height is not None:
+        img.height = height
+    ws.add_image(img, anchor)
+
+
+def _logo_pixel_size(image_path: Path, *, row_height_pt: float) -> tuple[int, int]:
+    """高度對齊列高（point → pixel），寬度依原圖比例縮放，避免變形。"""
+    probe = XLImage(str(image_path))
+    native_w = max(1, int(probe.width or 1))
+    native_h = max(1, int(probe.height or 1))
+    target_h = max(1, round(row_height_pt * PRINT_LOGO_PX_PER_POINT))
+    target_w = max(1, round(native_w * target_h / native_h))
+    return target_w, target_h
+
+
+def _place_print_logo(ws: Worksheet, logo_path: Path | None, *, anchor: str = PRINT_LOGO_ANCHOR) -> None:
+    """合併版面 A2 浮動 Logo。路徑未設或檔案不存在時只記 WARNING，不中斷報告。"""
+    if logo_path is None:
+        logger.warning("未設定 Logo 路徑，略過插入")
+        return
+    try:
+        exists = logo_path.is_file()
+    except OSError:
+        exists = False
+    if not exists:
+        logger.warning("找不到 Logo 檔案，略過插入：%s", logo_path)
+        return
+    try:
+        width, height = _logo_pixel_size(logo_path, row_height_pt=PRINT_LOGO_ROW_HEIGHT)
+        _add_anchored_image(ws, logo_path, anchor=anchor, width=width, height=height)
+        logger.info("已插入合併版面 Logo：%s（%dx%d）", logo_path, width, height)
+    except Exception as exc:
+        logger.warning("無法插入 Logo（%s），略過插入：%s", logo_path, exc)
+
+
+def _place_print_logo_xlsxwriter(ws: Any, logo_path: Path | None, *, row: int = 1, col: int = 0) -> None:
+    if logo_path is None:
+        logger.warning("未設定 Logo 路徑，略過插入")
+        return
+    try:
+        exists = logo_path.is_file()
+    except OSError:
+        exists = False
+    if not exists:
+        logger.warning("找不到 Logo 檔案，略過插入：%s", logo_path)
+        return
+    try:
+        probe = XLImage(str(logo_path))
+        native_h = max(1, int(probe.height or 1))
+        target_h = max(1, round(PRINT_LOGO_ROW_HEIGHT * PRINT_LOGO_PX_PER_POINT))
+        scale = target_h / native_h
+        ws.insert_image(row, col, str(logo_path), {"x_scale": scale, "y_scale": scale})
+        logger.info("已插入合併版面 Logo：%s", logo_path)
+    except Exception as exc:
+        logger.warning("無法插入 Logo（%s），略過插入：%s", logo_path, exc)
 
 
 def _write_print_disclaimer_openpyxl(
@@ -611,7 +671,11 @@ def _write_print_disclaimer_openpyxl(
 
 
 def _write_report_banner_openpyxl(
-    ws: Worksheet, as_of: date, *, last_col: int = PRINT_LAST_COL
+    ws: Worksheet,
+    as_of: date,
+    *,
+    last_col: int = PRINT_LAST_COL,
+    logo_path: Path | None = None,
 ) -> int:
     """頁首：公司名 / Logo / 主標題 / 英文副標 / 日期 / 空白分隔列。"""
     style = MergedLayoutStyle
@@ -628,10 +692,7 @@ def _write_report_banner_openpyxl(
     ws.merge_cells(f"A2:{end}2")
     ws["A2"].font = style.font(size=style.size_body)
     ws.row_dimensions[2].height = style.row_logo_height
-    logo = _find_print_logo()
-    if logo is not None:
-        img = XLImage(str(logo))
-        ws.add_image(img, "A2")
+    _place_print_logo(ws, logo_path, anchor=PRINT_LOGO_ANCHOR)
 
     ws.merge_cells(f"A3:{end}3")
     ws["A3"] = REPORT_TITLE_ZH
@@ -694,10 +755,13 @@ def _place_chart_images(
     """獨立「遠期走勢圖」sheet：2 欄（A / J）× 3 列。"""
     anchors = _chart_image_anchors(start_row)
     for img_path, anchor in zip(images, anchors, strict=True):
-        img = XLImage(str(img_path))
-        img.width = config.chart.image_width
-        img.height = config.chart.image_height
-        ws.add_image(img, anchor)
+        _add_anchored_image(
+            ws,
+            img_path,
+            anchor=anchor,
+            width=config.chart.image_width,
+            height=config.chart.image_height,
+        )
     ws.column_dimensions["A"].width = max(ws.column_dimensions["A"].width or 0, 18)
     ws.column_dimensions["J"].width = max(ws.column_dimensions["J"].width or 0, 18)
     return start_row + 3 * CHART_ROW_STRIDE
@@ -709,10 +773,7 @@ def _place_print_chart_images(ws: Worksheet, images: list[Path], *, start_row: i
     width = style.chart_width_px()
     height = style.chart_height_px()
     for img_path, anchor in zip(images, style.chart_anchors(start_row), strict=True):
-        img = XLImage(str(img_path))
-        img.width = width
-        img.height = height
-        ws.add_image(img, anchor)
+        _add_anchored_image(ws, img_path, anchor=anchor, width=width, height=height)
     return start_row + 3 * style.chart_row_stride
 
 
@@ -814,10 +875,9 @@ def _write_print_sheet_openpyxl(
     config: AppConfig,
     chart_images: list[Path],
 ) -> None:
-    del config  # 合併版面圖尺寸用 MergedLayoutStyle，不跟獨立 sheet 的 chart.image_* 走
     style = MergedLayoutStyle
     ws = wb.create_sheet(SHEET_PRINT)
-    next_row = _write_report_banner_openpyxl(ws, as_of)
+    next_row = _write_report_banner_openpyxl(ws, as_of, logo_path=config.branding.logo_path)
     header = f"{REPORT_TITLE_ZH} / {REPORT_TITLE_EN}  {as_of.strftime('%Y-%m-%d')}"
 
     _section_heading_openpyxl(ws, next_row, SHEET_BBG, "Bloomberg Snapshot")
@@ -1357,7 +1417,6 @@ def _write_print_sheet_xlsxwriter(
     chart_images: list[Path],
     header: str,
 ) -> None:
-    del config
     style = MergedLayoutStyle
     ws = workbook.add_worksheet(SHEET_PRINT)
     last_col = style.last_col - 1
@@ -1404,9 +1463,7 @@ def _write_print_sheet_xlsxwriter(
     ws.merge_range(0, 0, 0, last_col, f"{COMPANY_ZH}  /  {COMPANY_EN}", company)
     ws.merge_range(1, 0, 1, last_col, "", blank)
     ws.set_row(1, style.row_logo_height)
-    logo = _find_print_logo()
-    if logo is not None:
-        ws.insert_image(1, 0, str(logo))
+    _place_print_logo_xlsxwriter(ws, config.branding.logo_path, row=1, col=0)
     ws.merge_range(2, 0, 2, last_col, REPORT_TITLE_ZH, title)
     ws.set_row(2, style.row_title_height)
     ws.merge_range(3, 0, 3, last_col, REPORT_TITLE_EN, subtitle)

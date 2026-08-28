@@ -57,6 +57,7 @@ def test_load_config_combines_paths(tmp_path: Path):
     assert config.bloomberg.source == "excel"
     assert config.bloomberg.prompt_date_cell == "B4"
     assert config.chart.forward_months == 27
+    assert config.branding.logo_path is None
     assert date(2026, 12, 25) in config.holidays
 
 
@@ -164,3 +165,25 @@ def test_output_dir_splits_vba_and_report_folders(tmp_path: Path):
     assert config.output_workbook_path(as_of).parent == run_dir
     assert config.paths.ref_workbook.parent == work.resolve()
     assert config.paths.bbg_workbook.parent == work.resolve()
+
+
+def test_branding_logo_path_optional_and_relative(tmp_path: Path):
+    (tmp_path / "work").mkdir()
+    config = load_config(_write_config(tmp_path))
+    assert config.branding.logo_path is None
+
+    logo = tmp_path / "company-logo.png"
+    logo.write_bytes(b"not-a-real-png")
+    cfg = _write_config(tmp_path, branding={"logo_path": "company-logo.png"})
+    config = load_config(cfg)
+    assert config.branding.logo_path == logo.resolve()
+
+    cfg_empty = _write_config(tmp_path, branding={"logo_path": ""})
+    config = load_config(cfg_empty)
+    assert config.branding.logo_path is None
+
+    missing = tmp_path / "missing-logo.png"
+    cfg_missing = _write_config(tmp_path, branding={"logo_path": str(missing)})
+    config = load_config(cfg_missing)
+    assert config.branding.logo_path == missing.resolve()
+    assert not config.branding.logo_path.is_file()
