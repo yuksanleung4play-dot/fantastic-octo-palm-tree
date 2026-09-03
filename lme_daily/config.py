@@ -1,0 +1,548 @@
+"""讀取並驗證 config.yaml，組合路徑、載入公休日。"""
+
+from __future__ import annotations
+
+import logging
+import re
+from dataclasses import dataclass
+from datetime import date, datetime
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+from lme_daily.exceptions import ConfigError
+
+logger = logging.getLogger(__name__)
+
+CONFIG_FILENAME = "config.yaml"
+
+
+@dataclass(frozen=True)
+class PathsConfig:
+    working_dir: Path
+    output_dir: Path | None
+    ref_workbook: Path
+    bbg_workbook: Path
+    output_prefix: str
+    holidays_file: Path | None
+    span_dat_dir: Path | None
+
+    @property
+    def bbg_workbook_name(self) -> str:
+        return self.bbg_workbook.name
+
+
+@dataclass(frozen=True)
+class VbaConfig:
+    macro_name: str
+    use_param_injection: bool
+    date_format: str
+    inputbox_date_format: str
+    output_timeout_seconds: float
+    poll_interval_seconds: float
+    inputbox_timeout_seconds: float
+    auto_closes_workbook: bool
+    rewrite_p_drive_to_unc: bool
+
+
+@dataclass(frozen=True)
+class ExcelUiConfig:
+    visible: bool
+    display_alerts: bool
+    reuse_running: bool
+    quit_on_exit: bool
+    new_instance: bool
+
+
+@dataclass(frozen=True)
+class BloombergConfig:
+    copy_range: str
+    bbg_sheet_name: str
+    prompt_date_cell: str
+    refresh_wait_seconds: float
+    calculation_timeout_seconds: float
+    source: str
+    host: str
+    port: int
+    securities: tuple[str, ...]
+    fields: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ChartConfig:
+    forward_months: int
+    engine: str
+    image_width: int
+    image_height: int
+
+
+@dataclass(frozen=True)
+class BrandingConfig:
+    logo_path: Path | None
+
+
+@dataclass(frozen=True)
+class LoggingConfig:
+    level: str
+    file: str | None
+
+
+@dataclass(frozen=True)
+class AppConfig:
+    source_path: Path
+    paths: PathsConfig
+    vba: VbaConfig
+    excel: ExcelUiConfig
+    bloomberg: BloombergConfig
+    chart: ChartConfig
+    branding: BrandingConfig
+    holidays: frozenset[date]
+    logging: LoggingConfig
+
+    def daily_stamp(self, as_of: date) -> str:
+        return as_of.strftime("%Y%m%d")
+
+    def vba_dir(self, as_of: date) -> Path:
+        """VBA 中繼檔固定目錄：working_dir\\yyyymmdd，不受 output_dir 影響。"""
+        return self.paths.working_dir / self.daily_stamp(as_of)
+
+    def run_dir(self, as_of: date) -> Path:
+        """最終報告目錄：output_dir 留空則與 vba_dir 相同，否則 output_dir\\yyyymmdd。"""
+        base = self.paths.output_dir if self.paths.output_dir is not None else self.paths.working_dir
+        return base / self.daily_stamp(as_of)
+
+    def ensure_run_dirs(self, as_of: date) -> tuple[Path, Path]:
+        vba_dir = self.vba_dir(as_of)
+        run_dir = self.run_dir(as_of)
+        vba_dir.mkdir(parents=True, exist_ok=True)
+        run_dir.mkdir(parents=True, exist_ok=True)
+        return vba_dir, run_dir
+
+    def step2_workbook_path(self, as_of: date) -> Path:
+        return self.vba_dir(as_of) / f"{self.daily_stamp(as_of)}.xlsx"
+
+    def step2_legacy_path(self, as_of: date) -> Path:
+        """巨集若仍寫到 working_dir 根目錄時的舊路徑。"""
+        return self.paths.working_dir / f"{self.daily_stamp(as_of)}.xlsx"
+
+    def output_workbook_path(self, as_of: date) -> Path:
+        name = f"{self.paths.output_prefix}{self.daily_stamp(as_of)}.xlsx"
+        return self.run_dir(as_of) / name
+
+    def run_log_path(self, as_of: date) -> Path:
+        return self.run_dir(as_of) / "lme_daily.log"
+
+    def span_dat_dir(self) -> Path:
+        """LME SPAN ``lme.yyyymmdd.dat`` 目錄；未設定則為 working_dir 同一層的 ``LME SPAN``。"""
+        from lme_daily.unc_paths import default_span_dat_dir
+
+        if self.paths.span_dat_dir is not None:
+            return self.paths.span_dat_dir
+        return default_span_dat_dir(self.paths.working_dir)
+
+
+def discover_config_path(explicit: str | Path | None = None) -> Path:
+    """尋找 config.yaml。
+
+    優先順序：``--config`` → 目前工作目錄 → 專案根目錄（本套件上一層）→ 套件目錄。
+    """
+    if explicit is not None:
+        path = Path(explicit).expanduser().resolve()
+        if not path.is_file():
+            raise ConfigError(f"指定的設定檔不存在：{path}")
+        return path
+
+    candidates = [
+        Path.cwd() / CONFIG_FILENAME,
+        Path(__file__).resolve().parent.parent / CONFIG_FILENAME,
+        Path(__file__).resolve().parent / CONFIG_FILENAME,
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate.resolve()
+
+    looked = "\n  ".join(str(p) for p in candidates)
+    raise ConfigError(
+        "找不到 config.yaml。請將檔案放在執行目錄或專案根目錄，或用 --config 指定。\n"
+        f"已嘗試：\n  {looked}"
+    )
+
+
+def _require_mapping(raw: Any, context: str) -> dict[str, Any]:
+    if not isinstance(raw, dict):
+        raise ConfigError(f"{context} 必須是 mapping，實際為 {type(raw).__name__}")
+    return raw
+
+
+def _get(section: dict[str, Any], key: str, *, context: str, default: Any = ...):
+    if key in section and section[key] is not None:
+        return section[key]
+    if default is not ...:
+        return default
+    raise ConfigError(f"設定缺少必填欄位：{context}.{key}")
+
+
+def _as_bool(value: Any, context: str) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str) and value.strip().lower() in {"true", "false", "1", "0", "yes", "no"}:
+        return value.strip().lower() in {"true", "1", "yes"}
+    raise ConfigError(f"{context} 必須是布林值，收到 {value!r}")
+
+
+def _as_path(value: Any, context: str) -> Path:
+    if not isinstance(value, (str, Path)) or str(value).strip() == "":
+        raise ConfigError(f"{context} 必須是非空路徑字串")
+    text = str(value).strip().strip('"').strip("'")
+    return Path(text).expanduser()
+
+
+_YAML_PATH_KEYS = (
+    "working_dir",
+    "output_dir",
+    "holidays_file",
+    "ref_workbook_name",
+    "bbg_workbook_name",
+    "file",
+    "logo_path",
+    "span_dat_dir",
+)
+
+
+def relax_windows_yaml_quotes(text: str) -> str:
+    """把雙引號 Windows/UNC 路徑改成 YAML 單引號，讓 ``\\Dealing`` 被當成普通字元。
+
+    雙引號字串裡 ``\\`` 是跳脫，``\\D`` 會觸發 ``unknown escape character 'D'``。
+    單引號裡反斜線是字面值，適合 ``\\\\server\\share\\資料夾``。
+    """
+    keys = "|".join(_YAML_PATH_KEYS)
+    pattern = re.compile(
+        rf'^(\s*(?:{keys})\s*:\s*)"(.*)"(\s*(?:#.*)?)?\s*$',
+        re.MULTILINE,
+    )
+
+    def _repl(match: re.Match[str]) -> str:
+        prefix, inner, comment = match.group(1), match.group(2), match.group(3) or ""
+        if "\\" not in inner and not inner.startswith("//"):
+            return match.group(0)
+        return f"{prefix}'{inner.replace(chr(39), chr(39) * 2)}'{comment}"
+
+    return pattern.sub(_repl, text)
+
+
+def _yaml_path_help(config_path: Path, exc: Exception) -> str:
+    return (
+        f"無法解析 {config_path}：{exc}\n"
+        "Windows 路徑請用【單引號】，不要用雙引號。雙引號裡的 \\D 會被 YAML 當成非法跳脫。\n"
+        "正確：\n"
+        "  working_dir: '\\\\192.168.89.167\\Dealing\\資料夾'\n"
+        "或正斜線：\n"
+        "  working_dir: '//192.168.89.167/Dealing/資料夾'\n"
+        "錯誤（會爆 unknown escape character 'D'）：\n"
+        '  working_dir: "\\\\192.168.89.167\\Dealing\\資料夾"'
+    )
+
+
+def _looks_like_unc(text: str) -> bool:
+    s = text.strip()
+    return s.startswith("\\\\") or s.startswith("//")
+
+
+def _looks_like_drive(text: str) -> bool:
+    s = text.strip()
+    return len(s) >= 3 and s[1] == ":" and s[0].isalpha() and s[2] in "\\/"
+
+
+def _finalize_optional_dir(value: Any, *, base: Path, context: str) -> Path | None:
+    if value is None:
+        return None
+    text = str(value).strip().strip('"').strip("'")
+    if text == "":
+        return None
+    path = _as_path(text, context)
+    raw = str(path)
+    if _looks_like_unc(raw) or _looks_like_drive(raw):
+        try:
+            return Path(raw).expanduser().resolve()
+        except OSError:
+            return Path(raw)
+    if not path.is_absolute():
+        return (base / path).resolve()
+    return path.resolve()
+
+
+def _finalize_working_dir(path: Path, *, config_parent: Path) -> Path:
+    raw = str(path)
+    if _looks_like_unc(raw) or _looks_like_drive(raw):
+        try:
+            return Path(raw).expanduser().resolve()
+        except OSError:
+            return Path(raw)
+    if not path.is_absolute():
+        return (config_parent / path).resolve()
+    return path.resolve()
+
+
+def _parse_yaml_file(config_path: Path) -> Any:
+    text = config_path.read_text(encoding="utf-8-sig")
+    try:
+        return yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        relaxed = relax_windows_yaml_quotes(text)
+        if relaxed == text:
+            raise ConfigError(_yaml_path_help(config_path, exc)) from exc
+        try:
+            data = yaml.safe_load(relaxed)
+        except yaml.YAMLError as exc2:
+            raise ConfigError(_yaml_path_help(config_path, exc2)) from exc2
+        logger.warning(
+            "config.yaml 路徑使用了雙引號 + 反斜線，已自動改以單引號解讀。"
+            "建議改成：working_dir: '\\\\server\\share\\資料夾'"
+        )
+        return data
+
+
+def _parse_holiday_token(token: Any, *, source: str) -> date:
+    text = str(token).strip()
+    try:
+        return datetime.strptime(text, "%Y-%m-%d").date()
+    except ValueError as exc:
+        raise ConfigError(f"{source} 的公休日必須是 YYYY-MM-DD，收到 {token!r}") from exc
+
+
+def _load_holidays_file(path: Path) -> set[date]:
+    if not path.is_file():
+        raise ConfigError(f"公休日檔不存在：{path}")
+    try:
+        payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as exc:
+        raise ConfigError(f"無法解析公休日檔 {path}：{exc}") from exc
+
+    if isinstance(payload, list):
+        raw_dates = payload
+    elif isinstance(payload, dict):
+        raw_dates = payload.get("holidays") or payload.get("dates") or []
+    else:
+        raise ConfigError(f"{path} 格式無法識別（需為 list 或含 holidays/dates 的 mapping）")
+
+    if not isinstance(raw_dates, list):
+        raise ConfigError(f"{path} 的 holidays 必須是清單")
+    return {_parse_holiday_token(item, source=str(path)) for item in raw_dates}
+
+
+def load_holidays(
+    inline_dates: Any,
+    holidays_file: Path | None,
+) -> frozenset[date]:
+    collected: set[date] = set()
+    if inline_dates:
+        if not isinstance(inline_dates, list):
+            raise ConfigError("holidays.dates 必須是清單")
+        collected.update(_parse_holiday_token(item, source="config.holidays.dates") for item in inline_dates)
+    if holidays_file is not None:
+        collected.update(_load_holidays_file(holidays_file))
+    logger.info("已載入 %d 個公休日", len(collected))
+    return frozenset(collected)
+
+
+def load_config(path: str | Path | None = None) -> AppConfig:
+    """讀取 YAML、組合 working_dir 與各檔名，並在執行前檢查檔案是否存在。"""
+    config_path = discover_config_path(path)
+    logger.info("讀取設定檔：%s", config_path)
+    raw = _parse_yaml_file(config_path) or {}
+    raw = _require_mapping(raw, "config")
+
+    paths_raw = _require_mapping(_get(raw, "paths", context="config"), "paths")
+    vba_raw = _require_mapping(_get(raw, "vba", context="config"), "vba")
+    bbg_raw = _require_mapping(_get(raw, "bloomberg", context="config"), "bloomberg")
+    chart_raw = _require_mapping(_get(raw, "chart", context="config"), "chart")
+    excel_raw = _require_mapping(raw.get("excel") or {}, "excel")
+    holidays_raw = _require_mapping(raw.get("holidays") or {}, "holidays")
+    logging_raw = _require_mapping(raw.get("logging") or {}, "logging")
+    branding_raw = _require_mapping(raw.get("branding") or {}, "branding")
+
+    working_dir = _as_path(_get(paths_raw, "working_dir", context="paths"), "paths.working_dir")
+    working_dir = _finalize_working_dir(working_dir, config_parent=config_path.parent)
+
+    ref_name = str(_get(paths_raw, "ref_workbook_name", context="paths"))
+    bbg_name = str(_get(paths_raw, "bbg_workbook_name", context="paths"))
+    output_prefix = str(_get(paths_raw, "output_prefix", context="paths"))
+
+    holidays_file_value = paths_raw.get("holidays_file") or holidays_raw.get("file")
+    holidays_file: Path | None = None
+    if holidays_file_value:
+        holidays_file = _as_path(holidays_file_value, "paths.holidays_file")
+        if not holidays_file.is_absolute():
+            holidays_file = (config_path.parent / holidays_file).resolve()
+
+    output_dir = _finalize_optional_dir(
+        paths_raw.get("output_dir"),
+        base=working_dir,
+        context="paths.output_dir",
+    )
+    span_dat_dir = _finalize_optional_dir(
+        paths_raw.get("span_dat_dir"),
+        base=working_dir,
+        context="paths.span_dat_dir",
+    )
+
+    logo_path: Path | None = None
+    logo_value = branding_raw.get("logo_path")
+    if logo_value is not None and str(logo_value).strip():
+        logo_path = _as_path(logo_value, "branding.logo_path")
+        if not logo_path.is_absolute():
+            logo_path = (config_path.parent / logo_path).resolve()
+        else:
+            try:
+                logo_path = logo_path.expanduser().resolve()
+            except OSError:
+                logo_path = Path(str(logo_path))
+
+    paths = PathsConfig(
+        working_dir=working_dir,
+        output_dir=output_dir,
+        ref_workbook=working_dir / ref_name,
+        bbg_workbook=working_dir / bbg_name,
+        output_prefix=output_prefix,
+        holidays_file=holidays_file,
+        span_dat_dir=span_dat_dir,
+    )
+
+    engine = str(_get(chart_raw, "engine", context="chart", default="matplotlib")).strip().lower()
+    if engine not in {"matplotlib", "xlsxwriter"}:
+        raise ConfigError("chart.engine 只能是 matplotlib 或 xlsxwriter")
+    bbg_source = str(_get(bbg_raw, "source", context="bloomberg", default="excel")).strip().lower()
+    if bbg_source not in {"excel", "cached", "blpapi"}:
+        raise ConfigError("bloomberg.source 只能是 excel、cached 或 blpapi")
+
+    config = AppConfig(
+        source_path=config_path,
+        paths=paths,
+        vba=VbaConfig(
+            macro_name=str(_get(vba_raw, "macro_name", context="vba")),
+            use_param_injection=_as_bool(
+                _get(vba_raw, "use_param_injection", context="vba"),
+                "vba.use_param_injection",
+            ),
+            date_format=str(_get(vba_raw, "date_format", context="vba", default="%Y/%m/%d")),
+            inputbox_date_format=str(
+                _get(vba_raw, "inputbox_date_format", context="vba", default="%Y%m%d")
+            ),
+            output_timeout_seconds=float(
+                _get(vba_raw, "output_timeout_seconds", context="vba", default=180)
+            ),
+            poll_interval_seconds=float(
+                _get(vba_raw, "poll_interval_seconds", context="vba", default=2)
+            ),
+            inputbox_timeout_seconds=float(
+                _get(vba_raw, "inputbox_timeout_seconds", context="vba", default=60)
+            ),
+            auto_closes_workbook=_as_bool(
+                _get(vba_raw, "auto_closes_workbook", context="vba", default=True),
+                "vba.auto_closes_workbook",
+            ),
+            rewrite_p_drive_to_unc=_as_bool(
+                _get(
+                    vba_raw,
+                    "rewrite_p_drive_to_unc",
+                    context="vba",
+                    default=False,
+                ),
+                "vba.rewrite_p_drive_to_unc",
+            ),
+        ),
+        excel=ExcelUiConfig(
+            visible=_as_bool(_get(excel_raw, "visible", context="excel", default=True), "excel.visible"),
+            display_alerts=_as_bool(
+                _get(excel_raw, "display_alerts", context="excel", default=False),
+                "excel.display_alerts",
+            ),
+            reuse_running=_as_bool(
+                _get(excel_raw, "reuse_running", context="excel", default=True),
+                "excel.reuse_running",
+            ),
+            quit_on_exit=_as_bool(
+                _get(excel_raw, "quit_on_exit", context="excel", default=False),
+                "excel.quit_on_exit",
+            ),
+            new_instance=_as_bool(
+                _get(excel_raw, "new_instance", context="excel", default=False),
+                "excel.new_instance",
+            ),
+        ),
+        bloomberg=BloombergConfig(
+            copy_range=str(_get(bbg_raw, "copy_range", context="bloomberg")),
+            bbg_sheet_name=str(_get(bbg_raw, "bbg_sheet_name", context="bloomberg")),
+            prompt_date_cell=str(
+                _get(bbg_raw, "prompt_date_cell", context="bloomberg", default="B4")
+            ).strip()
+            or "B4",
+            refresh_wait_seconds=float(_get(bbg_raw, "refresh_wait_seconds", context="bloomberg")),
+            calculation_timeout_seconds=float(
+                _get(bbg_raw, "calculation_timeout_seconds", context="bloomberg", default=120)
+            ),
+            source=bbg_source,
+            host=str(_get(bbg_raw, "host", context="bloomberg", default="127.0.0.1")),
+            port=int(_get(bbg_raw, "port", context="bloomberg", default=8194)),
+            securities=tuple(
+                str(x) for x in (_get(bbg_raw, "securities", context="bloomberg", default=[]) or [])
+            ),
+            fields=tuple(
+                str(x)
+                for x in (
+                    _get(
+                        bbg_raw,
+                        "fields",
+                        context="bloomberg",
+                        default=["PX_LAST", "PX_BID", "PX_ASK", "PX_HIGH", "PX_LOW", "PX_SETTLE"],
+                    )
+                    or []
+                )
+            ),
+        ),
+        chart=ChartConfig(
+            forward_months=int(_get(chart_raw, "forward_months", context="chart")),
+            engine=engine,
+            image_width=int(_get(chart_raw, "image_width", context="chart", default=480)),
+            image_height=int(_get(chart_raw, "image_height", context="chart", default=280)),
+        ),
+        branding=BrandingConfig(logo_path=logo_path),
+        holidays=load_holidays(holidays_raw.get("dates") or [], holidays_file),
+        logging=LoggingConfig(
+            level=str(_get(logging_raw, "level", context="logging", default="INFO")),
+            file=(str(logging_raw["file"]).strip() or None) if logging_raw.get("file") else None,
+        ),
+    )
+    return config
+
+
+def validate_required_files(
+    config: AppConfig,
+    *,
+    require_workbooks: bool = True,
+    require_ref_workbook: bool | None = None,
+    require_bbg_workbook: bool | None = None,
+) -> None:
+    """執行前檢查工作資料夾與來源工作簿是否存在；不存在就報錯退出。"""
+    if require_ref_workbook is None:
+        require_ref_workbook = require_workbooks
+    if require_bbg_workbook is None:
+        require_bbg_workbook = require_workbooks
+
+    missing: list[str] = []
+    if not config.paths.working_dir.is_dir():
+        missing.append(f"工作資料夾不存在：{config.paths.working_dir}")
+    if require_ref_workbook and not config.paths.ref_workbook.is_file():
+        missing.append(f"參考工作簿不存在：{config.paths.ref_workbook}")
+    if require_bbg_workbook and not config.paths.bbg_workbook.is_file():
+        missing.append(f"Bloomberg 工作簿不存在：{config.paths.bbg_workbook}")
+    if config.paths.holidays_file is not None and not config.paths.holidays_file.is_file():
+        missing.append(f"公休日檔不存在：{config.paths.holidays_file}")
+    if missing:
+        raise ConfigError("執行前檔案檢查失敗：\n  " + "\n  ".join(missing))
+    logger.info("檔案檢查通過：working_dir=%s", config.paths.working_dir)
+    if require_ref_workbook:
+        logger.info("參考工作簿：%s", config.paths.ref_workbook)
+    if require_bbg_workbook:
+        logger.info("BBG 工作簿：%s", config.paths.bbg_workbook)

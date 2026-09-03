@@ -1,0 +1,49 @@
+LME daily report - how to run (Windows)
+======================================
+
+Do NOT type library names (pywinauto) or requirements.txt as commands.
+
+Double-click ONE of these in this folder:
+  RUN_LME.bat
+  RUN_LME.vbs
+  Generate_LME_Daily.bat
+
+First time only, if packages are missing:
+  double-click install_deps.bat
+  (needs internet)
+
+Before running:
+  1. Edit config.yaml  ->  paths.working_dir
+     Use SINGLE quotes for Windows/UNC paths:
+
+       working_dir: '\\192.168.89.167\Dealing\your folder'
+
+     Do NOT use double quotes. YAML treats \D as an escape and crashes
+     with: unknown escape character 'D'
+  2. Excel installed
+  3. Bloomberg Terminal logged in AND unlocked
+     First open Excel (Bloomberg add-in loaded).
+     The script opens "LME BBG WORKBOOK.xlsx" if it is not already open,
+     waits bloomberg.refresh_wait_seconds, then reads it and leaves it open.
+     Then run the bat. The script attaches to that Excel and does not Quit it.
+     It never starts a new Excel process (no DispatchEx).
+     Logs: "reusing Excel.Application (GetActiveObject)" plus PID/Hwnd.
+     QueryTables must keep TEXT;P:\\... drive-letter paths. Rewriting them
+     to UNC makes Excel Refresh fail with 1004 (cannot find lme.yyyymmdd.dat)
+     even when the file exists. The script now restores UNC connections
+     back to P: and checks that LME SPAN\\lme.yyyymmdd.dat exists first.
+     It cannot auto-unlock Bloomberg (policy).
+     Optional config bloomberg.source:
+       excel   = RefreshAll in the reused Excel (default)
+       cached  = read cells only, no refresh
+       blpapi  = pip install blpapi (Terminal still must be unlocked)
+  4. Source workbooks in working_dir (xlsm / BBG xlsx)
+     VBA yyyymmdd.xlsx always goes to working_dir\yyyymmdd\
+     Final report xlsx/log go to run_dir
+     (output_dir empty = same folder; output_dir set = output_dir\yyyymmdd\)
+
+Command Prompt (optional):
+  py -3 generate_lme_daily.py
+
+If you see garbage before 'echo off':
+  that was the old UTF-8 BOM batch file. Use the new RUN_LME.bat

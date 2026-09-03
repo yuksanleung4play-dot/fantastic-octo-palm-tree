@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Tests / tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Runtime artifacts
+*.log
+_chart_tmp/
+.DS_Store
+Thumbs.db
+
+# Local Excel outputs (keep templates only)
+# Uncomment if generated reports should never be committed:
+# LME每日報價*.xlsx
+# 20??????.xlsx

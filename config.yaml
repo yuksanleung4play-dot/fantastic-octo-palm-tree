@@ -1,0 +1,79 @@
+# LME 每日報價自動化 — 請依本機路徑與巨集名稱修改後再執行
+# 本檔與執行目錄 / 專案根目錄同層即可被自動找到，也可用 --config 指定。
+
+paths:
+  # Windows 路徑請用單引號（雙引號裡 \Dealing 會被 YAML 當成非法跳脫）
+  # UNC 範例：working_dir: '\\192.168.89.167\Dealing\資料夾'
+  working_dir: '\\192.168.89.167\Dealing\Dealing Department - New\1. 交易部日常工作分類\2. 期貨\LME --Form & Sheet' # 來源工作簿 + VBA 中繼檔
+  # 「1.」「2.」後面只留一個空白，不要為了對齊註解補空格，否則 LME SPAN 會找錯目錄
+  ref_workbook_name: "早班_LME_reference_2024.xlsm" # 含 VBA 巨集（.xlsm / .xlsb）
+  bbg_workbook_name: "LME BBG WORKBOOK.xlsx"
+  output_prefix: "LME每日報價"
+  # 留空 = 最終報告也放 working_dir\yyyymmdd\；填了路徑 = 最終報告改放 output_dir\yyyymmdd\
+  # 最終報告只有 LME每日報價yyyymmdd.xlsx（不匯出 PDF）
+  # VBA 中繼檔 yyyymmdd.xlsx 永遠在 working_dir\yyyymmdd\，不受此欄影響
+  output_dir: ''
+  # LME SPAN 的 lme.yyyymmdd.dat（巨集 QueryTables.Refresh 會讀）。留空 = working_dir 同一層的「LME SPAN」
+  span_dat_dir: ''
+  # 公休日清單檔（相對於本 config 所在目錄；也可填絕對路徑）
+  holidays_file: "holidays.yaml"
+
+vba:
+  # TODO: 請改成實際巨集名稱（VBA 編輯器中的 Sub 名稱）
+  macro_name: "RunDailyLME"
+  # true = 先試 xl.Run(macro, 上日, 3M)；若巨集沒有參數會自動改填 InputBox
+  # false = 直接走 InputBox（你的 lme_main 屬於這種）
+  use_param_injection: true
+  # 傳給巨集 / InputBox 的日期字串格式（依 Excel 地區設定調整）
+  # 參數注入用（Application.Run 的兩個參數）
+  date_format: "%Y/%m/%d"
+  # InputBox 填入格式（lme_main 要 yyyymmdd，例如 20260818）
+  inputbox_date_format: "%Y%m%d"
+  output_timeout_seconds: 180
+  poll_interval_seconds: 2
+  inputbox_timeout_seconds: 60
+  # true = 巨集會自己關閉 reference 工作簿；Python 不要再 Close（避免 RPC_E_DISCONNECTED）
+  auto_closes_workbook: true
+  # TEXT QueryTable 對 UNC 常 1004 找不到 .dat；請維持 P:\ 路徑。true = 上一版行為（不建議）
+  rewrite_p_drive_to_unc: false
+
+excel:
+  visible: true # true 方便除錯；排程時可改 false
+  display_alerts: false
+  # 沿用已開啟、已載入 Bloomberg 外掛的 Excel；不要另開獨立行程再 Quit
+  reuse_running: true
+  quit_on_exit: false
+  new_instance: false # 已停用：禁止 DispatchEx 開新 Excel（會鎖 Bloomberg）
+
+bloomberg:
+  # excel  = 在沿用的 Excel 裡 RefreshAll（預設）
+  # cached = 只讀目前儲存格，不 Refresh（最不容易鎖 Terminal）
+  # blpapi = Python Desktop API，不經 Excel 外掛（仍需 Terminal 已登入未鎖定）
+  source: excel
+  copy_range: "B3:I10"
+  # TODO: 請確認實際 sheet 名稱（目前為預設值）
+  bbg_sheet_name: "Promt date"
+  # LME_PROMPT_DT（3M Prompt Date）所在儲存格，例如銅 =BDP(LM & CA & DS03 LME Comdty, LME_PROMPT_DT)
+  prompt_date_cell: "B4"
+  refresh_wait_seconds: 15
+  calculation_timeout_seconds: 120
+
+chart:
+  forward_months: 27 # cash date 往後畫圖的月數上限
+  # matplotlib = 靜態圖嵌入；xlsxwriter = Excel 原生可互動圖表
+  engine: matplotlib # matplotlib | xlsxwriter
+  image_width: 480
+  image_height: 280
+
+branding:
+  # 合併版面第 2 列浮動 Logo（PNG/JPG）。留空 = 略過插入，不中斷報告
+  # Windows 路徑請用單引號：logo_path: '\\192.168.89.167\Dealing\...\logo.png'
+  logo_path: ''
+
+# 可在此直接列出公休日（YYYY-MM-DD），會與 holidays_file 合併
+holidays:
+  dates: []
+
+logging:
+  level: INFO
+  file: "lme_daily.log" # 另寫一份到 working_dir；當日 run_dir 一定有 lme_daily.log
