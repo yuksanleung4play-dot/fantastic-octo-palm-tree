@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 from pathlib import Path
 
@@ -21,7 +22,10 @@ from lme_daily.report_builder import (
     COLOR_TEXT_WHITE,
     DATE_COL,
     FONT_NAME,
+    PRINT_CHART_BUFFER_ROWS,
+    PRINT_CHART_ROW_STRIDE,
     PRINT_DISCLAIMER_FULL,
+    PRINT_FOOTER,
     PRINT_LAST_COL,
     SHEET_BBG,
     SHEET_PRINT,
@@ -32,6 +36,7 @@ from lme_daily.report_builder import (
     compute_center_anchor_in_range,
     disclaimer_row_after,
     merged_layout_disclaimer_row,
+    print_chart_display_pixel_size,
 )
 
 
@@ -178,6 +183,30 @@ def test_merged_layout_frozen_styles_a3_c8_a271(tmp_path: Path, engine: str):
     assert ws["H8"].value == "ZS"
     assert fill_hex(ws["H8"]) == COLOR_ACCENT
     assert font_hex(ws["H8"]) == COLOR_TEXT_WHITE
+
+    for coord in ("A8", "B8"):
+        assert fill_hex(ws[coord]) == COLOR_ACCENT
+        assert font_hex(ws[coord]) == COLOR_TEXT_WHITE
+        assert ws[coord].font.bold is True
+        assert float(ws[coord].font.size) == 11
+        assert ws[coord].font.name == FONT_NAME
+        assert ws[coord].alignment.horizontal == "center"
+        assert ws[coord].alignment.vertical == "center"
+
+    assert ws["A9"].value == "Tenors"
+    assert ws["A9"].alignment.horizontal == "center"
+    assert ws["A9"].alignment.vertical == "center"
+    for label in ("Cash", "3MO", "15Mo", "27Mo", "63Mo", "123Mo"):
+        cell = next(
+            c
+            for row in ws.iter_rows(min_col=1, max_col=1)
+            for c in row
+            if c.value == label
+        )
+        assert cell.alignment.horizontal == "center", label
+        assert cell.alignment.vertical == "center", label
+    assert "Bloomberg Snapshot" in str(ws["A7"].value)
+    assert ws["A7"].alignment.horizontal == "left"
 
     assert fill_hex(ws["A5"]) == COLOR_DATE_BG
     assert font_hex(ws["A5"]) == COLOR_DATE_TEXT
@@ -340,6 +369,15 @@ def test_center_image_in_merged_range_spans_columns_when_offset_exceeds_first(tm
     wb.close()
 
 
+def _print_area_end_row(ws) -> int:
+    area = ws.print_area
+    assert area, "print_area should be set"
+    text = area if isinstance(area, str) else ",".join(str(part) for part in area)
+    matches = re.findall(r"\$?[A-Za-z]+\$?(\d+)", text)
+    assert matches, text
+    return int(matches[-1])
+
+
 def _last_raw_content_row(ws) -> int:
     from lme_daily.report_builder import PRINT_RAW_SECTION_TITLE
 
@@ -391,5 +429,42 @@ def test_disclaimer_follows_raw_content_length(tmp_path: Path, engine: str, n_da
     assert disc.row == expected
     assert disc.row == disclaimer_row_after(last_raw)
     assert disc.row != 271
+    assert _print_area_end_row(ws) == disc.row
+    assert f"H{disc.row}" in str(ws.print_area).replace("$", "")
+    footer = ws.oddFooter.center.text or ""
+    assert PRINT_FOOTER in footer or ("&P" in footer and "&N" in footer)
+    footer_size = ws.oddFooter.center.size
+    if footer_size is not None:
+        assert int(footer_size) == 9
     wb.close()
+
+
+def test_a8_b8_match_c8_accent_on_code_row():
+    from openpyxl import Workbook
+
+    from lme_daily.report_builder import _write_print_bbg_openpyxl
+
+    wb = Workbook()
+    ws = wb.active
+    values, formats = _bbg_tenor_sample()
+    _write_print_bbg_openpyxl(ws, values, formats, start_row=8)
+    for coord in ("A8", "B8", "C8"):
+        assert fill_hex(ws[coord]) == COLOR_ACCENT
+        assert font_hex(ws[coord]) == COLOR_TEXT_WHITE
+        assert ws[coord].font.bold is True
+        assert ws[coord].alignment.horizontal == "center"
+        assert ws[coord].alignment.vertical == "center"
+    wb.close()
+
+
+def test_print_chart_height_fits_row_gap_with_buffer():
+    from openpyxl.utils.units import DEFAULT_ROW_HEIGHT, points_to_pixels
+
+    _width, height = print_chart_display_pixel_size()
+    slot_px = points_to_pixels(DEFAULT_ROW_HEIGHT * PRINT_CHART_ROW_STRIDE)
+    usable_px = points_to_pixels(
+        DEFAULT_ROW_HEIGHT * (PRINT_CHART_ROW_STRIDE - PRINT_CHART_BUFFER_ROWS)
+    )
+    assert height <= usable_px
+    assert height < slot_px
 
