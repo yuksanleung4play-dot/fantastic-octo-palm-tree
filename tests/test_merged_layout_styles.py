@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 from pathlib import Path
 
@@ -20,18 +21,30 @@ from lme_daily.report_builder import (
     COLOR_TEXT_CREAM,
     COLOR_TEXT_WHITE,
     DATE_COL,
+    EXCEL_DEFAULT_COLUMN_WIDTH,
     FONT_NAME,
+    PRINT_CHART_COL_GAP_PX,
     PRINT_DISCLAIMER_FULL,
+    PRINT_FOOTER,
     PRINT_LAST_COL,
+    PRINT_RAW_SECTION_TITLE,
     SHEET_BBG,
     SHEET_PRINT,
     build_report,
     center_image_in_merged_range,
+    chart_column_positions,
+    chart_column_positions_from_widths,
     column_width_to_emu,
     column_width_to_pixels,
     compute_center_anchor_in_range,
     disclaimer_row_after,
+    excel_width_to_pixels,
+    get_print_area_width_px,
+    insert_prompt_section_page_break,
     merged_layout_disclaimer_row,
+    place_forward_curve_images,
+    prompt_section_page_break_row,
+    scaled_chart_pixel_size,
 )
 
 
@@ -161,6 +174,12 @@ def test_merged_layout_frozen_styles_a3_c8_a271(tmp_path: Path, engine: str):
     wb = load_workbook(dest)
     ws = wb[SHEET_PRINT]
 
+    assert "山證國際金融控股有限公司" in str(ws["A1"].value)
+    assert ws["A1"].alignment.horizontal == "center"
+    assert ws["A1"].alignment.vertical == "center"
+    assert "Bloomberg Snapshot" in str(ws["A7"].value)
+    assert ws["A7"].alignment.horizontal == "left"
+
     assert ws["A3"].value == "LME每日報價"
     assert fill_hex(ws["A3"]) == COLOR_ACCENT
     assert font_hex(ws["A3"]) == COLOR_TEXT_CREAM
@@ -178,6 +197,12 @@ def test_merged_layout_frozen_styles_a3_c8_a271(tmp_path: Path, engine: str):
     assert ws["H8"].value == "ZS"
     assert fill_hex(ws["H8"]) == COLOR_ACCENT
     assert font_hex(ws["H8"]) == COLOR_TEXT_WHITE
+    for coord in ("A8", "B8"):
+        assert fill_hex(ws[coord]) == COLOR_ACCENT
+        assert font_hex(ws[coord]) == COLOR_TEXT_WHITE
+        assert ws[coord].font.bold is True
+        assert ws[coord].alignment.horizontal == "center"
+        assert ws[coord].alignment.vertical == "center"
 
     assert fill_hex(ws["A5"]) == COLOR_DATE_BG
     assert font_hex(ws["A5"]) == COLOR_DATE_TEXT
@@ -391,5 +416,158 @@ def test_disclaimer_follows_raw_content_length(tmp_path: Path, engine: str, n_da
     assert disc.row == expected
     assert disc.row == disclaimer_row_after(last_raw)
     assert disc.row != 271
+    area = ws.print_area
+    assert area
+    text = area if isinstance(area, str) else ",".join(str(part) for part in area)
+    end = int(re.findall(r"\$?[A-Za-z]+\$?(\d+)", text)[-1])
+    assert end == disc.row
+    footer = ws.oddFooter.center.text or ""
+    assert PRINT_FOOTER in footer or ("&P" in footer and "&N" in footer)
+    heading = next(
+        cell
+        for row in ws.iter_rows()
+        for cell in row
+        if cell.value == PRINT_RAW_SECTION_TITLE
+    )
+    break_ids = [int(brk.id) for brk in ws.row_breaks.brk if brk.id is not None]
+    assert break_ids == [heading.row - 1]
+    wb.close()
+
+
+def test_a8_b8_match_c8_accent_on_code_row():
+    from openpyxl import Workbook
+
+    from lme_daily.report_builder import _write_print_bbg_openpyxl
+
+    wb = Workbook()
+    ws = wb.active
+    values, formats = _bbg_tenor_sample()
+    _write_print_bbg_openpyxl(ws, values, formats, start_row=8)
+    for coord in ("A8", "B8", "C8"):
+        assert fill_hex(ws[coord]) == COLOR_ACCENT
+        assert font_hex(ws[coord]) == COLOR_TEXT_WHITE
+        assert ws[coord].font.bold is True
+        assert ws[coord].alignment.horizontal == "center"
+    wb.close()
+
+
+def test_get_print_area_width_px_requires_print_area():
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    with pytest.raises(ValueError, match="print_area"):
+        get_print_area_width_px(ws)
+    wb.close()
+
+
+def test_excel_width_to_pixels_uses_default_when_none():
+    assert excel_width_to_pixels(None) == excel_width_to_pixels(EXCEL_DEFAULT_COLUMN_WIDTH)
+    assert excel_width_to_pixels(10) == int(round(10 * 7 + 5))
+
+
+def test_chart_slots_follow_print_area_when_d_width_changes():
+    from openpyxl import Workbook
+
+    previous_right = None
+    previous_slot = None
+    for d_width in (8.43, 20.0, 30.0):
+        wb = Workbook()
+        ws = wb.active
+        for letter in "ABCDEFGH":
+            ws.column_dimensions[letter].width = 8.43 if letter != "D" else d_width
+        ws.print_area = "A1:H60"
+        total_px, start_col = get_print_area_width_px(ws)
+        positions, slot_width, safe_width = chart_column_positions(ws, n_cols=2)
+        assert start_col == 0
+        assert positions[0] == 0
+        assert slot_width == pytest.approx(total_px / 2)
+        assert safe_width == int(slot_width - PRINT_CHART_COL_GAP_PX)
+        if previous_right is not None:
+            assert positions[1] >= previous_right
+            assert slot_width >= previous_slot
+        previous_right = positions[1]
+        previous_slot = slot_width
+        positions3, slot3, safe3 = chart_column_positions(ws, n_cols=3)
+        assert slot3 == pytest.approx(total_px / 3)
+        assert safe3 == int(slot3 - PRINT_CHART_COL_GAP_PX)
+        assert positions3[0] == 0
+        wb.close()
+    widths_narrow = [8.43, 8.43, 8.43, 8.43, 8.43, 8.43, 8.43, 8.43]
+    widths_wide = [8.43, 8.43, 8.43, 30.0, 8.43, 8.43, 8.43, 8.43]
+    pos_n, _, _ = chart_column_positions_from_widths(widths_narrow, 3)
+    pos_w, _, _ = chart_column_positions_from_widths(widths_wide, 3)
+    assert pos_w[1] >= pos_n[1]
+
+
+def test_scaled_chart_pixel_size_does_not_upscale():
+    assert scaled_chart_pixel_size(80, 40, 200) == (80, 40)
+    width, height = scaled_chart_pixel_size(400, 200, 100)
+    assert width == 100
+    assert height == 50
+
+
+def _tiny_png(path: Path, width: int = 80, height: int = 40) -> Path:
+    from PIL import Image
+
+    Image.new("RGB", (width, height), (30, 30, 30)).save(path)
+    return path
+
+
+def _image_anchor_row_col(img) -> tuple[int, int]:
+    from openpyxl.utils.cell import column_index_from_string, coordinate_from_string
+
+    anchor = img.anchor
+    if isinstance(anchor, str):
+        col_letter, row = coordinate_from_string(anchor)
+        return int(row), column_index_from_string(col_letter) - 1
+    origin = getattr(anchor, "_from", None)
+    if origin is None:
+        raise AssertionError(f"unsupported anchor {anchor!r}")
+    return int(origin.row) + 1, int(origin.col)
+
+
+@pytest.mark.parametrize("n_cols, expected_rows", [(2, 3), (3, 2)])
+def test_place_forward_curve_images_grid_stays_in_print_area(tmp_path: Path, n_cols: int, expected_rows: int):
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    for letter in "ABCDEFGH":
+        ws.column_dimensions[letter].width = 12
+    ws.print_area = "A1:H80"
+    images = [_tiny_png(tmp_path / f"c{i}.png", 80, 40) for i in range(6)]
+    start_row = 18
+    place_forward_curve_images(ws, images, start_row, n_cols=n_cols, row_gap=13)
+    chart_imgs = [img for img in ws._images]
+    assert len(chart_imgs) == 6
+    rows = []
+    cols = []
+    for img in chart_imgs:
+        row, col = _image_anchor_row_col(img)
+        rows.append(row)
+        cols.append(col)
+        assert 0 <= col <= 7
+        assert img.width == 80
+        assert img.height == 40
+    assert len(set(rows)) == expected_rows
+    assert len(set(cols)) == n_cols
+    assert min(rows) == start_row
+    wb.close()
+
+
+@pytest.mark.parametrize("chart_end, prompt_row", [(56, 58), (62, 64)])
+def test_prompt_section_page_break_between_charts_and_title(chart_end: int, prompt_row: int):
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    insert_prompt_section_page_break(ws, prompt_row)
+    ids = [int(brk.id) for brk in ws.row_breaks.brk if brk.id is not None]
+    assert ids == [prompt_section_page_break_row(prompt_row)]
+    assert chart_end <= ids[0] < prompt_row
+    insert_prompt_section_page_break(ws, prompt_row)
+    ids_again = [int(brk.id) for brk in ws.row_breaks.brk if brk.id is not None]
+    assert ids_again == ids
     wb.close()
 

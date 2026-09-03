@@ -33,6 +33,7 @@ from openpyxl.utils.units import (
     points_to_pixels,
 )
 from openpyxl.worksheet.page import PageMargins
+from openpyxl.worksheet.pagebreak import Break
 from openpyxl.worksheet.worksheet import Worksheet
 
 from lme_daily.bbg_fetch import normalize_bbg_cell, value_from_stored_number
@@ -70,7 +71,7 @@ COLOR_WHITE = "FFFFFF"
 # 合併版面樣式（量測自 Fu-Ben-LMEMei-Ri-Bao-Jia-20260827-2.xlsx，勿另行發明數值）
 COLOR_ACCENT = "B6895F"  # 主色：標題列/區塊標題列/表頭列底色
 COLOR_TEXT_CREAM = "FFF5E8"  # 深色底上的標題文字色
-COLOR_TEXT_WHITE = "FFFFFF"  # 表頭代碼列（C8:H8）文字色
+COLOR_TEXT_WHITE = "FFFFFF"  # 表頭代碼列（A8:H8）文字色
 COLOR_DATE_BG = "F2F4F7"  # 日期資訊列底色
 COLOR_DATE_TEXT = "2B2B2B"  # 日期資訊列文字色
 COLOR_DISCLAIMER_TEXT = "1F2937"  # 免責聲明文字色
@@ -84,6 +85,8 @@ PRINT_LOGO_MERGE_RANGE = "A2:H2"
 PRINT_CHART_ROW_STRIDE = 13
 PRINT_CHART_WIDTH_EMU = 3683635
 PRINT_CHART_HEIGHT_EMU = 2402205
+PRINT_CHART_N_COLS = 2  # 合併版面走勢圖欄數；改 3 即變 3 欄 × 2 列
+PRINT_CHART_COL_GAP_PX = 20
 EMU_PER_PIXEL = 9525
 PRINT_LOGO_ROW_HEIGHT = 34
 PRINT_LOGO_ANCHOR = "A2"
@@ -200,10 +203,11 @@ class MergedLayoutStyle:
 
     @classmethod
     def chart_anchors(cls, start_row: int) -> list[str]:
+        """獨立走勢圖 sheet 仍用 A / J；合併版面改走 ``place_forward_curve_images``。"""
         anchors: list[str] = []
         for pair in range(3):
             row = start_row + pair * cls.chart_row_stride
-            anchors.extend((f"A{row}", f"D{row}"))
+            anchors.extend((f"A{row}", f"J{row}"))
         return anchors
 
     @classmethod
@@ -486,6 +490,13 @@ def column_width_to_pixels(width_chars: float) -> int:
     return int(float(width_chars) * EXCEL_MAX_DIGIT_WIDTH_PX + EXCEL_COLUMN_PADDING_PX)
 
 
+def excel_width_to_pixels(width: float | None) -> int:
+    """列印範圍圖表用：欄寬→像素。``None`` 視為 Excel 預設 8.43。"""
+    if width is None:
+        width = EXCEL_DEFAULT_COLUMN_WIDTH
+    return int(round(float(width) * EXCEL_MAX_DIGIT_WIDTH_PX + EXCEL_COLUMN_PADDING_PX))
+
+
 def column_width_to_emu(width_chars: float) -> int:
     return pixels_to_EMU(column_width_to_pixels(width_chars))
 
@@ -503,6 +514,117 @@ def worksheet_column_width_chars(ws: Worksheet, col_idx: int) -> float:
     if default:
         return float(default)
     return EXCEL_DEFAULT_COLUMN_WIDTH
+
+
+def print_chart_row_count(n_images: int, n_cols: int = PRINT_CHART_N_COLS) -> int:
+    cols = max(1, int(n_cols))
+    return (max(0, int(n_images)) + cols - 1) // cols
+
+
+def _print_area_first_range(print_area: Any) -> str:
+    if not print_area:
+        raise ValueError("尚未設定 print_area，無法計算列印範圍寬度")
+    if isinstance(print_area, (list, tuple)):
+        if not print_area:
+            raise ValueError("尚未設定 print_area，無法計算列印範圍寬度")
+        text = str(print_area[0])
+    else:
+        text = str(print_area).strip()
+    if not text or text.lower() in {"none", "null"}:
+        raise ValueError("尚未設定 print_area，無法計算列印範圍寬度")
+    first = text.split(",")[0].strip()
+    if "!" in first:
+        first = first.split("!")[-1]
+    first = first.replace("'", "").strip()
+    if not first:
+        raise ValueError("尚未設定 print_area，無法計算列印範圍寬度")
+    return first
+
+
+def get_print_area_width_px(ws: Worksheet) -> tuple[int, int]:
+    """列印範圍真實總寬（像素）與起始欄 0-based 索引。未設 print_area 時丟出 ValueError。"""
+    first_range = _print_area_first_range(getattr(ws, "print_area", None))
+    min_col, _min_row, max_col, _max_row = range_boundaries(first_range)
+    total_px = 0
+    for col_idx in range(min_col, max_col + 1):
+        total_px += excel_width_to_pixels(worksheet_column_width_chars(ws, col_idx))
+    return total_px, min_col - 1
+
+
+def chart_column_positions_from_widths(
+    col_widths_chars: list[float],
+    n_cols: int,
+    *,
+    print_start_col: int = 0,
+    col_gap_px: int = PRINT_CHART_COL_GAP_PX,
+) -> tuple[list[int], float, int]:
+    """用列印範圍各欄寬度等分出錨定欄。回傳 (0-based 欄位, slot 寬度 px, 圖表安全寬度 px)。"""
+    cols = max(1, int(n_cols))
+    total_px = sum(excel_width_to_pixels(width) for width in col_widths_chars)
+    slot_width_px = total_px / cols if cols else float(total_px)
+    safe_image_width_px = max(1, int(slot_width_px - col_gap_px))
+    positions = [print_start_col]
+    accumulated_px = 0
+    col_idx = print_start_col
+    for slot in range(1, cols):
+        target_px = slot_width_px * slot
+        while accumulated_px < target_px:
+            local = col_idx - print_start_col
+            if local >= len(col_widths_chars):
+                break
+            accumulated_px += excel_width_to_pixels(col_widths_chars[local])
+            col_idx += 1
+        positions.append(col_idx)
+    return positions, slot_width_px, safe_image_width_px
+
+
+def chart_column_positions(
+    ws: Worksheet,
+    n_cols: int = PRINT_CHART_N_COLS,
+    *,
+    col_gap_px: int = PRINT_CHART_COL_GAP_PX,
+) -> tuple[list[int], float, int]:
+    total_px, print_start_col = get_print_area_width_px(ws)
+    first_range = _print_area_first_range(ws.print_area)
+    min_col, _min_row, max_col, _max_row = range_boundaries(first_range)
+    widths = [
+        worksheet_column_width_chars(ws, col) for col in range(min_col, max_col + 1)
+    ]
+    positions, slot_width_px, safe_width = chart_column_positions_from_widths(
+        widths, n_cols, print_start_col=print_start_col, col_gap_px=col_gap_px
+    )
+    if abs(slot_width_px * max(1, n_cols) - total_px) > 1e-6 and n_cols:
+        slot_width_px = total_px / n_cols
+        safe_width = max(1, int(slot_width_px - col_gap_px))
+    return positions, slot_width_px, safe_width
+
+
+def scaled_chart_pixel_size(
+    native_width: int, native_height: int, safe_width_px: int
+) -> tuple[int, int]:
+    """僅在超過安全寬度時縮小，不強制放大。"""
+    width = max(1, int(native_width or 1))
+    height = max(1, int(native_height or 1))
+    limit = max(1, int(safe_width_px))
+    if width <= limit:
+        return width, height
+    scale = limit / width
+    return limit, max(1, int(height * scale))
+
+
+def prompt_section_page_break_row(prompt_section_row: int) -> int:
+    """「Prompt date settlement price」標題的前一列（1-based）。"""
+    return int(prompt_section_row) - 1
+
+
+def insert_prompt_section_page_break(ws: Worksheet, prompt_section_row: int) -> int:
+    """只保留這一個列分頁：走勢圖結束後、原始數據標題前。"""
+    row_id = prompt_section_page_break_row(prompt_section_row)
+    if row_id < 1:
+        return row_id
+    ws.row_breaks.brk = ()
+    ws.row_breaks.append(Break(id=row_id))
+    return row_id
 
 
 def worksheet_row_height_points(ws: Worksheet, row_idx: int) -> float:
@@ -687,8 +809,9 @@ def _apply_print_layout_openpyxl(
     tab_color: str | None = None,
     paper_size: int = PAPERSIZE_A4,
     header_color: str = COLOR_NAVY,
+    orientation: str = "landscape",
 ) -> None:
-    ws.page_setup.orientation = "landscape"
+    ws.page_setup.orientation = orientation
     ws.page_setup.paperSize = paper_size
     ws.page_setup.fitToPage = True
     ws.page_setup.fitToWidth = 1
@@ -706,6 +829,7 @@ def _apply_print_layout_openpyxl(
 
 
 def _set_print_area(ws: Worksheet, last_row: int, last_col: int = PRINT_LAST_COL) -> None:
+    """列印範圍結束列用動態最後內容列（含免責聲明），不要寫死列號。"""
     if last_row < 1:
         return
     ws.print_area = f"A1:{get_column_letter(last_col)}{last_row}"
@@ -850,7 +974,7 @@ def _write_report_banner_openpyxl(
     ws.merge_cells(f"A1:{end}1")
     ws["A1"] = f"{COMPANY_ZH}  /  {COMPANY_EN}"
     ws["A1"].font = style.font(size=style.size_company, bold=True)
-    ws["A1"].alignment = Alignment(horizontal="left", vertical="center")
+    ws["A1"].alignment = center
 
     ws.merge_cells(f"A2:{end}2")
     ws["A2"].font = style.font(size=style.size_body)
@@ -929,14 +1053,94 @@ def _place_chart_images(
     return start_row + 3 * CHART_ROW_STRIDE
 
 
+def place_forward_curve_images(
+    ws: Worksheet,
+    images: list[Path],
+    start_row: int,
+    n_cols: int = PRINT_CHART_N_COLS,
+    row_gap: int = PRINT_CHART_ROW_STRIDE,
+    col_gap_px: int = PRINT_CHART_COL_GAP_PX,
+) -> int:
+    """依列印範圍真實寬度等分欄位，縮放並插入走勢圖。需要已設定 ``print_area``。"""
+    n_cols = max(1, int(n_cols))
+    if not images:
+        return start_row
+    positions, _slot_width_px, safe_width = chart_column_positions(
+        ws, n_cols, col_gap_px=col_gap_px
+    )
+    first_range = _print_area_first_range(ws.print_area)
+    _min_col, _min_row, max_col, _max_row = range_boundaries(first_range)
+    max_col_0 = max_col - 1
+    positions = [min(pos, max_col_0) for pos in positions]
+    letters = [get_column_letter(col + 1) for col in positions]
+    n_rows = print_chart_row_count(len(images), n_cols)
+    for idx, img_path in enumerate(images):
+        row_idx = idx // n_cols
+        col_idx_in_row = idx % n_cols
+        probe = XLImage(str(img_path))
+        width, height = scaled_chart_pixel_size(
+            int(probe.width or 1), int(probe.height or 1), safe_width
+        )
+        _add_anchored_image(
+            ws,
+            img_path,
+            anchor=f"{letters[col_idx_in_row]}{start_row + row_idx * row_gap}",
+            width=width,
+            height=height,
+        )
+    return start_row + n_rows * row_gap
+
+
+def _place_forward_curve_images_xlsxwriter(
+    ws: Any,
+    images: list[Path],
+    start_row: int,
+    col_widths_chars: list[float],
+    n_cols: int = PRINT_CHART_N_COLS,
+    row_gap: int = PRINT_CHART_ROW_STRIDE,
+    col_gap_px: int = PRINT_CHART_COL_GAP_PX,
+    *,
+    print_start_col: int = 0,
+) -> int:
+    """xlsxwriter 版 ``place_forward_curve_images``。``start_row`` 為 1-based。"""
+    n_cols = max(1, int(n_cols))
+    if not images:
+        return start_row
+    positions, _slot, safe_width = chart_column_positions_from_widths(
+        col_widths_chars,
+        n_cols,
+        print_start_col=print_start_col,
+        col_gap_px=col_gap_px,
+    )
+    max_col_0 = print_start_col + max(0, len(col_widths_chars) - 1)
+    positions = [min(pos, max_col_0) for pos in positions]
+    letters = [get_column_letter(col + 1) for col in positions]
+    n_rows = print_chart_row_count(len(images), n_cols)
+    for idx, img_path in enumerate(images):
+        probe = XLImage(str(img_path))
+        native_w = max(1, int(probe.width or 1))
+        native_h = max(1, int(probe.height or 1))
+        width, height = scaled_chart_pixel_size(native_w, native_h, safe_width)
+        row_idx = idx // n_cols
+        col_idx_in_row = idx % n_cols
+        ws.insert_image(
+            f"{letters[col_idx_in_row]}{start_row + row_idx * row_gap}",
+            str(img_path),
+            {"x_scale": width / native_w, "y_scale": height / native_h},
+        )
+    return start_row + n_rows * row_gap
+
+
 def _place_print_chart_images(ws: Worksheet, images: list[Path], *, start_row: int) -> int:
-    """合併版面走勢圖：2 欄（A / D）× 3 列，定案尺寸約 4吋 × 2.6吋。"""
-    style = MergedLayoutStyle
-    width = style.chart_width_px()
-    height = style.chart_height_px()
-    for img_path, anchor in zip(images, style.chart_anchors(start_row), strict=True):
-        _add_anchored_image(ws, img_path, anchor=anchor, width=width, height=height)
-    return start_row + 3 * style.chart_row_stride
+    """合併版面走勢圖：委派 ``place_forward_curve_images``。"""
+    return place_forward_curve_images(
+        ws,
+        images,
+        start_row,
+        n_cols=PRINT_CHART_N_COLS,
+        row_gap=PRINT_CHART_ROW_STRIDE,
+        col_gap_px=PRINT_CHART_COL_GAP_PX,
+    )
 
 
 def _print_bbg_row_kind(values: tuple[tuple[Any, ...], ...], r_idx: int) -> str:
@@ -952,14 +1156,11 @@ def _print_bbg_row_kind(values: tuple[tuple[Any, ...], ...], r_idx: int) -> str:
 
 def _style_print_bbg_cell(cell: Any, *, kind: str, excel_col: int) -> None:
     style = MergedLayoutStyle
-    if kind == "code" and excel_col >= 3:
+    if kind == "code":
         cell.fill = style.fill(style.accent)
         cell.font = style.font(size=style.size_code_header, bold=True, color=style.text_white)
         cell.alignment = style.center()
         cell.border = style.thin_border()
-        return
-    if kind == "code":
-        cell.font = style.font(size=style.size_body)
         return
     if kind == "sub":
         cell.font = style.font(size=style.size_body)
@@ -1053,7 +1254,8 @@ def _write_print_sheet_openpyxl(
     chart_heading = last + 2
     _section_heading_openpyxl(ws, chart_heading, SHEET_CHART, "Forward Curve")
     last_content_row = max(last_content_row, chart_heading)
-    after_images = _place_print_chart_images(ws, chart_images, start_row=chart_heading + 2)
+    chart_start = chart_heading + 2
+    after_images = chart_start + print_chart_row_count(len(chart_images), PRINT_CHART_N_COLS) * style.chart_row_stride
     last_content_row = max(last_content_row, after_images - 1)
 
     raw_heading = after_images + 1
@@ -1070,11 +1272,21 @@ def _write_print_sheet_openpyxl(
         tab_color=style.accent,
         paper_size=PAPERSIZE_A3,
         header_color=style.date_text,
+        orientation="portrait",
     )
     _set_print_area(ws, disc_row, last_col=style.last_col)
     ws.oddHeader.left.text = header_footer_run(style.date_text, COMPANY_ZH)
     ws.oddHeader.right.text = header_footer_run(style.date_text, as_of.strftime("%Y-%m-%d"))
     apply_print_data_styles(ws)
+    place_forward_curve_images(
+        ws,
+        chart_images,
+        chart_start,
+        n_cols=PRINT_CHART_N_COLS,
+        row_gap=style.chart_row_stride,
+        col_gap_px=PRINT_CHART_COL_GAP_PX,
+    )
+    insert_prompt_section_page_break(ws, raw_heading)
     _place_print_logo(ws, config.branding.logo_path, merge_range=PRINT_LOGO_MERGE_RANGE)
 
 
@@ -1260,9 +1472,17 @@ def _build_with_xlsxwriter(
 
 
 def _apply_print_layout_xlsxwriter(
-    ws: Any, *, header: str, paper: int = 9, header_color: str = COLOR_NAVY
+    ws: Any,
+    *,
+    header: str,
+    paper: int = 9,
+    header_color: str = COLOR_NAVY,
+    orientation: str = "landscape",
 ) -> None:
-    ws.set_landscape()
+    if orientation == "portrait":
+        ws.set_portrait()
+    else:
+        ws.set_landscape()
     ws.set_paper(paper)
     ws.fit_to_pages(1, 0)
     ws.set_header(f"&C{header_footer_run(header_color, header)}")
@@ -1537,7 +1757,6 @@ def _write_print_bbg_xlsxwriter(
         valign="vcenter",
         border=1,
     )
-    code_plain = style.xw_format(workbook, font_size=style.size_body)
     sub_fmt = style.xw_format(workbook, **body, bottom=1)
     data_fmt = style.xw_format(workbook, **body, border=1)
     date_fmt = style.xw_format(workbook, **body, border=1, num_format="yyyy-mm-dd")
@@ -1553,7 +1772,7 @@ def _write_print_bbg_xlsxwriter(
             fmt = fmt_row[c_idx] if c_idx < len(fmt_row) else None
             value, num_fmt = _prepare_written_value(raw, fmt, is_header=(r_idx == 0))
             if kind == "code":
-                cell_fmt = code_fmt if c_idx + 1 >= 3 else code_plain
+                cell_fmt = code_fmt
             elif kind == "sub":
                 cell_fmt = sub_fmt
             elif num_fmt == "YYYY-MM-DD":
@@ -1600,7 +1819,7 @@ def _write_print_sheet_xlsxwriter(
     ws = workbook.add_worksheet(SHEET_PRINT)
     last_col = style.last_col - 1
     company = style.xw_format(
-        workbook, bold=True, font_size=style.size_company, align="left", valign="vcenter"
+        workbook, bold=True, font_size=style.size_company, align="center", valign="vcenter"
     )
     title = style.xw_format(
         workbook,
@@ -1670,14 +1889,7 @@ def _write_print_sheet_xlsxwriter(
     ws.set_row(chart_heading, style.row_section_height)
     last_content_row = max(last_content_row, chart_heading)
     img_start = chart_heading + 2
-    native_w = 6.4 * 120
-    native_h = 3.6 * 120
-    x_scale = style.chart_width_px() / native_w
-    y_scale = style.chart_height_px() / native_h
-    anchors = style.chart_anchors(img_start + 1)
-    for img_path, anchor in zip(chart_images, anchors, strict=True):
-        ws.insert_image(anchor, str(img_path), {"x_scale": x_scale, "y_scale": y_scale})
-    after_images = img_start + 3 * style.chart_row_stride
+    after_images = img_start + print_chart_row_count(len(chart_images), PRINT_CHART_N_COLS) * style.chart_row_stride
     last_content_row = max(last_content_row, after_images - 1)
 
     raw_heading = after_images + 1
@@ -1709,7 +1921,11 @@ def _write_print_sheet_xlsxwriter(
     ws.merge_range(disc_row, 0, disc_row, last_col, PRINT_DISCLAIMER_FULL, disc_fmt)
     ws.set_row(disc_row, style.disclaimer_row_height)
     _apply_print_layout_xlsxwriter(
-        ws, header=header, paper=PAPERSIZE_A3, header_color=style.date_text
+        ws,
+        header=header,
+        paper=PAPERSIZE_A3,
+        header_color=style.date_text,
+        orientation="portrait",
     )
     ws.set_header(
         f"&L{header_footer_run(style.date_text, COMPANY_ZH)}"
@@ -1720,6 +1936,16 @@ def _write_print_sheet_xlsxwriter(
     ws.set_tab_color(_css(style.accent))
     ws.print_area(0, 0, disc_row, last_col)
     col_widths = _apply_merged_layout_autofit_xlsxwriter(ws, print_widths)
+    _place_forward_curve_images_xlsxwriter(
+        ws,
+        chart_images,
+        start_row=img_start + 1,
+        col_widths_chars=col_widths,
+        n_cols=PRINT_CHART_N_COLS,
+        row_gap=style.chart_row_stride,
+        col_gap_px=PRINT_CHART_COL_GAP_PX,
+    )
+    ws.set_h_pagebreaks([prompt_section_page_break_row(raw_heading + 1)])
     _place_print_logo_xlsxwriter(ws, config.branding.logo_path, col_widths_chars=col_widths)
 
 
@@ -1729,7 +1955,7 @@ def merged_layout_disclaimer_row(*, bbg_rows: int, raw_rows: int) -> int:
     bbg_end = bbg_heading + bbg_rows
     chart_heading = bbg_end + 2
     img_start = chart_heading + 2
-    after_images = img_start + 3 * PRINT_CHART_ROW_STRIDE
+    after_images = img_start + print_chart_row_count(6, PRINT_CHART_N_COLS) * PRINT_CHART_ROW_STRIDE
     raw_heading = after_images + 1
     last_raw = raw_heading + raw_rows
     last_content_row = max(after_images - 1, raw_heading, last_raw)

@@ -165,7 +165,7 @@ def test_build_report_three_sheets(tmp_path: Path, engine: str):
     assert "LME Daily Quotation" in str(print_ws["A4"].value)
     assert "第 &P 頁，共 &N 頁" in (print_ws.oddFooter.center.text or "")
     assert "免責聲明" not in (print_ws.oddFooter.left.text or "")
-    assert print_ws.page_setup.orientation == "landscape"
+    assert print_ws.page_setup.orientation == "portrait"
     if engine == "matplotlib":
         assert print_ws.page_setup.fitToWidth == 1
         assert len(wb[SHEET_CHART]._images) == 6
@@ -367,7 +367,7 @@ def test_print_sheet_header_font_size_and_layout(tmp_path: Path, engine: str):
     assert ws.oddHeader.right.text == "2026-08-20"
     assert ws.oddHeader.right.size == 8
     assert ws.print_area
-    assert ws.page_setup.orientation == "landscape"
+    assert ws.page_setup.orientation == "portrait"
     if engine == "matplotlib":
         assert ws.page_setup.fitToWidth == 1
         assert ws.sheet_properties.pageSetUpPr.fitToPage
