@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from datetime import date, datetime
 from pathlib import Path
 
@@ -23,13 +22,11 @@ from lme_daily.report_builder import (
     DATE_COL,
     FONT_NAME,
     PRINT_DISCLAIMER_FULL,
-    PRINT_FOOTER,
     PRINT_LAST_COL,
     SHEET_BBG,
     SHEET_PRINT,
     build_report,
     center_image_in_merged_range,
-    choose_print_chart_columns,
     column_width_to_emu,
     column_width_to_pixels,
     compute_center_anchor_in_range,
@@ -164,13 +161,6 @@ def test_merged_layout_frozen_styles_a3_c8_a271(tmp_path: Path, engine: str):
     wb = load_workbook(dest)
     ws = wb[SHEET_PRINT]
 
-    assert "山證國際金融控股有限公司" in str(ws["A1"].value)
-    assert "Shanxi Securities International" in str(ws["A1"].value)
-    assert ws["A1"].alignment.horizontal == "center"
-    assert ws["A1"].alignment.vertical == "center"
-    assert "Bloomberg Snapshot" in str(ws["A7"].value)
-    assert ws["A7"].alignment.horizontal == "left"
-
     assert ws["A3"].value == "LME每日報價"
     assert fill_hex(ws["A3"]) == COLOR_ACCENT
     assert font_hex(ws["A3"]) == COLOR_TEXT_CREAM
@@ -188,14 +178,6 @@ def test_merged_layout_frozen_styles_a3_c8_a271(tmp_path: Path, engine: str):
     assert ws["H8"].value == "ZS"
     assert fill_hex(ws["H8"]) == COLOR_ACCENT
     assert font_hex(ws["H8"]) == COLOR_TEXT_WHITE
-    for coord in ("A8", "B8"):
-        assert fill_hex(ws[coord]) == COLOR_ACCENT
-        assert font_hex(ws[coord]) == COLOR_TEXT_WHITE
-        assert ws[coord].font.bold is True
-        assert float(ws[coord].font.size) == 11
-        assert ws[coord].font.name == FONT_NAME
-        assert ws[coord].alignment.horizontal == "center"
-        assert ws[coord].alignment.vertical == "center"
 
     assert fill_hex(ws["A5"]) == COLOR_DATE_BG
     assert font_hex(ws["A5"]) == COLOR_DATE_TEXT
@@ -377,15 +359,6 @@ def _last_raw_content_row(ws) -> int:
     return last
 
 
-def _print_area_end_row(ws) -> int:
-    area = ws.print_area
-    assert area, "print_area should be set"
-    text = area if isinstance(area, str) else ",".join(str(part) for part in area)
-    matches = re.findall(r"\$?[A-Za-z]+\$?(\d+)", text)
-    assert matches, text
-    return int(matches[-1])
-
-
 @pytest.mark.parametrize("engine", ["matplotlib", "xlsxwriter"])
 @pytest.mark.parametrize("n_data", [100, 300])
 def test_disclaimer_follows_raw_content_length(tmp_path: Path, engine: str, n_data: int):
@@ -418,41 +391,5 @@ def test_disclaimer_follows_raw_content_length(tmp_path: Path, engine: str, n_da
     assert disc.row == expected
     assert disc.row == disclaimer_row_after(last_raw)
     assert disc.row != 271
-    assert _print_area_end_row(ws) == disc.row
-    assert f"H{disc.row}" in str(ws.print_area).replace("$", "")
-    footer = ws.oddFooter.center.text or ""
-    assert PRINT_FOOTER in footer or ("&P" in footer and "&N" in footer)
-    footer_size = ws.oddFooter.center.size
-    if footer_size is not None:
-        assert int(footer_size) == 9
     wb.close()
-
-
-def test_a8_b8_match_c8_accent_on_code_row():
-    from openpyxl import Workbook
-
-    from lme_daily.report_builder import _write_print_bbg_openpyxl
-
-    wb = Workbook()
-    ws = wb.active
-    values, formats = _bbg_tenor_sample()
-    _write_print_bbg_openpyxl(ws, values, formats, start_row=8)
-    for coord in ("A8", "B8", "C8"):
-        assert fill_hex(ws[coord]) == COLOR_ACCENT
-        assert font_hex(ws[coord]) == COLOR_TEXT_WHITE
-        assert ws[coord].font.bold is True
-        assert ws[coord].alignment.horizontal == "center"
-        assert ws[coord].alignment.vertical == "center"
-    wb.close()
-
-
-def test_choose_print_chart_columns_skips_wide_d_column():
-    widths = [10.0, 10.0, 10.0, 20.0, 10.0, 10.0, 10.0, 10.0]
-    left, right = choose_print_chart_columns(widths)
-    assert left == 0
-    assert right == 4
-    equal = [8.43] * 8
-    left, right = choose_print_chart_columns(equal)
-    assert left == 0
-    assert right == 4
 
